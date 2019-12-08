@@ -51,7 +51,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("Loading dataset...")
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-dataset = CrocodileDataset(root=ROOT, transform=transform, resolution=RESOLUTION)
+dataset = CrocodileDataset(root=ROOT, transform=transform, resolution=RESOLUTION, one_hot=True)
 dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
 
 print("Init...")
@@ -82,7 +82,7 @@ print("Training...")
 init_epoch = 0
 for epoch in range(NUM_EPOCHS):
     t = time.time()
-    for x in dataloader:
+    for x, _ in dataloader:
         x = x.to(device)
         z = torch.zeros(len(x), NUM_Z).normal_().to(device)
 
