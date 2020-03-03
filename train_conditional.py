@@ -71,6 +71,8 @@ def run(args):
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     dataset = CrocodileDataset(root=ROOT, transform=transform, resolution=RESOLUTION, one_hot=True)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+    print(dataloader.features.shape)
+    exit()
 
     print("Init...")
 

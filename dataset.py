@@ -10,6 +10,10 @@ import argparse
 import csv
 
 ROOT = "/network/tmp1/berardhu/crocodile/data"
+SAMPLING_RATE = 1000,
+FPS = 30000/1001
+START_IMG = 38
+START_DATA = 300000
 
 def extract_video(path_to_video, path_to_dataset):
     if not os.path.exists(os.path.join(path_to_dataset, "raw")):
@@ -30,7 +34,8 @@ def resize_images(path_to_dataset, resolution):
 
 
 class CrocodileDataset(Dataset):
-    def __init__(self, root=ROOT, transform=None, resolution=64, one_hot=True):
+    def __init__(self, root=ROOT, transform=None, preprocessing=None, resolution=64, one_hot=True, biodata=None,
+                 sampling_rate=SAMPLING_RATE, fps=FPS, start_img=START_IMG, start_data=START_DATA):
         super(CrocodileDataset, self).__init__()
 
         self.transform = transform
@@ -64,7 +69,22 @@ class CrocodileDataset(Dataset):
             print("Processing image files ...")
             resize_images(self.root, resolution)
 
+        self.biodata = False
+        if biodata is not None:
+            self.biodata = True
+            signal = np.loadtxt(os.path.join(filename, delimiter=',')
+            if preprocessing is not None:
+                self.features = preprocessing(signal)
+            else:
+                self.features = signals[:, 0:]
+                index = (start_data + (np.arange(len(self.num_frames)) - start_img)*sampling_rate/fps).astype(int)
+                self.features = self.features[index]
+            self.num_features = self.features.shape[1]
+        
+        assert self.num_frames == len(self.features)
+        assert self.num_frames == len(self.raw_labels)
 
+            
 
     def __getitem__(self, index):   
         label = None
@@ -86,10 +106,17 @@ class CrocodileDataset(Dataset):
         else:
             target = torch.tensor([label]).float()
 
-        return img, target
+        if self.biodata:
+            feature = self.features[index]
+            return img, target, feature
+        else:
+            return img, target
 
     def __len__(self):
         return self.num_frames
+
+    def extract_features(self, filename):
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
