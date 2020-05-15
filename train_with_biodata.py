@@ -15,7 +15,7 @@ from tensorboardX import SummaryWriter
 import numpy as np
 import logger
 
-PATH_TO_BIODATA_DEFAULT = "/checkpoint/hberard/crocodile/LaurenceHBS-Nov919mins1000Hz-Heart+GSR-2channels.csv"
+BIODATA_DEFAULT = "LaurenceHBS-Nov919mins1000Hz-Heart+GSR-2channels.csv"
 SAMPLING_RATE_DEFAULT = 1000
 FPS = 30000/1001
 DEFAULT_CONFIG = dict(distance_heart=400, width_heart=100, prominence_heart=0.01,
@@ -42,7 +42,7 @@ class Config():
         parser.add_argument('--spectral-norm-gen', action="store_true")
         parser.add_argument('-nl', '--num-layers', default=4, type=int)
         parser.add_argument('--path-to-dataset', default="/checkpoint/hberard/crocodile", type=str)
-        parser.add_argument('--path-to-biodata', default=PATH_TO_BIODATA_DEFAULT, type=str)
+        parser.add_argument('--path-to-biodata', default=None, type=str)
         parser.add_argument('--normalization', default="normalized", choices=("standardized", "normalized"))
         parser.add_argument('--length-sequence', default=150, type=int)
         parser.add_argument('--num-sequences', default=10, type=int)
@@ -51,7 +51,12 @@ class Config():
         self.parser = parser
 
     def parse_args(self):       
-        return self.parser.parse_args()
+        args = self.parser.parse_args()
+
+        if args.path_to_biodata is None:
+            args.path_to_biodata = os.path.join(args.path_to_dataset, BIODATA_DEFAULT)
+
+        return args
 
 
 class Preprocessing:
@@ -258,8 +263,7 @@ def run(args):
             list_samples = torch.stack(list_samples, 0)
             writer.add_video(list_samples, init_epoch+epoch, fps=FPS, nrow=25)
 
-
-
+            """
             list_samples = []
             for i in range(0, args.num_sequences*args.num_variations*args.length_sequence, BATCH_SIZE):
                 z = z_examples[i:i+BATCH_SIZE]
@@ -272,6 +276,7 @@ def run(args):
             list_samples = torch.cat(list_samples, 0).view(args.num_sequences, args.num_variations, args.length_sequence, 3, RESOLUTION, RESOLUTION)
             list_samples = torch.cat([x_examples.unsqueeze(1), list_samples], 1).view(-1, args.length_sequence, 3, RESOLUTION, RESOLUTION)
             writer.add_video(list_samples, init_epoch+epoch, fps=FPS, nrow=args.num_sequences)
+            """
 
         torch.save({'epoch': init_epoch+epoch, 'gen_state_dict': gen.state_dict()},
                    os.path.join(OUTPUT_PATH, "gen/gen_%i.chk" % (init_epoch+epoch)))
