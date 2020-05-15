@@ -1,6 +1,5 @@
 # Crocodile
 
-
 ## Dataset
 
 You first need to extract the frame from the videos by running:
@@ -12,7 +11,7 @@ You first need to extract the frame from the videos by running:
 
 ## To run the code:
 
-`python train.py -r RESOLUTION --output-path OUTPUT_PATH --path_to_dataset DATASET_PATH`
+`python train.py -r RESOLUTION --output-path OUTPUT_PATH --path-to-dataset DATASET_PATH`
 
 - OUTPUT_PATH: This is the path where you want to save the results. It will create
 a sub-folder `img` where the samples are saved for each epochs.

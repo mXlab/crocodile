@@ -30,7 +30,7 @@ class Config():
         parser.add_argument('-lrg','--learning-rate-gen', default=2e-3, type=float)
         parser.add_argument('--ema', default=0, type=float)
         parser.add_argument('-bs', '--batch-size', default=64, type=int)
-        parser.add_argument('-z', '--num-latent', default=10, type=int)
+        parser.add_argument('-z', '--num-latent', default=5, type=int)
         parser.add_argument('--seed', default=1234, type=int)
         parser.add_argument('-gp', '--gradient-penalty', default=0, type=int)
         parser.add_argument('--spectral-norm-gen', action="store_true")
@@ -71,8 +71,6 @@ def run(args):
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     dataset = CrocodileDataset(root=ROOT, transform=transform, resolution=RESOLUTION, one_hot=True)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
-    print(dataloader.features.shape)
-    exit()
 
     print("Init...")
 
