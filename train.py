@@ -71,9 +71,9 @@ if not os.path.exists(os.path.join(OUTPUT_PATH, "img")):
     os.makedirs(os.path.join(OUTPUT_PATH, "img"))
 
 dataiter = iter(dataloader)
-x_examples = dataiter.next()[:100]
+x_examples, _ = dataiter.next()
 x_examples = x_examples/2 + 0.5
-torchvision.utils.save_image(x_examples, os.path.join(OUTPUT_PATH, "examples.png"), nrow=10)
+torchvision.utils.save_image(x_examples[:100], os.path.join(OUTPUT_PATH, "examples.png"), nrow=10)
 
 with open(os.path.join(OUTPUT_PATH, 'config.json'), 'w') as f:
     json.dump(vars(args), f)
