@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 import subprocess
 import argparse
-import csv
+from torch.utils.data import Sampler
 
 ROOT = "/network/tmp1/berardhu/crocodile/data"
 SAMPLING_RATE = 1000,
@@ -15,30 +15,61 @@ FPS = 30000/1001
 START_IMG = 38
 START_DATA = 300000
 
+
 def extract_video(path_to_video, path_to_dataset):
     if not os.path.exists(os.path.join(path_to_dataset, "raw")):
         os.makedirs(os.path.join(path_to_dataset, "raw"))
     command = "ffmpeg -i {} -f image2 {}".format(path_to_video, os.path.join(path_to_dataset, "raw/frame_%07d.png"))
     subprocess.run(command.split())
 
+
 def resize_images(path_to_dataset, resolution):
     if not os.path.exists(os.path.join(path_to_dataset, str(resolution))):
         os.makedirs(os.path.join(path_to_dataset, str(resolution)))
     list_images = glob.glob(os.path.join(path_to_dataset, "raw/frame_*.png"))
-    for i, file in tqdm(enumerate(list_images)):
+    for i, file in enumerate(tqdm(list_images)):
         img = Image.open(file)
         img = img.crop(box=(720, 218, 720+472, 218+472))
         img = img.resize((resolution, resolution), 3)
         img.save(os.path.join(path_to_dataset, str(resolution), "%.7i.png"%i))
 
 
+class SequenceSampler(Sampler):
+    def __init__(self, data_source, length, shuffle=True, seed=1234):
+        self.data_source = data_source
+        self.num_samples = len(self.data_source)
+        self.length = length
+
+        self.num_sequences = self.num_samples // self.length
+
+        generator = torch.random.manual_seed(seed)
+
+        self.indices = None
+        if not shuffle:
+            self.indices = torch.randperm(self.num_sequences, generator=generator).tolist()  
+
+    def __iter__(self):
+        list_sequences = torch.arange(self.num_samples).split(self.length)
+        indices = self.indices
+        if indices is None:
+            indices = torch.randperm(len(list_sequences)).tolist()
+        
+        for i in indices:
+            sequence = list_sequences[i]
+            if len(sequence) == self.length:
+                yield sequence.tolist()
+            
+    def __len__(self):
+        return self.num_sequences
+
 
 class CrocodileDataset(Dataset):
-    def __init__(self, root=ROOT, transform=None, preprocessing=None, resolution=64, one_hot=True, biodata=None,
+    def __init__(self, root=ROOT, transform=None, feature_transform=None, preprocessing=None, resolution=64, one_hot=True, biodata=None,
                  sampling_rate=SAMPLING_RATE, fps=FPS, start_img=START_IMG, start_data=START_DATA):
         super(CrocodileDataset, self).__init__()
 
         self.transform = transform
+        self.feature_transform = feature_transform
         self.one_hot = one_hot
         self.resolution = resolution
         self.root = root
@@ -71,20 +102,22 @@ class CrocodileDataset(Dataset):
 
         self.biodata = False
         if biodata is not None:
+            print("Loading biodata...")
             self.biodata = True
-            signal = np.loadtxt(os.path.join(filename, delimiter=',')
+            signal = np.loadtxt(biodata, delimiter=',')
+            
             if preprocessing is not None:
+                print("Preprocessing biodata...")
                 self.features = preprocessing(signal)
             else:
-                self.features = signals[:, 0:]
-                index = (start_data + (np.arange(len(self.num_frames)) - start_img)*sampling_rate/fps).astype(int)
-                self.features = self.features[index]
+                self.features = signal[:, 0:]    
+            
+            index = (start_data + (np.arange(self.num_frames) - start_img)*sampling_rate/fps).astype(int)
+            self.features = self.features[index[index < len(self.features)]]
             self.num_features = self.features.shape[1]
         
-        assert self.num_frames == len(self.features)
-        assert self.num_frames == len(self.raw_labels)
-
-            
+        self.num_samples = len(self.features)
+        self.length = min(self.num_samples, self.num_frames)
 
     def __getitem__(self, index):   
         label = None
@@ -108,14 +141,14 @@ class CrocodileDataset(Dataset):
 
         if self.biodata:
             feature = self.features[index]
+            if self.feature_transform is not None:
+                feature = self.feature_transform(feature)
             return img, target, feature
         else:
             return img, target
 
     def __len__(self):
-        return self.num_frames
-
-    def extract_features(self, filename):
+        return self.length
 
 
 if __name__ == '__main__':
@@ -125,5 +158,5 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--resolution', default=None, type=int)
     args = parser.parse_args()
     extract_video(args.path_to_video, args.path_to_dataset)
-    if not args.resolution is None:
+    if args.resolution is not None:
         resize_images(args.path_to_dataset, args.resolution)
