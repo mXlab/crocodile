@@ -7,6 +7,7 @@ import torch
 from tqdm import tqdm
 import subprocess
 import argparse
+from torch.utils.data import Sampler
 
 ROOT = "/network/tmp1/berardhu/crocodile/data"
 SAMPLING_RATE = 1000,
@@ -26,19 +27,49 @@ def resize_images(path_to_dataset, resolution):
     if not os.path.exists(os.path.join(path_to_dataset, str(resolution))):
         os.makedirs(os.path.join(path_to_dataset, str(resolution)))
     list_images = glob.glob(os.path.join(path_to_dataset, "raw/frame_*.png"))
-    for i, file in tqdm(enumerate(list_images)):
+    for i, file in enumerate(tqdm(list_images)):
         img = Image.open(file)
         img = img.crop(box=(720, 218, 720+472, 218+472))
         img = img.resize((resolution, resolution), 3)
         img.save(os.path.join(path_to_dataset, str(resolution), "%.7i.png"%i))
 
 
+class SequenceSampler(Sampler):
+    def __init__(self, data_source, length, shuffle=True, seed=1234):
+        self.data_source = data_source
+        self.num_samples = len(self.data_source)
+        self.length = length
+
+        self.num_sequences = self.num_samples // self.length
+
+        generator = torch.random.manual_seed(seed)
+
+        self.indices = None
+        if not shuffle:
+            self.indices = torch.randperm(self.num_sequences, generator=generator).tolist()  
+
+    def __iter__(self):
+        list_sequences = torch.arange(self.num_samples).split(self.length)
+        indices = self.indices
+        if indices is None:
+            indices = torch.randperm(len(list_sequences)).tolist()
+        
+        for i in indices:
+            sequence = list_sequences[i]
+            if len(sequence) == self.length:
+                yield sequence.tolist()
+            
+    def __len__(self):
+        return self.num_sequences
+
+
 class CrocodileDataset(Dataset):
-    def __init__(self, root=ROOT, transform=None, preprocessing=None, resolution=64, one_hot=True, biodata=None,
+    def __init__(self, root=ROOT, transform=None, feature_transform=None, preprocessing=None, resolution=64, one_hot=True, biodata=None,
                  sampling_rate=SAMPLING_RATE, fps=FPS, start_img=START_IMG, start_data=START_DATA):
         super(CrocodileDataset, self).__init__()
 
         self.transform = transform
+        self.feature_transform = feature_transform
         self.one_hot = one_hot
         self.resolution = resolution
         self.root = root
@@ -83,7 +114,7 @@ class CrocodileDataset(Dataset):
             
             index = (start_data + (np.arange(self.num_frames) - start_img)*sampling_rate/fps).astype(int)
             self.features = self.features[index[index < len(self.features)]]
-            self.dim_features = self.features.shape[1]
+            self.num_features = self.features.shape[1]
         
         self.num_samples = len(self.features)
         self.length = min(self.num_samples, self.num_frames)
@@ -110,6 +141,8 @@ class CrocodileDataset(Dataset):
 
         if self.biodata:
             feature = self.features[index]
+            if self.feature_transform is not None:
+                feature = self.feature_transform(feature)
             return img, target, feature
         else:
             return img, target
