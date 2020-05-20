@@ -116,8 +116,11 @@ class CrocodileDataset(Dataset):
             self.features = self.features[index[index < len(self.features)]]
             self.num_features = self.features.shape[1]
         
-        self.num_samples = len(self.features)
-        self.length = min(self.num_samples, self.num_frames)
+            self.num_samples = len(self.features)
+            self.length = min(self.num_samples, self.num_frames)
+
+        else:
+            self.length = self.num_frames
 
     def __getitem__(self, index):   
         label = None
@@ -132,7 +135,8 @@ class CrocodileDataset(Dataset):
         img = Image.open(os.path.join(self.root, str(self.resolution), "%.7i.png"%index))
 
         if self.transform is not None:
-            img = self.transform(img)       
+            img = self.transform(img)     
+        
         if self.one_hot:
             target = torch.zeros(len(self.index_to_labels))
             target[label] = 1
