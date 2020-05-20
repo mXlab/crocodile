@@ -9,7 +9,7 @@ You first need to extract the frame from the videos by running:
 - DATASET_PATH: is the path where you want to save the extracted frames.
 - RESOLUTION (Optional): If you precise a resolution, this will also resize the images to the appropriate resolution.
 
-## To run the code:
+## Training a unconditional GAN:
 
 `python train.py -r RESOLUTION --output-path OUTPUT_PATH --path-to-dataset DATASET_PATH`
 
@@ -18,3 +18,15 @@ a sub-folder `img` where the samples are saved for each epochs.
 - DATASET_PATH: This is the link where you want to save the dataset.
 - RESOLUTION: This is the resolution at which you want to generate images.
 - There is a bunch of other options you can play with. To see a list of all options just run `python train.py --help`
+
+## Training a GAN conditioned on the labels:
+
+`python train_conditional.py OUTPUT_PATH -r RESOLUTION --path-to-dataset DATASET_PATH`
+
+- Same option as command above
+
+## Training a GAN conditioned on the biodata:
+
+`python train_with_biodata.py OUTPUT_PATH -r RESOLUTION --path-to-dataset DATASET_PATH --path-to-biodata PATH_TO_BIODATA`
+
+- PATH_TO_BIODATA: This the path to the csv file containing the biodata, if not specified automatically look for the file "LaurenceHBS-Nov919mins1000Hz-Heart+GSR-2channels.csv" in the folder DATASET_PATH.
