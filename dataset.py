@@ -26,7 +26,7 @@ def extract_video(path_to_video, path_to_dataset):
 def resize_images(path_to_dataset, resolution):
     if not os.path.exists(os.path.join(path_to_dataset, str(resolution))):
         os.makedirs(os.path.join(path_to_dataset, str(resolution)))
-    list_images = glob.glob(os.path.join(path_to_dataset, "raw/frame_*.png"))
+    list_images = glob.glob(os.path.join(path_to_dataset, "raw/*.png"))
     for i, file in enumerate(tqdm(list_images)):
         img = Image.open(file)
         img = img.crop(box=(720, 218, 720+472, 218+472))
@@ -92,7 +92,7 @@ class CrocodileDataset(Dataset):
         if not os.path.exists(os.path.join(self.root, str(resolution))):
             os.makedirs(os.path.join(self.root, str(resolution)))
 
-        list_frames = glob.glob(os.path.join(self.root, "raw/frame_*.png"))
+        list_frames = glob.glob(os.path.join(self.root, "raw/*.png"))
         self.num_frames = len(list_frames)
         list_frames = glob.glob(os.path.join(self.root, str(resolution), "*.png"))
         num_files = len(list_frames)
