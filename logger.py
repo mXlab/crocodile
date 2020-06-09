@@ -6,6 +6,23 @@ import os
 import json
 import numpy as np
 import torchvision
+import torch
+
+
+class ExpvizLogger:
+    from expviz.logger import Logger
+    
+    def __init__(self, *args, **kwargs):
+        self.expviz = self.Logger(*args, **kwargs)
+    
+    def write(self, scalar_dict, epoch):
+        for key, value in scalar_dict.items():
+            if isinstance(value, torch.Tensor):
+                value = value.item()
+            self.expviz.add_scalar(key, value, epoch)
+    
+    def add_image(self, name, img, epoch):
+        self.expviz.add_image(name, img, epoch)
 
 
 def _prepare_video(V, n_rows=None):
