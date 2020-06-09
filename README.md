@@ -30,3 +30,13 @@ a sub-folder `img` where the samples are saved for each epochs.
 `python train_with_biodata.py OUTPUT_PATH -r RESOLUTION --path-to-dataset DATASET_PATH --path-to-biodata PATH_TO_BIODATA`
 
 - PATH_TO_BIODATA: This the path to the csv file containing the biodata, if not specified automatically look for the file "LaurenceHBS-Nov919mins1000Hz-Heart+GSR-2channels.csv" in the folder DATASET_PATH.
+
+## Setting up the environment
+
+1. [Install Anaconda](https://docs.anaconda.com/anaconda/install/)
+2. Create conda environment:  
+```conda create -f conda/crocodile.yml```
+3. To activate:  
+```conda activate crocodile```
+4. To deactivate:
+```conda deactivate```
