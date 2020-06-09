@@ -13,6 +13,7 @@ import os
 import argparse
 import time
 import json
+from lib.fid import FID
 
 
 
@@ -31,6 +32,7 @@ def get_config():
     parser.add_argument('-gp', '--gradient-penalty', default=0, type=int)
     parser.add_argument('--spectral-norm-gen', action="store_true")
     parser.add_argument('-nl', '--num-layers', default=6, type=int)
+    parser.add_argument('--eval-freq', default=1, type=int)
     parser.add_argument('--path-to-dataset', default="/network/tmp1/berardhu/crocodile/data", type=str)
     parser.add_argument('--output-path', default="/network/tmp1/berardhu/crocodile/results/", type=str)
     args = parser.parse_args()
@@ -61,6 +63,14 @@ def run(args, logger=None):
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
 
     print("Init...")
+
+    path_to_stats = os.path.join(args.path_to_dataset, str(args.resolution), "crocodile_stats.pt")
+    if not os.path.exists(path_to_stats):
+        print("Computing stats for dataset...")
+        mu, sigma = FID(device=device).compute_stats(dataloader)
+        torch.save(dict(mu=mu, sigma=sigma), path_to_stats)
+
+    fid_score = FID(path_to_stats, device=device)
 
     if args.model == "small":
         gen = models.SmallGenerator(NUM_Z, RESOLUTION, NUM_FILTERS, args.num_layers, spectral_norm=args.spectral_norm_gen).to(device)
@@ -112,11 +122,13 @@ def run(args, logger=None):
         x_gen = gen(z_examples)
         x_gen = x_gen/2 + 0.5
 
+        fid = fid_score(gen)
+
         if logger is None:
-            print("Epoch: %i, Loss dis: %.2e, Loss gen %.2e, Time: %i"%(init_epoch+epoch, loss_dis, loss_gen, time.time()-t))
+            print("Epoch: %i, Loss dis: %.2e, Loss gen %.2e, FID: %.2e, Time: %i"%(init_epoch+epoch, loss_dis, loss_gen, fid, time.time()-t))
             torchvision.utils.save_image(x_gen, os.path.join(OUTPUT_PATH, "img/img_%i.png"%(init_epoch+epoch)), nrow=10)
         else:
-            scalar_dict = dict(loss=loss_gen, loss_dis=loss_dis, loss_gen=loss_gen)
+            scalar_dict = dict(loss=loss_gen, loss_dis=loss_dis, loss_gen=loss_gen, fid=fid)
             logger.write(scalar_dict, epoch)
 
             x_gen = torchvision.utils.make_grid(x_gen, nrow=10)
