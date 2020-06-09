@@ -1,10 +1,11 @@
-from . import Discriminator
+from . import Discriminator, Generator
 from torch import nn
 import torch
 
-class SmallGenerator(nn.Module):
+
+class SmallGenerator(Generator):
     def __init__(self, num_latent, resolution, num_filters, num_layers=3, batch_norm=True, spectral_norm=True):
-        super(SmallGenerator, self).__init__()
+        super(SmallGenerator, self).__init__(num_latent)
         self.resolution = resolution
         self.num_filters = num_filters
         self.num_layers = num_layers
@@ -36,6 +37,7 @@ class SmallGenerator(nn.Module):
                                 self.resolution//(2**self.num_layers))
         x = self.network(x)
         return x
+
 
 class SmallDiscriminator(Discriminator):
     def __init__(self, resolution, num_filters, num_layers=3, spectral_norm=True):
