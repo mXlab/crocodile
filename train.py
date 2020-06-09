@@ -1,18 +1,19 @@
-from dataset import CrocodileDataset
+from lib.dataset import CrocodileDataset
+from lib import utils
+from lib import models
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import torchvision
 from torch import nn
 from torch.nn.utils import spectral_norm
 from torch import optim
-import utils
 import torch
 from torch import autograd
 import os
 import argparse
 import time
 import json
-import models
+
 
 
 def get_config():
@@ -89,9 +90,8 @@ def run(args, logger=None):
         t = time.time()
         for x, _ in dataloader:
             x = x.to(device)
-            z = torch.zeros(len(x), NUM_Z).normal_().to(device)
+            x_gen = gen.sample(len(x))
 
-            x_gen = gen(z)
             score_true, score_gen = dis(x), dis(x_gen)
             loss_gen, loss_dis = utils.compute_loss(score_true, score_gen, mode="nsgan")
             if GRADIENT_PENALTY:
