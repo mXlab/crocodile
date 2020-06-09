@@ -14,7 +14,8 @@ import time
 import json
 import models
 
-def main():
+
+def get_config():
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--model', default="small", choices=("small",))
     parser.add_argument('-e', '--num-epochs', default=1000, type=int)
@@ -32,7 +33,10 @@ def main():
     parser.add_argument('--path-to-dataset', default="/network/tmp1/berardhu/crocodile/data", type=str)
     parser.add_argument('--output-path', default="/network/tmp1/berardhu/crocodile/results/", type=str)
     args = parser.parse_args()
+    return args
 
+
+def run(args, logger=None):  
     EMA = args.ema
     BATCH_SIZE = args.batch_size
     NUM_Z = args.num_latent
@@ -57,7 +61,7 @@ def main():
 
     print("Init...")
 
-    if args.model is "small":
+    if args.model == "small":
         gen = models.SmallGenerator(NUM_Z, RESOLUTION, NUM_FILTERS, args.num_layers, spectral_norm=args.spectral_norm_gen).to(device)
         dis = models.SmallDiscriminator(RESOLUTION, NUM_FILTERS, args.num_layers).to(device)
 
@@ -105,11 +109,18 @@ def main():
             gen_optimizer.step()
             dis_optimizer.step()
 
-        print("Epoch: %i, Loss dis: %.2e, Loss gen %.2e, Time: %i"%(init_epoch+epoch, loss_dis, loss_gen, time.time()-t))
-
         x_gen = gen(z_examples)
         x_gen = x_gen/2 + 0.5
-        torchvision.utils.save_image(x_gen, os.path.join(OUTPUT_PATH, "img/img_%i.png"%(init_epoch+epoch)), nrow=10)
+
+        if logger is None:
+            print("Epoch: %i, Loss dis: %.2e, Loss gen %.2e, Time: %i"%(init_epoch+epoch, loss_dis, loss_gen, time.time()-t))
+            torchvision.utils.save_image(x_gen, os.path.join(OUTPUT_PATH, "img/img_%i.png"%(init_epoch+epoch)), nrow=10)
+        else:
+            scalar_dict = dict(loss=loss_gen, loss_dis=loss_dis, loss_gen=loss_gen)
+            logger.write(scalar_dict, epoch)
+
+            x_gen = torchvision.utils.make_grid(x_gen, nrow=10)
+            logger.add_image("gen", x_gen, epoch)
 
         torch.save({'epoch': init_epoch+epoch, 'gen_state_dict': gen.state_dict()},
                     os.path.join(OUTPUT_PATH, "gen/gen_%i.chk"%(init_epoch+epoch)))
@@ -119,5 +130,7 @@ def main():
                     'dis_optimizer_state_dict': dis_optimizer.state_dict()},
                     os.path.join(OUTPUT_PATH, "last_model.chk"))
 
+
 if __name__ == "__main__":
-    main()
+    args = get_config()
+    run(args)
