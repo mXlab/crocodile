@@ -3,8 +3,9 @@ import numpy as np
 import argparse
 import csv
 
-
-
+#ajouter fonction get() retourne element a index specify   et len ( longeur d udataset) (nombre de window)
+#ajouter argument train = true pour séparer test et train data
+#ajouter un generateur a la classe pour generer tjrs meme numero random
 class Emotion(Dataset):
     def __init__(self , label_path, path, sample_length):
         super(Emotion , self).__init__()
@@ -14,8 +15,9 @@ class Emotion(Dataset):
         self.labels = csv.reader( self.labels , delimiter = ",")
 
         #loads biodata signal csv
-        self.signal= np.loadtxt(path , delimiter = "," ,dtype={'names': ('heart', 'gsr1', 'gsr2'), 'formats': (float, float, float)})
-        
+        #self.signal= np.loadtxt(path , delimiter = "," ,dtype={'names': ('heart', 'gsr1', 'gsr2'), 'formats': (float, float, float)})
+        self.signal= np.loadtxt(path , delimiter = "," , dtype=np.float32)
+
         #time window length in fps @ 30 fps
         self.sample_length = sample_length
         
@@ -24,7 +26,7 @@ class Emotion(Dataset):
         fps = 30000/1001
         start_img = 38
         start_data = 300000     
-        num_frames = 1000000#find out how many frames in video
+        num_frames = 100000#29147 #find out how many frames in video
         
         #calculation that return array holding the corresponding index of self.signal for the given frame index
         self.aligned_index = (start_data + (np.arange(num_frames) - start_img)*sampling_rate/fps).astype(int)
@@ -54,7 +56,7 @@ class Emotion(Dataset):
                 windows = []
                
                 #store aligned signal value for every frame in array
-                for i in range( int(start_frame) , int(end_frame)):
+                for i in range( int(start_frame) , int(end_frame)-1):
                    
                     biodata_index = self.aligned_index[i]
                     biodata_signal_at_frame = self.signal[biodata_index]
@@ -65,30 +67,31 @@ class Emotion(Dataset):
                     start_frame_window = start_frame + i * self.sample_length
                     window = self.aligned_data[start_frame_window : (start_frame_window+self.sample_length)]
                     #print("window length" , len(window))
-                    #print(window[0])
-
+                    print('ici' ,window[0])
+                    print(type(window[0]))
+                    break
                     #store create window in array containing all windows of the same emotion
                     windows.append(window)
                 
                 #store array of windows corresponding to an emotion in array containing all the windows
                 self.data_window.append(windows)
 
-
+                
 
 
 
 #main loop to test class
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--label_path" , type = str , default = "/Users/etiennemontenegro/Desktop/Crocodile/MNIST_CLASSIFIER/timestamps.csv")
-    parser.add_argument("--data_path" , type = str , default = "/Users/etiennemontenegro/Desktop/Crocodile/MNIST_CLASSIFIER/sensor_data.csv")
+    parser.add_argument("--label_path" , type = str , default = "C:/Users/Etienne/Documents/GitHub/crocodile/MNIST_CLASSIFIER/timestamps.csv")
+    parser.add_argument("--data_path" , type = str , default = "C:/Users/Etienne/Documents/GitHub/crocodile/MNIST_CLASSIFIER/sensor_data.csv")
     parser.add_argument("--sample_length" , type = int , default = 150)
     
     args = parser.parse_args()
     emotion = Emotion(args.label_path, args.data_path, args.sample_length)
     print(len(emotion.aligned_labels))
     print(emotion.aligned_labels)
-    print("potato")
+    print("----divider---")
     print(len(emotion.data_window[0]))
     #print( emotion.data_window)
 
