@@ -10,7 +10,7 @@ import argparse
 from torch.utils.data import Sampler
 
 ROOT = "/network/tmp1/berardhu/crocodile/data"
-SAMPLING_RATE = 1000,
+SAMPLING_RATE = 1000
 FPS = 30000/1001
 START_IMG = 38
 START_DATA = 300000
