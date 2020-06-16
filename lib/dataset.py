@@ -154,6 +154,76 @@ class CrocodileDataset(Dataset):
     def __len__(self):
         return self.length
 
+class EmotionDataset(Dataset):
+    def __init__(self, root=ROOT, transform=None, feature_transform=None, preprocessing=None,
+                 one_hot=True,
+                 sampling_rate=SAMPLING_RATE, fps=FPS, start_img=START_IMG, start_data=START_DATA):
+        super(EmotionDataset, self).__init__()
+
+        self.transform = transform
+        self.feature_transform = feature_transform
+        self.one_hot = one_hot
+        self.root = root
+
+        self.raw_labels = np.loadtxt(os.path.join(self.root, "timestamps.csv"), delimiter=",",
+                                     dtype={'names': ('start', 'end', 'emotion'), 'formats': (int, int, "<S8")})
+        self.labels_to_index = {}
+        self.index_to_labels = []
+        i = 0
+        for row in self.raw_labels:
+            if row[2] not in self.labels_to_index:
+                self.labels_to_index[row[2]] = i
+                self.index_to_labels.append(row[2])
+                i += 1
+        self.num_cat = len(self.index_to_labels)
+
+        print("Loading biodata...")
+        signal = np.loadtxt(os.path.join(self.root, "sensor_data.csv"), delimiter=',')
+
+        # Num frames = last frame of labels
+        self.num_frames = self.raw_labels[-1][1]
+
+        # remove first columns which merely corresponds to time
+        signal = signal[:,1:]
+
+        if preprocessing is not None:
+            print("Preprocessing biodata...")
+            self.features = preprocessing(signal)
+        else:
+            self.features = signal[:, 0:]
+
+        index = (start_data + (np.arange(self.num_frames) - start_img) * sampling_rate / fps).astype(int)
+        self.features = self.features[index[index < len(self.features)]]
+        self.num_features = self.features.shape[1]
+
+        self.num_samples = len(self.features)
+        self.length = min(self.num_samples, self.num_frames)
+
+    def __getitem__(self, index):
+        label = None
+        for row in self.raw_labels:
+            if index > row[1]:
+                continue
+            label = self.labels_to_index[row[2]]
+            break
+        if label is None:
+            raise IndexError("index out of range")
+
+        if self.one_hot:
+            target = torch.zeros(len(self.index_to_labels))
+            target[label] = 1
+        else:
+            target = torch.tensor([label]).float()
+
+        feature = self.features[index]
+
+        if self.feature_transform is not None:
+            feature = self.feature_transform(feature)
+
+        return feature, target
+
+    def __len__(self):
+        return self.length
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
