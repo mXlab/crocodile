@@ -5,8 +5,8 @@ from biosppy.signals.tools import smoother
 # Utility function to filter the signal by computing the envelope of the signal
 def enveloppe_filter(x, threshold=1e-2):
     for i in range(1, len(x)):
-        if x[i] <= threshold:
-            x[i] = x[i-1]
+        mask = x[i] <= threshold
+        x[i] = x[i-1]*mask + x[i]*(~mask)
     return x
 
 

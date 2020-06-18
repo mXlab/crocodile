@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import argparse
 import torch.optim as optim
 import torch.nn.functional as F
-import torchvision
+from lib import biodata
 
 
 # Parsing Arguments
@@ -19,6 +19,8 @@ parser.add_argument('--log_interval', type=int, default=10)
 parser.add_argument('--path_to_dataset', type=str, default=None)
 parser.add_argument('--output_path', type=str, default="/Users/etiennemontenegro/Desktop/MNIST_CLASSIFIER/results/")
 parser.add_argument('--optim', type=str, default="adam", choices=('adam', 'sgd', 'sls'))
+parser.add_argument('--downsampling', type=int, default=1)
+
 args = parser.parse_args()
 # define hyperparameters
 n_epochs = args.epochs
@@ -33,10 +35,26 @@ random_seed = 1
 torch.backends.cudnn.enabled = False  # disable nondeterministics algorithms used by cuDNN
 torch.manual_seed(random_seed)
 
-trainset = EmotionDataset(args.path_to_dataset, train=True)
+
+class Preprocessing:
+    def __init__(self, downsampling=1, normalize=True):
+        self.downsampling = downsampling
+        self.normalize = normalize
+
+    def __call__(self, x):
+        x = biodata.enveloppe_filter(x)[::self.downsampling]
+        if self.normalize:
+            std, mean = torch.std_mean(x, dim=0, keepdim=True)
+            x = (x-mean)/std
+        return x
+
+
+preprocessing = Preprocessing(downsampling=args.downsampling)
+
+trainset = EmotionDataset(args.path_to_dataset, train=True, preprocessing=preprocessing)
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size_train, shuffle=True)
 
-testset = EmotionDataset(args.path_to_dataset, train=False)
+testset = EmotionDataset(args.path_to_dataset, train=False, preprocessing=preprocessing)
 test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size_test, shuffle=False)                                    
 
 # initialize the network and optimizer
@@ -48,8 +66,9 @@ if args.optim == "sgd":
 elif args.optim == "adam":
     optimizer = optim.Adam(network.parameters(), lr=learning_rate)
 elif args.optim == "sls":
-    # This is a new optimizer which works really well, I will probably add it to the code base
-    raise NotImplementedError()
+    from lib.sls import Sls
+    n_batches_per_epoch = len(trainset)/float(batch_size_train)
+    optimizer = Sls(network.parameters(), n_batches_per_epoch=n_batches_per_epoch)
 else:
     raise ValueError()
 
@@ -61,19 +80,35 @@ test_counter = [i*len(train_loader.dataset) for i in range(n_epochs + 1)]
 
 def train(epoch):
     network.train()
+    correct = 0
+    num_samples = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(device)
         target = target.to(device)
         optimizer.zero_grad()
+        
         output = network(data)
         loss = F.nll_loss(output, target)
-        loss.backward()
-        optimizer.step()
+
+        if args.optim == "sls":
+            def closure():
+                output = network(data)
+                loss = F.nll_loss(output, target)
+                return loss
+            optimizer.step(closure)
+        else:
+            loss.backward()
+            optimizer.step()
+
+        pred = output.data.max(1, keepdim=True)[1]
+        correct += pred.eq(target.data.view_as(pred)).sum()
+        num_samples += len(data)
         
         if batch_idx % log_interval == 0 :
-            print('Train Epoch : {} [{}/{} ({:.0f}%)]\tLoss:{:.6f}'
+            print('Train Epoch : {} [{}/{} ({:.0f}%)]\tLoss:{:.6f}, Accuracy: {}/{} ({:.0f}%)'
                   .format(epoch, batch_idx * len(data), len(trainset),
-                          100. * batch_idx / len(train_loader), loss.item()))
+                          100. * batch_idx / len(train_loader), loss.item(),
+                          correct, num_samples, 100. * correct / num_samples))
             train_losses.append(loss.item())
             train_counter.append((batch_idx*64) + ((epoch-1)*len(trainset)))
             # changer output path pour lib 

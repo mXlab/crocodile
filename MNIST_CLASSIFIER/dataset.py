@@ -88,8 +88,8 @@ START_DATA = 300000
 
 
 class EmotionDataset_v2(Dataset):
-    def __init__(self, path_to_dataset, path_to_biodata=None, sequence_length=256, normalize=True,
-                 permutation=None, split_percent=0.8, train=False, one_hot=False,
+    def __init__(self, path_to_dataset, path_to_biodata=None, sequence_length=256, preprocessing=None,
+                 permutation=None, split_percent=0.8, train=False, one_hot=False, 
                  start_data=START_DATA, start_img=START_IMG, sampling_rate=SAMPLING_RATE, fps=FPS):
         super(EmotionDataset_v2, self).__init__()
 
@@ -118,6 +118,10 @@ class EmotionDataset_v2(Dataset):
 
         print("Loading biodata...")
         self.signal = torch.tensor(np.loadtxt(path_to_biodata, delimiter=',', usecols=(1, 2)))
+
+        if preprocessing is not None:
+            self.signal = preprocessing(self.signal)
+
         # Split the signal in a list of sequence of size sequence_length   
         list_index = torch.arange(len(self.signal))
         list_sequences = torch.split(list_index, sequence_length)[:-1]
@@ -131,10 +135,6 @@ class EmotionDataset_v2(Dataset):
             self.dataset = list_sequences[permutation[:int(len(permutation)*split_percent)]]
         else:
             self.dataset = list_sequences[permutation[int(len(permutation)*split_percent):]]
-    
-        if normalize:
-            std, mean = torch.std_mean(self.signal, 0, keepdim=True)
-            self.signal = (self.signal - mean) / std
 
     def __getitem__(self, index):
         # Load sequence
