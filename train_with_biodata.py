@@ -1,3 +1,4 @@
+###################import statements########################################
 from dataset import CrocodileDataset, SequenceSampler
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -15,6 +16,7 @@ from tensorboardX import SummaryWriter
 import numpy as np
 import logger
 
+###################### Global Variables ###############################
 BIODATA_DEFAULT = "LaurenceHBS-Nov919mins1000Hz-Heart+GSR-2channels.csv"
 SAMPLING_RATE_DEFAULT = 1000
 FPS = 30000/1001
@@ -23,6 +25,8 @@ DEFAULT_CONFIG = dict(distance_heart=400, width_heart=100, prominence_heart=0.01
 
 
 class Config():
+      #This class is an argument parser to configure training process
+
     def __init__(self):
         parser = argparse.ArgumentParser()
         parser.add_argument('output_path')
@@ -50,7 +54,7 @@ class Config():
 
         self.parser = parser
 
-    def parse_args(self):       
+    def parse_args(self):   # function to parse the arguments       
         args = self.parser.parse_args()
 
         if args.path_to_biodata is None:
@@ -149,6 +153,8 @@ class Preprocessing:
 def run(args):
     if args.slurm:
         args.slurmid = "%s_%s" % (os.environ["SLURM_JOB_ID"],os.environ["SLURM_ARRAY_TASK_ID"])
+   
+   ### Convert passed arguments to variable ###  
     BATCH_SIZE = args.batch_size
     NUM_Z = args.num_latent
     NUM_FILTERS = args.num_filters
@@ -161,6 +167,7 @@ def run(args):
     torch.manual_seed(SEED)
     ROOT = args.path_to_dataset
 
+    # set device to gpu if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     exp_name = "%i_%i" % (int(time.time()), np.random.randint(9999))
@@ -174,7 +181,10 @@ def run(args):
 
     preprocessing = Preprocessing(**DEFAULT_CONFIG)
 
+    #transform dataset to tensor and normalize it
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+   
+     #create instance of CrocodileDataset and DataLoader class
     dataset = CrocodileDataset(root=ROOT, transform=transform, feature_transform=None, resolution=RESOLUTION, one_hot=True,
                                biodata=args.path_to_biodata, preprocessing=preprocessing)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
@@ -184,13 +194,17 @@ def run(args):
 
     print("Init...")
 
+#create small generator network and the small discriminator network based on passed arguments
     if args.model == "small":
         gen = models.SmallGenerator(NUM_Z+dataset.num_features, RESOLUTION, NUM_FILTERS, args.num_layers, spectral_norm=args.spectral_norm_gen).to(device)
         dis = models.ConditionalSmallDiscriminator(RESOLUTION, dataset.num_features, NUM_FILTERS, args.num_layers).to(device)
 
+
+    #run adam algorithm optimization on model
     gen_optimizer = optim.Adam(gen.parameters(), lr=LR_GEN, betas=(0.5, 0.999))
     dis_optimizer = optim.Adam(dis.parameters(), lr=LR_DIS, betas=(0.5, 0.999))
 
+ #create missing "gen" and "img" directories if they dont exist
     if not os.path.exists(os.path.join(OUTPUT_PATH, "gen")):
         os.makedirs(os.path.join(OUTPUT_PATH, "gen"))
     if not os.path.exists(os.path.join(OUTPUT_PATH, "img")):
@@ -218,6 +232,8 @@ def run(args):
 
     writer.add_hparams(args)
 
+
+############################ Training Loop ###################################
     print("Training...")
     init_epoch = 0
     for epoch in range(NUM_EPOCHS):
@@ -277,7 +293,7 @@ def run(args):
             list_samples = torch.cat([x_examples.unsqueeze(1), list_samples], 1).view(-1, args.length_sequence, 3, RESOLUTION, RESOLUTION)
             writer.add_video(list_samples, init_epoch+epoch, fps=FPS, nrow=args.num_sequences)
             """
-
+       ##saves models to file
         torch.save({'epoch': init_epoch+epoch, 'gen_state_dict': gen.state_dict()},
                    os.path.join(OUTPUT_PATH, "gen/gen_%i.chk" % (init_epoch+epoch)))
 
@@ -287,5 +303,6 @@ def run(args):
                    os.path.join(OUTPUT_PATH, "last_model.chk"))
 
 
+########################### Main loop ###################################
 if __name__ == "__main__":
     run(Config().parse_args())
