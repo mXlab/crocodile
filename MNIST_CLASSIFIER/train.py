@@ -20,6 +20,7 @@ parser.add_argument('--path_to_dataset', type=str, default=None)
 parser.add_argument('--output_path', type=str, default="/Users/etiennemontenegro/Desktop/MNIST_CLASSIFIER/results/")
 parser.add_argument('--optim', type=str, default="adam", choices=('adam', 'sgd', 'sls'))
 parser.add_argument('--downsampling', type=int, default=1)
+parser.add_argument('--overlap', type=float, default=0.)
 
 args = parser.parse_args()
 # define hyperparameters
@@ -51,10 +52,10 @@ class Preprocessing:
 
 preprocessing = Preprocessing(downsampling=args.downsampling)
 
-trainset = EmotionDataset(args.path_to_dataset, train=True, preprocessing=preprocessing)
+trainset = EmotionDataset(args.path_to_dataset, train=True, preprocessing=preprocessing, overlap=args.overlap)
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size_train, shuffle=True)
 
-testset = EmotionDataset(args.path_to_dataset, train=False, preprocessing=preprocessing)
+testset = EmotionDataset(args.path_to_dataset, train=False, preprocessing=preprocessing, overlap=args.overlap)
 test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size_test, shuffle=False)                                    
 
 # initialize the network and optimizer

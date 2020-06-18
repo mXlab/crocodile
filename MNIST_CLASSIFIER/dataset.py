@@ -80,6 +80,7 @@ class EmotionDataset(Dataset):
 import os
 import torch
 import torch.nn.functional as F
+import math
 
 SAMPLING_RATE = 1000
 FPS = 30000/1001
@@ -89,7 +90,7 @@ START_DATA = 300000
 
 class EmotionDataset_v2(Dataset):
     def __init__(self, path_to_dataset, path_to_biodata=None, sequence_length=256, preprocessing=None,
-                 permutation=None, split_percent=0.8, train=False, one_hot=False, 
+                 permutation=None, split_percent=0.8, train=False, one_hot=False, overlap=0.,
                  start_data=START_DATA, start_img=START_IMG, sampling_rate=SAMPLING_RATE, fps=FPS):
         super(EmotionDataset_v2, self).__init__()
 
@@ -98,6 +99,7 @@ class EmotionDataset_v2(Dataset):
         self.start_img = start_img
         self.sampling_rate = sampling_rate
         self.fps = fps
+        self.sequence_length = sequence_length
 
         print("Loading labels...")
         path_to_labels = os.path.join(path_to_dataset, "timestamps.csv")
@@ -122,28 +124,27 @@ class EmotionDataset_v2(Dataset):
         if preprocessing is not None:
             self.signal = preprocessing(self.signal)
 
-        # Split the signal in a list of sequence of size sequence_length   
+        # Create a list of index which corresponds to the index of the begining of each sequence
         list_index = torch.arange(len(self.signal))
-        list_sequences = torch.split(list_index, sequence_length)[:-1]
-        list_sequences = torch.stack(list_sequences)
+        list_index = list_index[:len(self.signal)-sequence_length:math.ceil(sequence_length*(1-overlap))]
 
         # Create a train/test split
         if permutation is None:
             rng = np.random.default_rng(1234)
-            permutation = torch.tensor(rng.permutation(len(list_sequences))).long()
+            permutation = torch.tensor(rng.permutation(len(list_index))).long()
         if train:
-            self.dataset = list_sequences[permutation[:int(len(permutation)*split_percent)]]
+            self.dataset = list_index[permutation[:int(len(permutation)*split_percent)]]
         else:
-            self.dataset = list_sequences[permutation[int(len(permutation)*split_percent):]]
+            self.dataset = list_index[permutation[int(len(permutation)*split_percent):]]
 
     def __getitem__(self, index):
         # Load sequence
-        sequence = self.dataset[index]
-        data = self.signal[sequence]
+        index_data = self.dataset[index]
+        data = self.signal[index_data:index_data+self.sequence_length]
         data = torch.tensor(data).float().transpose(0,1)
 
         # Load corresponding label
-        index_label = (self.start_img + (sequence[-1] - self.start_data)*self.fps/self.sampling_rate).int()
+        index_label = (self.start_img + (index_data+self.sequence_length - self.start_data)*self.fps/self.sampling_rate).int()
         for row in self.raw_labels:
             if index_label > row[1]:
                 continue
