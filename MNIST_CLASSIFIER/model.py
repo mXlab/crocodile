@@ -1,10 +1,8 @@
-#building the network
-##COMMENTER ÉTAPE ICI
-
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
 
-#building the network
+# building the network
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -14,7 +12,7 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50, 10 ) 
     
-#method that compute the data through the defined layers
+# method that compute the data through the defined layers
     def forward(self,x):
         x = F.relu(F.max_pool2d(self.conv1(x),2))
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)),2))
@@ -35,15 +33,15 @@ class ResBlock(nn.Module):
             stride = 2
 
         network = [nn.BatchNorm1d(n_in), nn.ReLU(inplace=True), 
-                   nn.Conv1d(n_in, n_out, kernel_size=kernel_size, stride=stride),
+                   nn.Conv1d(n_in, n_out, kernel_size=kernel_size, stride=1, padding=int((kernel_size-1)/2)),
                    nn.BatchNorm1d(n_out), nn.ReLU(inplace=True),
-                   nn.Conv1d(n_out, n_out, kernel_size=kernel_size, stride=stride)]
+                   nn.Conv1d(n_out, n_out, kernel_size=kernel_size, stride=stride, padding=int((kernel_size-stride)/2+1))]
         self.network = nn.Sequential(*network)
 
         # Create a functions to downsample input such that output and input have same dimension 
         self.subsampling = None  
         if subsampling or (n_in != n_out):
-            self.subsampling = nn.Conv1d(n_in, n_out, kernel_size=1, stride=stride)
+            self.subsampling = nn.Conv1d(n_in, n_out, kernel_size=1, stride=stride, padding=0)
 
     def forward(self, x):
         out = self.network(x)
@@ -56,7 +54,7 @@ class ResBlock(nn.Module):
 class ECGResNet(nn.Module):
     def __init__(self, n_in, num_classes, num_blocks=16, num_filters=32, kernel_size=16):
         super(ECGResNet, self).__init__()
-        network = [nn.Conv1d(n_in, n_in, kernel_size=kernel_size)]
+        network = [nn.Conv1d(n_in, num_filters, kernel_size=15, padding=7)]
         for i in range(num_blocks):
             subsampling = False
             if (i+1) % 2 == 0:
@@ -64,10 +62,10 @@ class ECGResNet(nn.Module):
             
             if (i+1) % 4 == 0:
                 num_filters_new = num_filters*2
-                network.append(ResBlock(num_filters, num_filters_new, subsampling=subsampling, kernel_size=kernel_size=))
+                network.append(ResBlock(num_filters, num_filters_new, subsampling=subsampling, kernel_size=kernel_size))
                 num_filters = num_filters_new
             else:
-                network.append(ResBlock(num_filters, num_filters, subsampling=subsampling, kernel_size=kernel_size=))
+                network.append(ResBlock(num_filters, num_filters, subsampling=subsampling, kernel_size=kernel_size))
 
         network.append(nn.AdaptiveAvgPool1d(1))
         self.network = nn.Sequential(*network)
@@ -85,6 +83,7 @@ class ECGResNet(nn.Module):
         x = self.network(x)
         x = torch.flatten(x, 1)
         x = self.output_layer(x)
+        x = F.log_softmax(x, -1)
         return x
 
             
