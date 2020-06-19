@@ -38,24 +38,24 @@ torch.manual_seed(random_seed)
 
 
 class Preprocessing:
-    def __init__(self, downsampling=1, normalize=True):
-        self.downsampling = downsampling
+    def __init__(self, normalize=True):
         self.normalize = normalize
 
     def __call__(self, x):
-        x = biodata.enveloppe_filter(x)[::self.downsampling]
+        #x = x[:, 0].view(-1, 1)
+        x = biodata.enveloppe_filter(x)
         if self.normalize:
             std, mean = torch.std_mean(x, dim=0, keepdim=True)
             x = (x-mean)/std
         return x
 
 
-preprocessing = Preprocessing(downsampling=args.downsampling)
+preprocessing = Preprocessing()
 
-trainset = EmotionDataset(args.path_to_dataset, train=True, preprocessing=preprocessing, overlap=args.overlap)
+trainset = EmotionDataset(args.path_to_dataset, train=True, preprocessing=preprocessing, overlap=args.overlap, downsampling=args.downsampling)
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size_train, shuffle=True)
 
-testset = EmotionDataset(args.path_to_dataset, train=False, preprocessing=preprocessing, overlap=args.overlap)
+testset = EmotionDataset(args.path_to_dataset, train=False, preprocessing=preprocessing, overlap=args.overlap, downsampling=args.downsampling)
 test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size_test, shuffle=False)                                    
 
 # initialize the network and optimizer
@@ -121,6 +121,7 @@ def test():
     network.eval()
     test_loss = 0
     correct = 0
+    count_per_class = 0
     with torch.no_grad():
         for data, target in test_loader:
             data = data.to(device)
@@ -129,8 +130,10 @@ def test():
             test_loss += F.nll_loss(output, target, size_average=False).item()
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.data.view_as(pred)).sum()
+            count_per_class += torch.bincount(target.view(-1), minlength=testset.num_cat)
     test_loss /= len(test_loader.dataset)
     test_losses.append(test_loss)
+    print(count_per_class)
     print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(test_loss, correct, 
                                                                               len(test_loader.dataset), 
                                                                               100. * correct / len(test_loader.dataset)))
