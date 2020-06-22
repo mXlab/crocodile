@@ -29,11 +29,13 @@ File recordFile;
 Sd2Card card;
 SdVolume volume;
 SdFile root;
+
 const int chipSelect = 4; //cs for sd card
-char filename[11] = "rec000.txt";
+char filename[11] = "rec030.txt";
 //Create instances for circular buffers
-CircularBuffer<int , BUFFER_SIZE >bufferA;
-char writeBuffer[BUFFER_SIZE] = {0};
+CircularBuffer<unsigned long , BUFFER_SIZE >bufferA;
+unsigned long writeBuffer[BUFFER_SIZE] = {0};
+
 bool readyToWrite = false;
 int looped = 0;
 
@@ -63,8 +65,8 @@ updateAllSensors();
 
 //verify if recording time ws reached and is the file is not stopped already
 //could add another check to see if its in the recording state
-if(looped == 10 && recordingStop == false ){
-
+if(looped == 200 && recordingStop == false ){
+  recFile.println("End Recording");
   recFile.close();
   Serial.println("File Closed");
  
@@ -78,6 +80,7 @@ if(recordingStart == true && fileOpen == false){
   //open file
   Serial.println("Open File");
   recFile = SD.open( filename , FILE_WRITE);
+  recFile.println("Start Recording");
   fileOpen = true;
   recording = true;
   Serial.println("START RECORDING");
@@ -90,7 +93,7 @@ if( recording == true)
   noInterrupts()
   if(bufferA.isFull() && readyToWrite == false){
   //Serial.println("Capture");
-  Serial.println(bufferA[128]);
+  //Serial.println(bufferA[128]);
     //transfer buffer to write buffer
     for( int i = 0 ; i < BUFFER_SIZE ; i++ ) {
       //Serial.println(i);
@@ -114,18 +117,22 @@ if( recording == true)
 
 void updateData(){
   //push sensor data to arrays
-
-  bufferA.push(heart.getRaw());
-  bufferA.push(sc1.getRaw());
-  bufferA.push(resp.getRaw());
+    bufferA.push(micros());
+//  bufferA.push(heart.getRaw());
+//  bufferA.push(sc1.getRaw());
+//  bufferA.push(resp.getRaw());
   }
 
 
-void datalog(char bufferArg[BUFFER_SIZE]){
+void datalog(int bufferArg[BUFFER_SIZE]){
 
   if(recFile){
   Serial.println("Writting to card");
-  recFile.write(bufferArg , BUFFER_SIZE);
+  for( int i = 0 ; i < BUFFER_SIZE ; i++){
+    int item = bufferArg[i];
+    recFile.println(item);
+    }
+  recFile.println("LOOPED");
   recFile.flush();
   //dataWrote = true;
   }else{
