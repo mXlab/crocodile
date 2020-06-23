@@ -1,3 +1,6 @@
+//include Custom recording class
+#include "Recording.h"
+
 //include sd library
 #include <SD.h>
 #include <SD_t3.h>
@@ -13,51 +16,62 @@
 #include <Average.h>
 #include <Heart.h>
 
+//include circular buffer library
 #include <CircularBuffer.h>
+
+
+
 #define BUFFER_SIZE 512
+#define NUM_SIGNALS 3  //Set number of signal recorded here 
+
 
 IntervalTimer captureData;
+Recording r(NUM_SIGNALS);
 
 //Create instance for each sensor
 Heart heart(A0);
 SkinConductance sc1(A3);
 Respiration resp(A2);
 
-File recordFile;
+
 
 // set up variables using the SD utility library functions:
 Sd2Card card;
 SdVolume volume;
 SdFile root;
+File recFile;
+bool fileOpen = false;
 
 const int chipSelect = 4; //cs for sd card
-char filename[11] = "rec030.txt";
+
+
+char filename[11] = "rec030.txt";  //initial fileanme here
+
 //Create instances for circular buffers
 CircularBuffer<unsigned long , BUFFER_SIZE >bufferA;
 unsigned long writeBuffer[BUFFER_SIZE] = {0};
 
 bool readyToWrite = false;
 int looped = 0;
+int maxLoop = 200;
 
-bool recordingStart = false;
-bool recording = false;
-bool recordingStop = false;
-bool fileOpen = false;
-File recFile;
+
 
 void setup() {
-  // put your setup code here, to run once:
-
-delay(2000);
+  
+  delay(2000);
  
   recommendedSetup();
   Serial.begin(9600);
   setupAllSensors();
+
+  testClass();
+  
   checkForCard();
   cardInfo();
 
-captureData.begin( updateData, 1000);
-recordingStart = true;
+  
+
 }
 
 void loop() {
@@ -65,35 +79,39 @@ updateAllSensors();
 
 //verify if recording time ws reached and is the file is not stopped already
 //could add another check to see if its in the recording state
-if(looped == 200 && recordingStop == false ){
+
+
+if(looped == maxLoop && r.isReadyToStop() ){
   recFile.println("End Recording");
   recFile.close();
   Serial.println("File Closed");
- 
-  recordingStop = true;
-  recording = false;
-  
+  captureData.end();
+  //fileOpen = false; //uncomment when sure not to overite
+  r.readyToStartAgain();
   }
 
+
 //verify if we just started a recording and the  file is not open
-if(recordingStart == true && fileOpen == false){
+if(r.isRecording() == false && fileOpen == false){
   //open file
   Serial.println("Open File");
   recFile = SD.open( filename , FILE_WRITE);
-  recFile.println("Start Recording");
+  recFile.println(r.channelNames());
   fileOpen = true;
-  recording = true;
+  
+  captureData.begin( updateData, 1000);
+  r.startRecording();
   Serial.println("START RECORDING");
 }
 
 
-if( recording == true)
+if( r.isRecording() )
 {
 //only do this while recording
   noInterrupts()
   if(bufferA.isFull() && readyToWrite == false){
-  //Serial.println("Capture");
-  //Serial.println(bufferA[128]);
+
+
     //transfer buffer to write buffer
     for( int i = 0 ; i < BUFFER_SIZE ; i++ ) {
       //Serial.println(i);
@@ -109,6 +127,9 @@ if( recording == true)
    datalog(writeBuffer);
    readyToWrite = false;
    looped++;
+   if(looped == maxLoop){
+    r.stopRecording();
+    }
   }
 
 }
@@ -117,21 +138,38 @@ if( recording == true)
 
 void updateData(){
   //push sensor data to arrays
-    bufferA.push(micros());
-//  bufferA.push(heart.getRaw());
-//  bufferA.push(sc1.getRaw());
+  unsigned long temp = micros();
+    bufferA.push(temp);
+    bufferA.push(1);
+    bufferA.push(2);
+    bufferA.push(3);
+    
+//   bufferA.push(heart.getRaw());
+//  / bufferA.push(sc1.getRaw());
 //  bufferA.push(resp.getRaw());
   }
 
 
 void datalog(int bufferArg[BUFFER_SIZE]){
-
+  int numChan = NUM_SIGNALS + 1;
+ 
+  int formatBuffer[numChan] = {0};
   if(recFile){
   Serial.println("Writting to card");
+  
   for( int i = 0 ; i < BUFFER_SIZE ; i++){
-    int item = bufferArg[i];
-    recFile.println(item);
+    
+    int formatIndex = i%numChan;
+     formatBuffer[formatIndex] = bufferArg[i];
+
+    if ( formatIndex == numChan -1){
+    
+      recFile.println(r.formatData(formatBuffer));
+    
     }
+  }
+
+  
   recFile.println("LOOPED");
   recFile.flush();
   //dataWrote = true;
@@ -139,6 +177,7 @@ void datalog(int bufferArg[BUFFER_SIZE]){
     Serial.println("cant write to file");
     }
   }
+
 
 
 
@@ -240,4 +279,27 @@ void updateAllSensors(){
    sc1.update();
    resp.update();
   
+  }
+
+void testClass(){
+  String test = "Etienne Montenegro";
+ String loc = "Montreal";
+ String signals[4] = {"heart","gsr1","gsr2","resp"};
+ int rate = 1000;
+ int testData[5] = {340985654,1024,1024,1024,1024};
+ 
+ r.setSubjectName ( test);
+ r.setLocation (loc);
+ r.setSignals(signals);
+ r.setRecRate(rate);
+ 
+ Serial.println(r.getSubjectName());
+ Serial.println(r.getLocation());
+ Serial.println(r.getSignal(0));
+ Serial.print(r.getRecRate());
+ Serial.print(" Hz");
+ Serial.println();
+ Serial.println(r.formatData(testData));
+
+ Serial.println(r.channelNames());
   }
