@@ -55,6 +55,8 @@ bool readyToWrite = false;
 int looped = 0;
 int maxLoop = 200;
 
+char debugHeader[65] = "#################################################################";
+
 
 
 void setup() {
@@ -66,7 +68,14 @@ void setup() {
   setupAllSensors();
 
   testClass();
+
   
+  Serial.println(r.formatHeader1());
+  Serial.println(r.formatHeader2());
+  Serial.println(r.formatHeader3());
+  Serial.println(r.formatHeader4());
+
+
   checkForCard();
   cardInfo();
 
@@ -82,7 +91,14 @@ updateAllSensors();
 
 
 if(looped == maxLoop && r.isReadyToStop() ){
-  recFile.println("End Recording");
+  Serial.println("End Recording");
+  recFile.seek(0);
+  recFile.println(r.formatHeader1());
+  recFile.println(r.formatHeader2());
+  recFile.println(r.formatHeader3());
+  recFile.println(r.formatHeader4());
+  recFile.println();
+
   recFile.close();
   Serial.println("File Closed");
   captureData.end();
@@ -292,10 +308,12 @@ void testClass(){
  r.setLocation (loc);
  r.setSignals(signals);
  r.setRecRate(rate);
+ r.setDate("25","06","20");
  
  Serial.println(r.getSubjectName());
  Serial.println(r.getLocation());
  Serial.println(r.getSignal(0));
+ Serial.println(r.getDate());
  Serial.print(r.getRecRate());
  Serial.print(" Hz");
  Serial.println();
