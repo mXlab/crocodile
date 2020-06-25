@@ -3,24 +3,51 @@
 
 
 //Header Example 
-
+//################################################################
+//#Name: Etienne Montenegro                         Date: 23/06/20
+//#Duration: 1:00:00                            Location: Montreal
+//#Start time: 13:40:34                         End Time: 13:40:34
+//#Signals: heart , gsr1 , gsr2 , resp        Sample Rate: 1000 Hz
+//################################################################
 
 class Recording{
   
   public:
    //methods
 
-   
     //Variables
-    char date[8]; //date of the recording formated dd/mm/yy
-    char location[32] ; // location where the recording took place --- Can allocate more space if needed
-    char subjectName[32] ; //name of the subject ------ Can allocate more space if needed 
+
+    //Header arrays
+    String headerLine1= "#";
+    String headerLine2 = "#";
+    String headerLine3 = "#";
+    String headerLine4 = "#";
+    
+    String nameTitle = "Name: ";
+    String dateTitle = "Date: ";
+    String durationTitle = "Duration: ";
+    String locationTitle = "Location: ";
+    String startTimeTitle = "Start time: ";
+    String endTimeTitle = "End Time: ";
+    String signalsTitle = "Signals: ";
+    String sampleRateTitle = "Sample Rate: ";
+    
+
+    String date; //date of the recording formated dd/mm/yy
+    String location ; // location where the recording took place --- Can allocate more space if needed
+    String subjectName ; //name of the subject ------ Can allocate more space if needed 
     String signals[10]; // format ["heart, "gsr1" , "gsr2" ,"resp"]
+   
+    //MODIFIY THIS WHEN RTC IS IMPLEMENTED
+    String duration = "1:00:00";  
+    String startTime = "15:32:43";
+    String endTime = "16:32:43";
+    
     int rate ; //refresh rate of the sensors
     int mode ; //current mode the object is in 0 = not recording 1 =  recording 2 = ending recording
     int numSignals;
 
-
+    
     //Need RTC TO IMPLEMENT THIS
     int startHour ; //starting hour of the recording
     int startMin ; //starting min of the recording
@@ -31,13 +58,6 @@ class Recording{
     int endSec ; //end sec of the recording
  
     char dataBuff[100];
-    
-  
-
-  
-  
-
-
 
 
 ////////////////////////METHODS/////////////////////////////
@@ -47,6 +67,87 @@ class Recording{
   mode = 0 ; 
   }; //constructor
 
+
+//FORMATTING THE HEADER COULD BE DONE WIT ONE BUFFER ONLY IF CLEARED BEETWEN EACH PRINT
+
+String formatHeader1(){
+  int spaceLength = 64 -nameTitle.length() - subjectName.length() - dateTitle.length() - date.length();
+  String spaces;
+
+  for( int i = 0 ; i < spaceLength ; i++ ){
+    spaces.concat(" ");
+    }
+  headerLine1.concat(nameTitle);
+  headerLine1.concat(subjectName);
+  headerLine1.concat(spaces);
+  headerLine1.concat(dateTitle);
+  headerLine1.concat(date);
+
+  return headerLine1;
+  }
+
+String formatHeader2(){
+  int spaceLength = 64 -durationTitle.length() - duration.length() - locationTitle.length() - location.length();
+  String spaces;
+
+  for( int i = 0 ; i < spaceLength ; i++ ){
+    spaces.concat(" ");
+    }
+  headerLine2.concat(durationTitle);
+  headerLine2.concat(duration);
+  headerLine2.concat(spaces);
+  headerLine2.concat(locationTitle);
+  headerLine2.concat(location);
+
+  return headerLine2;
+  }
+
+String formatHeader3(){
+  int spaceLength = 64 -startTimeTitle.length() - startTime.length() - endTimeTitle.length() - endTime.length();
+  String spaces;
+
+  for( int i = 0 ; i < spaceLength ; i++ ){
+    spaces.concat(" ");
+    }
+  headerLine3.concat(startTimeTitle);
+  headerLine3.concat(startTime);
+  headerLine3.concat(spaces);
+  headerLine3.concat(endTimeTitle);
+  headerLine3.concat(endTime);
+
+  return headerLine3;
+  }
+
+String formatHeader4(){
+  //61 instead of 64 because adding " Hz" at the end
+
+ int signalsLength = 0 ; 
+
+ for( int i = 0 ; i < numSignals ; i++ ){
+  signalsLength += getSignal(i).length();
+ }
+  
+  int spaceLength = 61 -signalsTitle.length() - signalsLength - (numSignals - 1) - sampleRateTitle.length() - String(rate).length();
+  String spaces;
+
+  for( int i = 0 ; i < spaceLength ; i++ ){
+    spaces.concat(" ");
+    }
+  headerLine4.concat(signalsTitle);
+  for( int i = 0 ; i < numSignals ; i++ ){
+  headerLine4.concat(getSignal(i));
+  if( i != numSignals-1) headerLine4.concat(",");
+  }
+  headerLine4.concat(spaces);
+  headerLine4.concat(sampleRateTitle);
+  headerLine4.concat(rate);
+  headerLine4.concat(" Hz");
+
+  return headerLine4;
+  }
+
+
+//---------------------------------------------------------------
 bool isReadyToStop(){
 
   if( mode == 2){ 
@@ -110,7 +211,7 @@ String channelNames(){// format the sampled data to csv
 //--------------------------------------------------------------
 
      void setLocation(String _Location){//set subject name
-      _Location.toCharArray(location, 32);
+      location = _Location;
       }; 
 
     String getLocation(){//return subject name as string
@@ -120,7 +221,7 @@ String channelNames(){// format the sampled data to csv
 //--------------------------------------------------------------
 
     void setSubjectName(String _SubjectName){//set subject name
-      _SubjectName.toCharArray(subjectName, 32);
+      subjectName =_SubjectName;
       }; 
 
     String getSubjectName(){//return subject name as string
@@ -148,6 +249,17 @@ String channelNames(){// format the sampled data to csv
     int getRecRate(){//return subject name as string
       return rate;
       };
+
+//--------------------------------------------------------------
+    
+     void setDate(String dd , String mm , String yy){ //set date
+      date = dd + "/" + mm + "/" + yy;
+      }; 
+
+    String getDate(){//return the date as string
+      return date;
+      };
+
 
  
 }; //end class declaration with semicolon in c++
