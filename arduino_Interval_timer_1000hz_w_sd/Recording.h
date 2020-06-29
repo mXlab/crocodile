@@ -58,13 +58,15 @@ class Recording{
     int endSec ; //end sec of the recording
  
     char dataBuff[100];
-
+    
+    bool headerPrinted; 
 
 ////////////////////////METHODS/////////////////////////////
  Recording(int _numSignals){
   numSignals = _numSignals;
   
   mode = 0 ; 
+  headerPrinted = false;
   }; //constructor
 
 
@@ -198,12 +200,14 @@ String channelNames(){// format the sampled data to csv
       
       };  
 
-  String formatData(int data[4]){// format the sampled data to csv
+//passing int instead of unsigned long could cause to truncate the timestamp
+//try to pass two argument ( unsigned long timestamp  , int data[3] ) 
+  String formatData(unsigned long timestamp,int data[3]){// format the sampled data to csv
       // each log of data will be formated like this :
       // timestamp,signal1,signal2,signal3,signal4
       // 987753,,1023,1023,1023
       
-      sprintf(dataBuff ,"%d,%d,%d,%d" ,data[0],data[1],data[2],data[3]);
+      sprintf(dataBuff ,"%ld,%d,%d,%d" ,timestamp,data[0],data[1],data[2]);
       return dataBuff ;
       };  
 
