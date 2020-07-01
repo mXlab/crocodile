@@ -53,9 +53,9 @@ void datalog(int bufferArg[BUFFER_SIZE]) {
     }
 
 
-    recFile.print("LOOPED");
-    recFile.print(looped);
-    recFile.println();
+    //recFile.print("LOOPED");
+   // recFile.print(looped);
+   //recFile.println();
     recFile.flush();
     //dataWrote = true;
   } else {
@@ -68,14 +68,15 @@ void datalog(int bufferArg[BUFFER_SIZE]) {
  void writeToCard(){
       
       datalog(writeBuffer);
-      looped++;
-      if (looped == maxLoop) {
+      
+      if (r.stopProcess) {
 
         Serial.println("Stop sensors");
         captureData.end();
         bufferA.clear();
         r.stopRecording();
       }
+
 
       readyToWrite = false;
       } 
@@ -93,18 +94,34 @@ void transferBuffer(){
   
   }
 
+
+ void testHeader() {
+     Serial.println(r.formatHeader1());
+      Serial.println(r.formatHeader2());
+      Serial.println(r.formatHeader3());
+      Serial.println(r.formatHeader4());
+      Serial.println();
+      Serial.println(r.channelNames());
+  }
+
   //------------------------------------------------------------------------------------------------
 
 void endRecordingSession(){
    Serial.println("End Recording");
     recFile.flush();
+    
     if ( r.headerPrinted == false) {
-      recFile.seek(0);
 
+      recFile.seek(0);
+      r.clearHeaderBuffer();
       recFile.println(r.formatHeader1());
+      r.clearHeaderBuffer();
       recFile.println(r.formatHeader2());
+      r.clearHeaderBuffer();
       recFile.println(r.formatHeader3());
+      r.clearHeaderBuffer();
       recFile.println(r.formatHeader4());
+      r.clearHeaderBuffer();
       recFile.println();
       recFile.println(r.channelNames());
 
@@ -177,13 +194,13 @@ void cardInfo() {
 //------------------------------------------------------------------------------------------------
 void recommendedSetup() {
   //PJRC recommended setup code for ethernet sd card module
-  pinMode(9, OUTPUT);
-  digitalWrite(9, LOW);    // begin reset the WIZ820io
-  pinMode(10, OUTPUT);
-  digitalWrite(10, HIGH);  // de-select WIZ820io
+ //pinMode(9, OUTPUT);
+ //digitalWrite(9, LOW);    // begin reset the WIZ820io
+  //pinMode(10, OUTPUT);
+ //digitalWrite(10, HIGH);  // de-select WIZ820io
   pinMode(4, OUTPUT);
   digitalWrite(4, HIGH);   // de-select the SD Card
-  digitalWrite(9, HIGH);   // end reset pulse
+  //digitalWrite(9, HIGH);   // end reset pulse
 }
 
 //------------------------------------------------------------------------------------------------

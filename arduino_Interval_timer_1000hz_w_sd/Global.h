@@ -53,7 +53,7 @@ const int chipSelect = 4; //cs for sd card
 
 
 
-char filename[11] = "rec040.txt";  //initial fileanme here
+char filename[11] = "rec050.txt";  //initial fileanme here
 
 
 //Setup UDP
@@ -69,8 +69,8 @@ IPAddress ip(169,254,2,78);
 
 unsigned int localPort = 8888;      // local port to listen on
 
-IPAddress ComputerIP ;
-int ComputerPort ;
+IPAddress computerIP ;
+int computerPort ;
 // buffers for receiving and sending data
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
 char ReplyBuffer[] = "aCknowledged";        // a string to send back
@@ -94,5 +94,3 @@ CircularBuffer<unsigned long , BUFFER_SIZE >bufferA;
 unsigned long writeBuffer[BUFFER_SIZE] = {0};
 
 bool readyToWrite = false;
-int looped = 0;
-int maxLoop = 200;

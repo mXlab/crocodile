@@ -18,10 +18,10 @@ class Recording{
     //Variables
 
     //Header arrays
-    String headerLine1= "#";
-    String headerLine2 = "#";
-    String headerLine3 = "#";
-    String headerLine4 = "#";
+    String headerLine = "#";
+//    String headerLine2 = "#";
+//    String headerLine3 = "#";
+//    String headerLine4 = "#";
     
     String nameTitle = "Name: ";
     String dateTitle = "Date: ";
@@ -44,7 +44,7 @@ class Recording{
     String endTime = "16:32:43";
     
     int rate ; //refresh rate of the sensors
-    int mode ; //current mode the object is in 0 = not recording 1 =  recording 2 = ending recording
+    int mode ; //current mode the object is in 0 = ready to start 1 =  recording 2 = ending recording -1 = idle
     int numSignals;
 
     
@@ -61,16 +61,23 @@ class Recording{
     
     bool headerPrinted; 
 
+    bool stopProcess ;
+
 ////////////////////////METHODS/////////////////////////////
  Recording(int _numSignals){
   numSignals = _numSignals;
   
-  mode = 0 ; 
+  mode = -1 ; 
   headerPrinted = false;
+  stopProcess = false;
   }; //constructor
 
 
 //FORMATTING THE HEADER COULD BE DONE WIT ONE BUFFER ONLY IF CLEARED BEETWEN EACH PRINT
+void clearHeaderBuffer(){
+  headerLine.remove(1,headerLine.length());
+  
+  }
 
 String formatHeader1(){
   int spaceLength = 64 -nameTitle.length() - subjectName.length() - dateTitle.length() - date.length();
@@ -79,13 +86,13 @@ String formatHeader1(){
   for( int i = 0 ; i < spaceLength ; i++ ){
     spaces.concat(" ");
     }
-  headerLine1.concat(nameTitle);
-  headerLine1.concat(subjectName);
-  headerLine1.concat(spaces);
-  headerLine1.concat(dateTitle);
-  headerLine1.concat(date);
+  headerLine.concat(nameTitle);
+  headerLine.concat(subjectName);
+  headerLine.concat(spaces);
+  headerLine.concat(dateTitle);
+  headerLine.concat(date);
 
-  return headerLine1;
+  return headerLine;
   }
 
 String formatHeader2(){
@@ -95,13 +102,13 @@ String formatHeader2(){
   for( int i = 0 ; i < spaceLength ; i++ ){
     spaces.concat(" ");
     }
-  headerLine2.concat(durationTitle);
-  headerLine2.concat(duration);
-  headerLine2.concat(spaces);
-  headerLine2.concat(locationTitle);
-  headerLine2.concat(location);
+  headerLine.concat(durationTitle);
+  headerLine.concat(duration);
+  headerLine.concat(spaces);
+  headerLine.concat(locationTitle);
+  headerLine.concat(location);
 
-  return headerLine2;
+  return headerLine;
   }
 
 String formatHeader3(){
@@ -111,13 +118,13 @@ String formatHeader3(){
   for( int i = 0 ; i < spaceLength ; i++ ){
     spaces.concat(" ");
     }
-  headerLine3.concat(startTimeTitle);
-  headerLine3.concat(startTime);
-  headerLine3.concat(spaces);
-  headerLine3.concat(endTimeTitle);
-  headerLine3.concat(endTime);
+  headerLine.concat(startTimeTitle);
+  headerLine.concat(startTime);
+  headerLine.concat(spaces);
+  headerLine.concat(endTimeTitle);
+  headerLine.concat(endTime);
 
-  return headerLine3;
+  return headerLine;
   }
 
 String formatHeader4(){
@@ -135,21 +142,32 @@ String formatHeader4(){
   for( int i = 0 ; i < spaceLength ; i++ ){
     spaces.concat(" ");
     }
-  headerLine4.concat(signalsTitle);
+  headerLine.concat(signalsTitle);
   for( int i = 0 ; i < numSignals ; i++ ){
-  headerLine4.concat(getSignal(i));
-  if( i != numSignals-1) headerLine4.concat(",");
+  headerLine.concat(getSignal(i));
+  if( i != numSignals-1) headerLine.concat(",");
   }
-  headerLine4.concat(spaces);
-  headerLine4.concat(sampleRateTitle);
-  headerLine4.concat(rate);
-  headerLine4.concat(" Hz");
+  headerLine.concat(spaces);
+  headerLine.concat(sampleRateTitle);
+  headerLine.concat(rate);
+  headerLine.concat(" Hz");
 
-  return headerLine4;
+  return headerLine;
   }
 
 
 //---------------------------------------------------------------
+bool isReadyToStart(){
+
+  if( mode == 0){ 
+   return true;
+  
+  }else{
+    return false;
+    }
+}
+
+
 bool isReadyToStop(){
 
   if( mode == 2){ 
@@ -171,8 +189,12 @@ bool isRecording(){
 }
 
 void readyToStartAgain(){
-  mode = 0;
+  mode = -1;
   }
+  
+void setupRecording() {
+  mode = 0;
+};
 
  void startRecording() {//start the recording
     mode = 1;
