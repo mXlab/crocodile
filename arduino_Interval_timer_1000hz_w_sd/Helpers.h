@@ -1,63 +1,113 @@
-void updateData() {
-  //push sensor data to arrays
-  unsigned long temp = millis();
-  bufferA.push(temp);
-  bufferA.push(1);
-  bufferA.push(2);
-  bufferA.push(3);
+//             for( int i = 0 ; i < BUFFER_SIZE/5 ; i++){
+//  int index = i*5;
+//  sample.add("/sample").add(int(writeBuffer[index])).add(int(writeBuffer[index+1])).add(int(writeBuffer[index+2])).add(int(writeBuffer[index+3])).add(int(writeBuffer[index+4]));
+//  Udp.beginPacket(computerIP, computerPort);
+//  sample.send(Udp); // send the bytes to the SLIP stream
+//  Udp.endPacket(); // mark the end of the OSC Packet
+//  sample.empty(); // free space occupied by message
+//  }
 
-  //   bufferA.push(heart.getRaw());
-  //  / bufferA.push(sc1.getRaw());
-  //  bufferA.push(resp.getRaw());
+
+
+void updateData() {
+  /*
+   * This is the function that is run by the interval timer
+   * It samples the data from the sensor and push it to the buffer
+   * Sending the pushed data via OSC to the computer should be done here
+   */
+  unsigned long temp = millis()- stamp;
+  int marker;
+
+  if( r.marker == true){
+    marker = 1;
+    r.resetMarkerBool();
+    }else{
+      marker = 0 ;
+    }
+
+  
+   
+  int temp1 = 6;
+  int temp2 = 5;
+  int temp3 = 4;
+  //pushing temporary data for development
+  bufferA.push(temp);
+  bufferA.push(marker);
+  bufferA.push(temp1);
+  bufferA.push(temp2);
+  bufferA.push(temp3);
+ 
+// pushing sampled data from the sensor
+//  bufferA.push(heart.getRaw());
+//  bufferA.push(sc1.getRaw());
+//  bufferA.push(resp.getRaw());
+
+
+
+ ////Makes the sketch bug, its impossible for the teensy the receive messages when it start sending the data
+ //Try sending the complete write buffer at once and decode it in the computer
+ 
+ 
+//  sample.add("/sample").add(int(temp)).add(marker).add(temp1).add(temp2).add(temp3);
+//  Udp.beginPacket(computerIP, computerPort);
+//  sample.send(Udp); // send the bytes to the SLIP stream
+//  Udp.endPacket(); // mark the end of the OSC Packet
+//  sample.empty(); // free space occupied by message
+
 }
 
 //------------------------------------------------------------------------------------------------
+
+
 void setupRecording(){
-  //open file
+// this function runs the necessary code to setup the recording before it starts
+  
     Serial.println("Open File");
     recFile = SD.open( filename , FILE_WRITE);
-
-    //recFile.println();
     fileOpen = true;
-
-    captureData.begin( updateData, 1000);
+    
     r.startRecording();
     r.headerPrinted = false;
-    Serial.println("START RECORDING");
+    Serial.println("Ready to record");
+    captureData.begin( updateData, 1000);
+    stamp = millis();
 }
 
 //------------------------------------------------------------------------------------------------
 
 void datalog(int bufferArg[BUFFER_SIZE]) {
-  int numChan = NUM_SIGNALS + 1;
+  // This function formats the data and log it to the file on the sd card
+  
+  int numChan = NUM_SIGNALS + 2; // +2 because of the timestamp and marker columns
 
   int formatBuffer[NUM_SIGNALS] = {0};
   unsigned long timestamp = 0 ;
+  int marker = 0 ; 
+ 
+  
   if (recFile) {
-    Serial.println("Writting to card");
 
     for ( int i = 0 ; i < BUFFER_SIZE ; i++) {
 
       int formatIndex = i % numChan;
-
+      
       if (formatIndex == 0 ) {
         timestamp = bufferArg[i];
-      } else {
-        formatBuffer[formatIndex] = bufferArg[i];
+      } else if(formatIndex == 1) {
+        marker =  bufferArg[i];
+        }
+      else {
+        
+        formatBuffer[formatIndex - 2] = bufferArg[i];
       }
       if ( formatIndex == numChan - 1) {
 
-        recFile.println(r.formatData(timestamp, formatBuffer));
+        recFile.println(r.formatData(timestamp,marker, formatBuffer));
 
       }
     }
 
-
-    //recFile.print("LOOPED");
-   // recFile.print(looped);
-   //recFile.println();
     recFile.flush();
-    //dataWrote = true;
   } else {
     Serial.println("cant write to file");
   }
@@ -65,10 +115,14 @@ void datalog(int bufferArg[BUFFER_SIZE]) {
 
 
 //------------------------------------------------------------------------------------------------
+ 
  void writeToCard(){
+      // write the data to the sd card
       
+  
+
       datalog(writeBuffer);
-      
+
       if (r.stopProcess) {
 
         Serial.println("Stop sensors");
@@ -84,9 +138,10 @@ void datalog(int bufferArg[BUFFER_SIZE]) {
 //------------------------------------------------------------------------------------------------
 
 void transferBuffer(){
-  //transfer buffer to write buffer
+  //transfer bufferA to write buffer
+  
       for ( int i = 0 ; i < BUFFER_SIZE ; i++ ) {
-        //Serial.println(i);
+
         writeBuffer[i] = bufferA[i];
       }
       bufferA.clear(); //clear the buffer so it is not full
@@ -95,18 +150,12 @@ void transferBuffer(){
   }
 
 
- void testHeader() {
-     Serial.println(r.formatHeader1());
-      Serial.println(r.formatHeader2());
-      Serial.println(r.formatHeader3());
-      Serial.println(r.formatHeader4());
-      Serial.println();
-      Serial.println(r.channelNames());
-  }
 
-  //------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------
 
 void endRecordingSession(){
+  // this function runs the necessary code to setup the recording before it starts
+
    Serial.println("End Recording");
     recFile.flush();
     
@@ -135,11 +184,66 @@ void endRecordingSession(){
   }
 
 //------------------------------------------------------------------------------------------------
+void detectHardware(){
+    
+// This function verify if hardware to communicate with the computer is connected
+  
+    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    Serial.println("Ethernet shield was not found.");
+    while (true) {
+      delay(1); // do nothing, no point running without Ethernet hardware
+    }
+  }
+  else if (Ethernet.hardwareStatus() == EthernetW5100) {
+    Serial.println("W5100 Ethernet controller detected.");
+  }
+  else if (Ethernet.hardwareStatus() == EthernetW5200) {
+    Serial.println("W5200 Ethernet controller detected.");
+  }
+  else if (Ethernet.hardwareStatus() == EthernetW5500) {
+    Serial.println("W5500 Ethernet controller detected.");
+  }
+  }
+  
+//------------------------------------------------------------------------------------------------
 
+void detectCable(){
+// This function verify is a cable is connected to the hardware
+  
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("Ethernet cable is not connected.");
+  }else{
+        Serial.println("Ethernet cable is connected!");
+    }
+}
 
+//------------------------------------------------------------------------------------------------
 
+void showIP(){
+  //This function prints out the microcontroller ip to the serial port. Used for dev, could be remove
+  
+  Serial.print("Device IP adress: ");
+  Serial.print(Ethernet.localIP());
+  Serial.println();
+  }
+  
+//------------------------------------------------------------------------------------------------
+
+void udpSetup() {
+  //This function runs the necessary code to setup the UDP connection
+  
+  Ethernet.init(CS_PIN);    // You can use Ethernet.init(pin) to configure the CS pin
+  Ethernet.begin(mac, ip);  // start the Ethernet
+  detectHardware();
+  detectCable();
+  Udp.begin(localPort); //start UDP
+}
+
+//------------------------------------------------------------------------------------------------
 
 void cardInfo() {
+//This function print out the card info to the serial port
+  
   // print the type of card
   Serial.print("\nCard type: ");
   switch (card.type()) {
@@ -192,20 +296,23 @@ void cardInfo() {
 }
 
 //------------------------------------------------------------------------------------------------
+
 void recommendedSetup() {
   //PJRC recommended setup code for ethernet sd card module
- //pinMode(9, OUTPUT);
- //digitalWrite(9, LOW);    // begin reset the WIZ820io
-  //pinMode(10, OUTPUT);
- //digitalWrite(10, HIGH);  // de-select WIZ820io
+  pinMode(9, OUTPUT);
+  digitalWrite(9, LOW);    // begin reset the WIZ820io
+  pinMode(10, OUTPUT);
+  digitalWrite(10, HIGH);  // de-select WIZ820io
   pinMode(4, OUTPUT);
   digitalWrite(4, HIGH);   // de-select the SD Card
-  //digitalWrite(9, HIGH);   // end reset pulse
+  digitalWrite(9, HIGH);   // end reset pulse
 }
 
 //------------------------------------------------------------------------------------------------
-void checkForCard() {
 
+void checkForCard() {
+  //This function check if a SD card is inserted
+  
   Serial.print("\nInitializing SD card...");
   // we'll use the initialization code from the utility libraries
   // since we're just testing if the card is working!
@@ -223,7 +330,10 @@ void checkForCard() {
 
 }
 
+//------------------------------------------------------------------------------------------------
+
 void setupAllSensors() {
+// this function runs the necessary code to setup the sensors
 
   heart.reset();
   sc1.reset();
@@ -231,33 +341,13 @@ void setupAllSensors() {
 
 }
 
+//------------------------------------------------------------------------------------------------
+
 void updateAllSensors() {
+// this function updates the sensor every loop
 
   heart.update();
   sc1.update();
   resp.update();
 
-}
-
-void testClass() {
-  String test = "Etienne Montenegro";
-  String loc = "Montreal";
-  String signals[4] = {"heart", "gsr1", "gsr2", "resp"};
-  int rate = 1000;
-  int testData[5] = {340985654, 1024, 1024, 1024, 1024};
-
-  r.setSubjectName ( test);
-  r.setLocation (loc);
-  r.setSignals(signals);
-  r.setRecRate(rate);
-  r.setDate("25", "06", "20");
-
-  Serial.println(r.getSubjectName());
-  Serial.println(r.getLocation());
-  Serial.println(r.getSignal(0));
-  Serial.println(r.getDate());
-  Serial.print(r.getRecRate());
-  Serial.print(" Hz");
-  Serial.println();
-  Serial.println(r.channelNames());
 }
