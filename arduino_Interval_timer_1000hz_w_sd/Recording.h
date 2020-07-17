@@ -168,6 +168,20 @@ class Recording {
 
       return headerLine;
     }
+    //------------------------------------------------------------------------------------------------
+    
+    bool isIdle() {
+      //returns true if the recording is ready to start if not returns false
+      
+      if ( mode == -1) {
+        return true;
+
+      } else {
+        return false;
+      }
+    }
+
+
 
     //------------------------------------------------------------------------------------------------
 
