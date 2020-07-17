@@ -47,13 +47,16 @@
 #include <SLIPEncodedSerial.h>
 #include <SLIPEncodedUSBSerial.h>
 
+#include <Bounce2.h>
 
 //----------------------------------DEFINE STATEMENTS-------------------------------//
 
 #define CS_PIN 10
 #define BUFFER_SIZE 640 //set the buffer size here. it needs the be a multiple of the number of columns ex: timestamps, marker, heart, gsr, resp -- 5 columns so the buffer is 640
 #define NUM_SIGNALS 3  //Set number of signal recorded here 
-
+#define NUM_BUTTONS 6
+#define START_BUTTON_PIN 21
+#define STOP_BUTTON_PIN 22
 
 //-----------------------------GLOBAL VARIABLES DEFINITION--------------------------//
 
@@ -76,7 +79,7 @@ SdFile root;
 File recFile; //create a instance of File object for the recording file
 bool fileOpen = false; //boolean to keep track of if a file is open to write
 const int chipSelect = 4; //cs pin for sd card
-char filename[11] = "rec010.txt";  //initial filename here
+char filename[11] = "rec199.txt";  //initial filename here
 
 
 
@@ -113,3 +116,14 @@ bool rateReceived = false;
 bool readyToWrite = false; //boolean to prevent writing to the card when its not time
 
 unsigned long stamp = 0; //holds the millis timestamp when the recording starts
+
+bool filenameAvailable = false;
+
+
+
+const uint8_t BUTTON_PINS[NUM_BUTTONS] = {0, 1, 2, 18, 19, 20};
+int pressedButton;
+int buttonStatus[NUM_BUTTONS] = {0};
+Bounce startButton =  Bounce();
+Bounce stopButton =  Bounce();
+Bounce * buttons = new Bounce[NUM_BUTTONS];

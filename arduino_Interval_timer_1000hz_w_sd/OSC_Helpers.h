@@ -188,20 +188,18 @@ void routeStart(OSCMessage &msg) {
    //This function is a callback function for the /start message
   //It sets the recording to start in the next loop and send a  
   //reply to the computer telling it its received
-  
-  Serial.println("Start Recording");
-
+  Serial.println("Setting up Recording");
+  r.setupRecording();
   //sends reply
   int value = 1;
   OSCBundle reply;
   reply.add("/recStarted").add(value);
-
   Udp.beginPacket(computerIP, computerPort);
   reply.send(Udp); // send the bytes to the SLIP stream
   Udp.endPacket(); // mark the end of the OSC Packet
   reply.empty(); // free space occupied by message
 
-  r.setupRecording();
+  
 }
 
 //------------------------------------------------------------------------------------------------
@@ -210,7 +208,7 @@ void routeStop(OSCMessage &msg) {
   //This function is a callback function for the /stop message
   //It sets the recording to stop in the next loop and send a  
   //reply to the computer telling it its received
- 
+  r.stopProcess = true;
   Serial.println("Stop Recording");
 
   //sends reply
@@ -223,7 +221,7 @@ void routeStop(OSCMessage &msg) {
   Udp.endPacket(); // mark the end of the OSC Packet
   reply.empty(); // free space occupied by message
 
-  r.stopProcess = true;
+  
 }
 
 //------------------------------------------------------------------------------------------------
@@ -232,10 +230,10 @@ void routeMarker(OSCMessage &msg) {
   //This function is a callback function for the /marker message
   //It places a marker at th corresponding timetag and send a  
   //reply to the computer telling it its received
-  Serial.println(r.marker);
+  
   Serial.println("Place Marker");
   r.placeMarker();
-  Serial.println(r.marker);
+ 
 
 
   //sends reply

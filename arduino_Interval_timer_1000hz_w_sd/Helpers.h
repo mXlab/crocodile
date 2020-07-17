@@ -1,12 +1,3 @@
-//             for( int i = 0 ; i < BUFFER_SIZE/5 ; i++){
-//  int index = i*5;
-//  sample.add("/sample").add(int(writeBuffer[index])).add(int(writeBuffer[index+1])).add(int(writeBuffer[index+2])).add(int(writeBuffer[index+3])).add(int(writeBuffer[index+4]));
-//  Udp.beginPacket(computerIP, computerPort);
-//  sample.send(Udp); // send the bytes to the SLIP stream
-//  Udp.endPacket(); // mark the end of the OSC Packet
-//  sample.empty(); // free space occupied by message
-//  }
-
 
 
 void updateData() {
@@ -24,15 +15,13 @@ void updateData() {
     }else{
       marker = 0 ;
     }
-
-  
-   
+ 
   int temp1 = 6;
   int temp2 = 5;
   int temp3 = 4;
   //pushing temporary data for development
   bufferA.push(temp);
-  bufferA.push(marker);
+  bufferA.push(pressedButton);
   bufferA.push(temp1);
   bufferA.push(temp2);
   bufferA.push(temp3);
@@ -42,20 +31,52 @@ void updateData() {
 //  bufferA.push(sc1.getRaw());
 //  bufferA.push(resp.getRaw());
 
-
-
- ////Makes the sketch bug, its impossible for the teensy the receive messages when it start sending the data
- //Try sending the complete write buffer at once and decode it in the computer
- 
- 
-//  sample.add("/sample").add(int(temp)).add(marker).add(temp1).add(temp2).add(temp3);
-//  Udp.beginPacket(computerIP, computerPort);
-//  sample.send(Udp); // send the bytes to the SLIP stream
-//  Udp.endPacket(); // mark the end of the OSC Packet
-//  sample.empty(); // free space occupied by message
-
 }
+//------------------------------------------------------------------------------------------------
 
+void checkFileName(){  
+
+   
+    while( filenameAvailable == false ){
+         //check if file already exist
+        if(SD.exists(filename)){
+        // if yes, make a different name
+          char endDigit = filename[5];
+          char middleDigit = filename[4];
+          char startDigit = filename[3];
+
+     
+          if( endDigit >= 57){
+            
+            endDigit = 48; 
+            middleDigit = middleDigit + 1;
+            
+            if(middleDigit >= 57){
+              
+              middleDigit = 48;
+              startDigit = startDigit + 1;
+              
+              }
+          }else{
+
+          endDigit = endDigit +1;
+          
+          }
+
+          filename[5] = endDigit;
+          filename[4] = middleDigit;
+          filename[3] = startDigit;
+     
+        }else {
+          Serial.print("New filename: ");
+          Serial.print(filename);
+          Serial.println();
+          filenameAvailable = true;
+          }
+      
+      }
+  
+  }
 //------------------------------------------------------------------------------------------------
 
 
@@ -68,7 +89,7 @@ void setupRecording(){
     
     r.startRecording();
     r.headerPrinted = false;
-    Serial.println("Ready to record");
+    Serial.println("Start recording");
     captureData.begin( updateData, 1000);
     stamp = millis();
 }
@@ -119,10 +140,8 @@ void datalog(int bufferArg[BUFFER_SIZE]) {
  void writeToCard(){
       // write the data to the sd card
       
-  
-
       datalog(writeBuffer);
-
+  
       if (r.stopProcess) {
 
         Serial.println("Stop sensors");
@@ -156,7 +175,7 @@ void transferBuffer(){
 void endRecordingSession(){
   // this function runs the necessary code to setup the recording before it starts
 
-   Serial.println("End Recording");
+   Serial.println("Writing last data to card");
     recFile.flush();
     
     if ( r.headerPrinted == false) {
@@ -179,7 +198,8 @@ void endRecordingSession(){
     bufferA.clear(); //potentially unecessary
     recFile.close();
     Serial.println("File Closed");
-    //fileOpen = false; //uncomment when sure not to overite
+    filenameAvailable = false;
+    fileOpen = false; //uncomment when sure not to overite
     r.readyToStartAgain();
   }
 
@@ -209,7 +229,7 @@ void detectHardware(){
 
 void detectCable(){
 // This function verify is a cable is connected to the hardware
-  
+ 
   if (Ethernet.linkStatus() == LinkOFF) {
     Serial.println("Ethernet cable is not connected.");
   }else{
@@ -351,3 +371,43 @@ void updateAllSensors() {
   resp.update();
 
 }
+
+//------------------------------------------------------------------------------------------------
+
+void setupButtons(int intervalms){
+  for (int i = 0; i < NUM_BUTTONS; i++) {
+    buttons[i].attach( BUTTON_PINS[i] , INPUT_PULLUP  );       //setup the bounce instance for the current button
+    buttons[i].interval(intervalms);              // interval in ms
+  }
+
+  startButton.attach(START_BUTTON_PIN , INPUT_PULLUP);
+  startButton.interval(intervalms);   
+  stopButton.attach(STOP_BUTTON_PIN , INPUT_PULLUP);
+  stopButton.interval(intervalms);   
+
+  
+}
+
+
+void updateButtons(){
+
+  
+  startButton.update();
+  stopButton.update();
+  
+    for (int i = 0; i < NUM_BUTTONS; i++)  {
+    // Update the Bounce instance :
+    buttons[i].update();
+    //
+    buttonStatus[i] = buttons[i].read();
+    if( buttonStatus[i] == 0 ){
+    pressedButton = i;
+    break;
+   }
+
+   if( i == NUM_BUTTONS -1){
+    //no button were pressed
+    pressedButton = -1;
+    }
+  }
+  }
