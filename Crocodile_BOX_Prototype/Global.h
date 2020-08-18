@@ -1,11 +1,3 @@
-#include <LiquidCrystalFast.h>
-
-
-
-#include <Chrono.h>
-#include <LightChrono.h>
-
-
 /////////////////////////////////GLOBAL VARIABLES//////////////////////////////////
 /*
     This file contains all the #include statements, all the define statements
@@ -16,12 +8,11 @@
 //----------------------------------DEFINE STATEMENTS-------------------------------//
 
 #define CS_PIN 10
-#define BUFFER_SIZE 640 //set the buffer size here. it needs the be a multiple of the number of columns ex: timestamps, marker, heart, gsr, resp -- 5 columns so the buffer is 640
-#define NUM_SIGNALS 3  //Set number of signal recorded here 
+#define BUFFER_SIZE 768 //set the buffer size here. it needs the be a multiple of the number of columns ex: timestamps, marker, heart, gsr, resp -- 5 columns so the buffer is 640
+#define NUM_SIGNALS 4  //Set number of signal recorded here 
 
 #define START_BUTTON_PIN 0
-#define STOP_BUTTON_PIN 1
-#define MARKER_BUTTON_PIN 2
+#define MARKER_BUTTON_PIN 1
 
 #define POT_PIN A0
 #define NUM_EMOTIONS  7
@@ -29,6 +20,9 @@
 
 //----------------------------------ADDING LIBRARIES-------------------------------//
 
+#include <LiquidCrystalFast.h>
+#include <Chrono.h>
+#include <LightChrono.h>
 #include "Recording.h" //include Custom recording class
 
 
@@ -82,6 +76,7 @@ Recording r(NUM_SIGNALS); //create instance of Recording object
 
 Heart heart(A0); //Create instance for heart sensor
 SkinConductance sc1(A3); //Create instance for gsr sensor
+SkinConductance sc2(A6);
 Respiration resp(A2); //create instance for respiration sensor
 
 
@@ -99,7 +94,7 @@ String fileDigits = "000";
 String fileExtension = ".txt";
 char filename[11] = "rec199.txt";  //initial filename here
 
-String signalTypes[NUM_SIGNALS] = {"Heart" , "GSR" , "TEMP"};
+String signalTypes[NUM_SIGNALS] = {"Heart" , "GSR1","GSR2", "TEMP"};
 
 
 // Enter da MAC address and IP address for your controller below.
@@ -111,14 +106,8 @@ unsigned int localPort = 8888;      // local port to listen on
 int computerPort = 8888; //check if can replace this for localPort in the code ( most probably yes ) because they hold the same value
 IPAddress computerIP ; //ip adress of the computer we're talking to.
 
-// buffers for receiving and sending data
-// can probably remove these two buffer because using osc now
-//char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
-//char ReplyBuffer[] = "aCknowledged";        // a string to send back
-
 //OSCBundle sample; //create an osc bundle object to send the sample @ 1000hz
 EthernetUDP Udp; // An EthernetUDP instance to let us send and receive packets over UDP
-
 
 CircularBuffer<unsigned long , BUFFER_SIZE >bufferA; //Create an instance of a circular buffer to store data before sending
 unsigned long writeBuffer[BUFFER_SIZE] = {0}; // Temporary buffer that holds the data while writting to card
@@ -140,13 +129,8 @@ bool filenameAvailable = false;
 
 
 
-//const uint8_t BUTTON_PINS[NUM_BUTTONS] = {0, 1, 2, 18, 19, 20};
-//int pressedButton;
-//int buttonStatus[NUM_BUTTONS] = {0};
 Bounce startButton =  Bounce();
-Bounce stopButton =  Bounce();
 Bounce markerButton = Bounce();
-//Bounce * buttons = new Bounce[NUM_BUTTONS];
 
 String emotionFilename;
 String selectedEmotion ;
@@ -161,7 +145,7 @@ String infoEmotion;
 
 int displayIndex = 0;
 int potVal = 0;
-unsigned long temp;
+unsigned long timestamp;
 Chrono recordingUpdate;
 
 //buffers use one more char than the screen can display for a null terminator

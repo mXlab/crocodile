@@ -1,13 +1,18 @@
 
+//Include all subfiles of the project
 #include "Global.h" //include file containing global variables
-#include "OSC_Helpers.h" //include file containing helpers function regardind OSC
 #include "Helpers.h" // include file containing helpers function
+#include "hardware_helpers.h" 
+#include "setup_Helpers.h"
+#include "OSC_Helpers.h" //include file containing helpers function regardind OSC
+#include "update_helpers.h"
+#include "recording_helpers.h"
 
-//USED PINS
+
 
 // 0 - Button 0 Start recording
-// 1 - Button 1 Stop recording
-// 2 - Button 2 Place marker
+// 1 - Button 1 Place marker
+// 2 - EMPTY
 // 3 - EMPTY
 // 4 - SD_ETHERNET ADAPTER
 // 8 - SD_ETHERNET ADAPTER
@@ -116,7 +121,7 @@ void loop() {
   if ( r.isRecording() ) //verify if it's in recording states
   {
     
-    if ( stopButton.fell()) //verify if the stop button was pressed
+    if ( startButton.fell()) //verify if the stop button was pressed
       {
         r.stopProcess = true;
       }

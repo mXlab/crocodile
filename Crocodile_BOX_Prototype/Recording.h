@@ -1,6 +1,29 @@
-#ifndef RECORDING_H
-#define RECORDING_H
-
+////////////////////////////////Recording format Class//////////////////////////////////
+/*
+    This file contains the recording class. It format the data
+    in a EDF way and handle the the recording state of the device.
+    
+    -Recording() <- Constructor
+    -clearHeaderBuffer()
+    -formatHeader1() //formatHeader2() // formatHeader3() // formatHeader4()
+    -isIdle() // isReadyToStart() // isReadyToStop() //isRecording()
+    -placeMarker() //resetMarkerBool()
+    -readyToStartAgain()
+    -setupRecording()
+    -startRecording()
+    -stopRecording()
+    -channelNames()
+    -formatData()
+    -setLocation() // getLocation()
+    -setSubjectName() // getSubjectName()
+    -setSignals() // getSignals()
+    -setRecRate() // getRecRate()
+    -setDate() // getDate()
+    -setDuration() // getDuration()
+    -startEndDelay() // stopEndDelay() // updateEndDelay()
+    -startCountdown() // stopCountdown() // updateCountdown() // resetCountdown()
+    -recordingLength()
+*/
 
 //Header Example
 //################################################################
@@ -9,6 +32,9 @@
 //#Start time: 13:40:34                         End Time: 13:40:34
 //#Signals: heart , gsr1 , gsr2 , resp        Sample Rate: 1000 Hz
 //################################################################
+
+#ifndef RECORDING_H
+#define RECORDING_H
 
 class Recording {
 
@@ -67,7 +93,7 @@ class Recording {
     ////////////////////////METHODS/////////////////////////////
     Recording(int _numSignals) {
 
-      Serial.println("POTATO");
+
       numSignals = _numSignals;
       rate = 1000000 / REFRESH_RATE;
 
@@ -97,6 +123,7 @@ class Recording {
     }
 
     //------------------------------------------------------------------------------------------------
+    //methods to correctly format each header lines
 
     String formatHeader1() {
       //Format the first line of the header correctly
@@ -116,8 +143,6 @@ class Recording {
       return headerLine;
     }
 
-    //------------------------------------------------------------------------------------------------
-
     String formatHeader2() {
       //Format the second line of the header correctly
 
@@ -136,8 +161,6 @@ class Recording {
       return headerLine;
     }
 
-    //------------------------------------------------------------------------------------------------
-
     String formatHeader3() {
       //Format the third line of the header correctly
 
@@ -155,8 +178,6 @@ class Recording {
 
       return headerLine;
     }
-
-    //------------------------------------------------------------------------------------------------
 
     String formatHeader4() {
       //Format the fourth line of the header correctly
@@ -187,6 +208,7 @@ class Recording {
       return headerLine;
     }
     //------------------------------------------------------------------------------------------------
+    //methods to check if the device is in a specifc mode
 
     bool isIdle() {
       //returns true if the recording is ready to start if not returns false
@@ -199,10 +221,6 @@ class Recording {
       }
     }
 
-
-
-    //------------------------------------------------------------------------------------------------
-
     bool isReadyToStart() {
       //returns true if the recording is ready to start if not returns false
 
@@ -214,8 +232,6 @@ class Recording {
       }
     }
 
-    //------------------------------------------------------------------------------------------------
-
     bool isReadyToStop() {
       //returns true if the recording is ready to stop if not returns false
 
@@ -226,8 +242,6 @@ class Recording {
         return false;
       }
     }
-
-    //------------------------------------------------------------------------------------------------
 
     bool isRecording() {
       //returns true if the device is recording if not returns false
@@ -241,7 +255,7 @@ class Recording {
     }
 
     //------------------------------------------------------------------------------------------------
-
+    //methods used to place a marker at the current timestamp in the csv file
     void placeMarker() {
       marker = true;
     }
@@ -313,7 +327,7 @@ class Recording {
       // timestamp,marker,signal1,signal2,signal3,signal4
       // 987753,0,1023,1023,1023
 
-      sprintf(dataBuff , "%ld,%d,%d,%d,%d" , timestamp, marker, data[0], data[1], data[2]);
+      sprintf(dataBuff , "%ld,%d,%d,%d,%d,%d" , timestamp, marker, data[0], data[1], data[2],data[3]);
       return dataBuff ;
     };
 
@@ -370,7 +384,7 @@ class Recording {
       return date;
     };
 
-
+    //--------------------------------------------------------------
 
     void setDuration(String h , String m , String s) { //set date
       duration = h + ":" + m + ":" + s;
@@ -380,30 +394,18 @@ class Recording {
       return duration;
     };
 
+    //--------------------------------------------------------------
+    // start/stop/update methods for the delay at the end
+    // of each recording sessions
 
     void startEndDelay() {
       endDelayNotStarted = false;
       endDelay.resume();
-    }
+    };
 
     void stopEndDelay() {
       endDelay.stop();
     }
-
-    void startCountdown() {
-      startDelay.resume();
-      seconds.resume();
-    }
-
-    void stopCountdown() {
-      startDelay.stop();
-      seconds.stop();
-    }
-
-    void resetCountdown() {
-      ctdwnIndex = 10;
-    }
-
 
     bool updateEndDelay() {
       bool test = false;
@@ -416,7 +418,19 @@ class Recording {
       return test ;
     }
 
+    //--------------------------------------------------------------
+    // start/stop/update and reset methods for the delay at the beginning
+    // of each recording sessions
 
+    void startCountdown() {
+      startDelay.resume();
+      seconds.resume();
+    }
+
+    void stopCountdown() {
+      startDelay.stop();
+      seconds.stop();
+    }
 
     bool updateCountdown() {
       bool boolToReturn = false;
@@ -436,11 +450,16 @@ class Recording {
 
       }
       return boolToReturn ;
-    }
+    };
 
+    void resetCountdown() {
+      ctdwnIndex = 10;
+    };
 
-    recordingLength( unsigned long timestamp) {
+    //--------------------------------------------------------------
 
+    void recordingLength( unsigned long timestamp) {
+      //calculate the lenght of the recording session based on the timestamps
       int timeInSec = timestamp / 1000;
 
       int numOfHour = timeInSec / 3600;
@@ -454,11 +473,11 @@ class Recording {
       String s = numOfSec;
 
       setDuration(h , m, s);
-    }
+    };
 
 
 
-}; //end class declaration with semicolon in c++
+};
 
 
 #endif

@@ -1,4 +1,19 @@
+////////////////////////////////OSC Helpers//////////////////////////////////
+/*
+    This file contains all the helpers functions necessary for OSC communication:
+    - routeConnect()
+    -routeName()
+    -routeLocation()
+    -routeDate()
+    -routeRate()
+    -routeSignals()
+    -routeStart()
+    -routeStop()
+    -routeMarker()
+    -oscUpdate()   
+*/
 
+//------------------------------------------------------------------------------------------------
 
 void routeConnect(OSCMessage &msg ) {
   //This function is a callback function for the /connect message
