@@ -7,9 +7,12 @@ def compute_loss(p_true, p_fake, mode):
     elif mode == 'gan':
         loss_gen = - F.softplus(-p_true).mean() - F.softplus(p_fake).mean()
         loss_dis = - loss_gen
-    elif mode in ['wgan', 'wgan_gp']:
+    elif mode == "wgan":
         loss_gen = p_true.mean() - p_fake.mean()
         loss_dis = - loss_gen
+    elif mode == "hinge":
+        loss_gen = - p_fake.mean()
+        loss_dis = F.relu(1. - p_true).mean() + F.relu(1. + p_fake).mean()
     else:
         raise NotImplementedError()
     return loss_gen, loss_dis
