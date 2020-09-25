@@ -11,8 +11,8 @@
 #define BUFFER_SIZE 768 //set the buffer size here. it needs the be a multiple of the number of columns ex: timestamps, marker, heart, gsr, resp -- 5 columns so the buffer is 640
 #define NUM_SIGNALS 4  //Set number of signal recorded here 
 
-#define START_BUTTON_PIN 0
-#define MARKER_BUTTON_PIN 1
+#define START_BUTTON_PIN 2
+#define MARKER_BUTTON_PIN 3
 
 #define POT_PIN A0
 #define NUM_EMOTIONS  7
