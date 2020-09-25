@@ -10,11 +10,14 @@
 
 
 
-// 0 - Button 0 Start recording
-// 1 - Button 1 Place marker
-// 2 - EMPTY
-// 3 - EMPTY
+// 0 - 
+// 1 - 
+// 2 - Button 0 Start recording
+// 3 - Button 1 Place marker
 // 4 - SD_ETHERNET ADAPTER
+// 5 - EMPTY
+// 6 - EMPTY
+// 7 - EMPTY
 // 8 - SD_ETHERNET ADAPTER
 // 9 - SD_ETHERNET ADAPTER
 // 10 - SD_ETHERNET ADAPTER
