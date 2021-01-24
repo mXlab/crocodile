@@ -22,7 +22,8 @@ void updateData() {
 
   if (markerButton.read() == 0) { //when the button is pressed
     r.placeMarker();
-    feelingIt.toCharArray(lcdLine2,17);
+    sprintf(lcdLine2, "%s" , feelingIt);
+;
   }
 
   if ( r.marker == true) {
@@ -89,17 +90,31 @@ void updatePotentiometer() {
 
   if (newPosition != oldPosition) { //if position changed
     
-    oldPosition = newPosition;
-    //Serial.println(oldPosition); 
+    oldPosition = newPosition ;
+    potVal = newPosition;
+    Serial.print("ENC VALUE : " );
+    Serial.println(oldPosition); 
     }
 }
 
 //------------------------------------------------------------------------------------------------
 
 void updateLCD() {
+  //Serial.println("STEP 1");
   lcd.setCursor(0, 0);
+  //Serial.println("STEP 2");
+   // Serial.printf("%s", lcdLine1);
+ // Serial.println();
+ // Serial.print("size: ");
+  //Serial.println(sizeof(lcdLine1));
   lcd.print(lcdLine1);
+ // Serial.println("STEP 3");
   lcd.setCursor(0, 1);
+  //Serial.println("STEP 4");
+// Serial.printf("%s", lcdLine2);
+ // Serial.println();
+ // Serial.print("size: ");
+ // Serial.println(sizeof(lcdLine2));
   lcd.print(lcdLine2);
-
+ // Serial.println("leaving update lcd");
 }

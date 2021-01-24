@@ -21,7 +21,7 @@ void setupButtons(int intervalms) {
   startButton.attach(ENCODER_SWITCH , INPUT_PULLUP);
   startButton.interval(intervalms);
   
-  markerButton.attach(MARKER_BUTTON_PIN , INPUT_PULLUP);
+  markerButton.attach(3, INPUT_PULLUP);
   markerButton.interval(intervalms);
 
 }

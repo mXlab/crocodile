@@ -138,9 +138,9 @@ String emotions[NUM_EMOTIONS] = {" Happiness      " , " Sadness        " , " Fea
 String emotionsName[NUM_EMOTIONS] = {"Happiness" , "Sadness" , "Fear" , "Anger" , "Arousal" , "Surprise" , "Neutral"} ; //spaces in the strings are use to format text to display
 String emotionsFile[NUM_EMOTIONS] = {"HAP" , "SAD" , "FEA" , "ANG" , "ARO" , "SUR" , "NEU"} ;
 String recordingLCD[4] = { "  Recording     ", "  Recording.  ", "  Recording..  ", "  Recording...  "};
-String feelingIt = "   Feeling it   ";
+char feelingIt[16] = "   Feeling it   ";
 int recordingLCDIndex = 0;
-String emptyLine = "                 ";
+char emptyLine[16] = "                 ";
 String infoEmotion;
 
 int displayIndex = 0;
@@ -153,5 +153,5 @@ char lcdLine1[17];
 char lcdLine2[17];
 
 bool filenameNotChecked = true;
-String idleLine1 = "Select emotion: ";
-String lcdRecordingOver = "End of recording";
+char idleLine1[16] = "Select emotion: ";
+char lcdRecordingOver[16] = "End of recording";
