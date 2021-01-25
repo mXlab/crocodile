@@ -4,12 +4,14 @@
 
 
 //Encoder dependencies
+//#define ENCODER_DO_NOT_USE_INTERRUPTS
+#define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
 #define ENCODER_PHASE_A 5
 #define ENCODER_PHASE_B 6
 #define ENCODER_SWITCH 2
 //#define ENCODER_OPTIMIZE_INTERRUPTS
-//#define ENCODER_DO_NOT_USE_INTERRUPTS
+
 Encoder myEnc(ENCODER_PHASE_A, ENCODER_PHASE_B);
 long oldPosition = -999;
 
@@ -72,19 +74,23 @@ void setup() {
  
   setupButtons(1); //setup all the buttons and set the refresh rate at 1ms
   lcdSetup(); //setup the lcd screen
+  pinMode(LED_HEART, OUTPUT);
+  pinMode(LED_GSR1, OUTPUT);
+  pinMode(LED_GSR2, OUTPUT);
+  pinMode(LED_TEMP, OUTPUT);
+  //digitalWrite(7,HIGH);
 
+  lcdUpdate.restart();
 }
 
 void loop() {
 
-  updateAllSensors(); //update the sensors every loop
-
+ 
+  updateButtons(); //update all the buttons state
+   
   if( r.isRecording() == false){ //update encoder only when not recording
     updatePotentiometer(); //update the potentiometer value
   };
-
-  updateButtons(); //update all the buttons state
-  //oscUpdate(); //look if an osc message arrived and parse it
 
   if (r.isIdle() ) //verify if its time to stop the recording
   {
@@ -158,7 +164,7 @@ void loop() {
     //Serial.println("before interupts"); //debug
     noInterrupts(); //prevents from interrupting until interrupts() is called to transfert the buffer
   //  Serial.println("inside interrupt"); //debug
-     
+    updateAllSensors(); //update the sensors every loop
     if (bufferA.isFull() && readyToWrite == false) //verify if it's ready to transfer the buffer
     {
     //  Serial.println("transfer buffer"); //debug
@@ -174,8 +180,12 @@ void loop() {
       writeToCard(); //write the temps buffer to the SD card
     }
   }
-
  // Serial.println("before update lcd"); //debug
-  updateLCD(); //update lcd display buffers
+if(lcdUpdate.hasPassed(46))
+ {  lcdUpdate.restart();
+ updateLCD(); //update lcd display buffers
+
+  
+}
   //Serial.println("loop end"); //debug
 }

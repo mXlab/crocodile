@@ -17,7 +17,7 @@ void createFilename() {
 
   
   String _name = emotionFilename + fileDigits + fileExtension;
-  Serial.println(_name);
+  //Serial.println(_name);
   _name.toCharArray(filename, sizeof(filename));
 
 }
@@ -58,9 +58,9 @@ void checkFileName() {
 
 
     } else {
-      Serial.print("New filename: ");
-      Serial.print(filename);
-      Serial.println();
+      //Serial.print("New filename: ");
+      //Serial.print(filename);
+     // Serial.println();
       filenameAvailable = true;
     }
 
@@ -106,7 +106,7 @@ void datalog(int bufferArg[BUFFER_SIZE]) {
 
     recFile.flush();
   } else {
-    Serial.println("cant write to file");
+    //Serial.println("cant write to file");
   }
 }
 
@@ -119,7 +119,7 @@ void writeToCard() {
 
   if (r.stopProcess) {
 
-    Serial.println("Stop sensors");
+   // Serial.println("Stop sensors");
     captureData.end();
     bufferA.clear();
     r.stopRecording();
@@ -157,8 +157,8 @@ int emotionSelection( int potValue) {
 void idleDisplay(){
   
       if (displayIndex == 0) {
-      
-      int emotionIndex = emotionSelection(potVal); //set the good emotion index based on the potentiometer current value
+      int emotionIndex = potVal;
+      //int emotionIndex = emotionSelection(potVal); //set the good emotion index based on the potentiometer current value
       emotionFilename = emotionsFile[emotionIndex];  //select the filename prefix based on the emotionIndex
       selectedEmotion = emotions[emotionIndex]; //select the string to display on the lcd based on the emotionIndex
       infoEmotion = emotionsName[emotionIndex]; //select the string to put in the header based on the emotionIndex

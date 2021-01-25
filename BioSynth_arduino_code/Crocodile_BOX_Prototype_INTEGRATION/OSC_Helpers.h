@@ -20,7 +20,7 @@ void routeConnect(OSCMessage &msg ) {
   //It sets the computerIp variable and send a reply to the computer
   //telling it its connected
 
-  Serial.println("Connection to computer");
+  //Serial.println("Connection to computer");
   computerIP = Udp.remoteIP();
   Connected = true;
 
