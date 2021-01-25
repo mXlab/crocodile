@@ -12,16 +12,16 @@
 void setupRecording() {
   // this function runs the necessary code to setup the recording before it starts
 
-  Serial.println("Open File");
+  //Serial.println("Open File");
   recFile = SD.open( filename , FILE_WRITE);
   fileOpen = true;
 
   r.startRecording();
   r.headerPrinted = false;
-  Serial.println("Start recording");
+  //Serial.println("Start recording");
   captureData.begin( updateData, REFRESH_RATE);
   stamp = millis();
-  Serial.println("debug1");
+  //Serial.println("debug1");
 }
 
 //------------------------------------------------------------------------------------------------

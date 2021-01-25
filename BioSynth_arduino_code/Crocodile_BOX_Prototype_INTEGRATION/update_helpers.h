@@ -33,25 +33,22 @@ void updateData() {
     marker = 0 ;
   }
 
-//  int temp1 = 6;
-//  int temp2 = 5;
-//  int temp3 = 4;
-//  int temp4 = 3;
-  //pushing temporary data for development
   bufferA.push(timestamp);
   bufferA.push(marker);
-//  bufferA.push(temp1);
-//  bufferA.push(temp2);
-//  bufferA.push(temp3);
-//  bufferA.push(temp4);
-
 
 
   // pushing sampled data from the sensor
     bufferA.push(heart.getRaw());
+    //Serial.println(heart.getRaw());
     bufferA.push(sc1.getRaw());
+    //Serial.println(sc1.getRaw());
+
     bufferA.push(sc2.getRaw());
+    //Serial.println(sc2.getRaw()); 
+
     bufferA.push(resp.getRaw());
+    //Serial.println(resp.getRaw());
+
 
 }
 
@@ -59,15 +56,20 @@ void updateData() {
 
 void updateAllSensors() {
   // this function updates the sensor every loop
-
+  
+  //CHANGE THE LED SIGNAL SCALING HERE
   heart.update();
-  //Serial.println(heart.getRaw());
+  analogWrite(LED_HEART,map(heart.getRaw(),500,600 , 0 , 255));
+  //Serial.println(heart.getRaw());  //uncomment to print heart signal in the serial monitor
   sc1.update();
-   //Serial.println(sc1.getRaw());
+  analogWrite(LED_GSR1,map(sc1.getRaw(),500 ,900 , 0 , 255));
+ //Serial.println(sc1.getRaw());  //uncomment to print GSR1  signal in the serial monitor
   sc2.update();
-  //Serial.println(sc2.getRaw()); 
+  analogWrite(LED_GSR2,map(sc2.getRaw(),500 ,900 , 0 , 255));
+  //Serial.println(sc2.getRaw());   //uncomment to print GSR2  signal in the serial monitor
   resp.update();
- //Serial.println(resp.getRaw());
+  analogWrite(LED_TEMP,map(resp.getRaw(),0 ,1023 , 0 , 255));
+  //Serial.println(resp.getRaw());  //uncomment to print temp  signal in the serial monitor
 }
 
 //------------------------------------------------------------------------------------------------
@@ -75,6 +77,7 @@ void updateAllSensors() {
 void updateButtons() {
   //update the state of the buttons every loop
   startButton.update();
+  //Serial.println(startButton.read());
   markerButton.update();
   //Serial.println(markerButton.read());
 
@@ -83,38 +86,28 @@ void updateButtons() {
 //------------------------------------------------------------------------------------------------
 
 void updatePotentiometer() {
-  //potVal = analogRead(POT_PIN);
-  //encoder code. doesnt seem to work
+
   long newPosition = myEnc.read()/4;
-    
+
 
   if (newPosition != oldPosition) { //if position changed
+//    Serial.print("ENC RAW : " );
+//    Serial.println(myEnc.read());
     
-    oldPosition = newPosition ;
-    potVal = newPosition;
-    Serial.print("ENC VALUE : " );
-    Serial.println(oldPosition); 
+    oldPosition = constrain(newPosition %7, 0 , NUM_EMOTIONS - 1);
+    potVal = oldPosition;
+//    Serial.print("ENC VALUE : " );
+//    Serial.println(oldPosition); 
     }
 }
 
 //------------------------------------------------------------------------------------------------
 
 void updateLCD() {
-  //Serial.println("STEP 1");
+
   lcd.setCursor(0, 0);
-  //Serial.println("STEP 2");
-   // Serial.printf("%s", lcdLine1);
- // Serial.println();
- // Serial.print("size: ");
-  //Serial.println(sizeof(lcdLine1));
   lcd.print(lcdLine1);
- // Serial.println("STEP 3");
   lcd.setCursor(0, 1);
-  //Serial.println("STEP 4");
-// Serial.printf("%s", lcdLine2);
- // Serial.println();
- // Serial.print("size: ");
- // Serial.println(sizeof(lcdLine2));
   lcd.print(lcdLine2);
- // Serial.println("leaving update lcd");
+ 
 }

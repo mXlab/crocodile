@@ -17,7 +17,10 @@
 #define POT_PIN A0
 #define NUM_EMOTIONS  7
 #define REFRESH_RATE 5000 //IN MICROSECOND DIVIDE 1000000 BY THE REFRESH RATE IN HZ ( EXEMPLE FOR 200HZ 1000000/200 = 5000)
-
+#define LED_HEART 7
+#define LED_GSR1 14
+#define LED_GSR2 0
+#define LED_TEMP 8
 //----------------------------------ADDING LIBRARIES-------------------------------//
 
 #include <LiquidCrystalFast.h>
@@ -147,7 +150,7 @@ int displayIndex = 0;
 int potVal = 0;
 unsigned long timestamp;
 Chrono recordingUpdate;
-
+Chrono lcdUpdate;
 //buffers use one more char than the screen can display for a null terminator
 char lcdLine1[17];
 char lcdLine2[17];
