@@ -4,10 +4,10 @@
 
 The hardware requires the following libraries:
 
-  [Biodata](https://github.com/eringee/Biodata)
-  [Chrono](https://github.com/SofaPirate/Chrono)
-  [Circulat Buffer](https://github.com/rlogiacco/CircularBuffer)
-  [Liquid Crystal I2C](https://www.arduino.cc/reference/en/libraries/liquidcrystal-i2c/)
+  - [Biodata](https://github.com/eringee/Biodata)
+  - [Chrono](https://github.com/SofaPirate/Chrono)
+  - [Circular Buffer](https://github.com/rlogiacco/CircularBuffer)
+  - [Liquid Crystal I2C](https://www.arduino.cc/reference/en/libraries/liquidcrystal-i2c/)
  
 
 ## Dataset
