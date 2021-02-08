@@ -7,21 +7,22 @@
 
 //----------------------------------DEFINE STATEMENTS-------------------------------//
 
-#define CS_PIN 10
+#define CS_PIN 10   // can this be rerouted to a non PWM pin?
 #define BUFFER_SIZE 768 //set the buffer size here. it needs the be a multiple of the number of columns ex: timestamps, marker, heart, gsr, resp -- 5 columns so the buffer is 640
-#define NUM_SIGNALS 4  //Set number of signal recorded here 
+#define NUM_SIGNALS 5  //Set number of signal recorded here 
 
 #define START_BUTTON_PIN 2
 #define MARKER_BUTTON_PIN 3
 
-#define POT_PIN A0
 #define NUM_EMOTIONS  7
 #define REFRESH_RATE 5000 //IN MICROSECOND DIVIDE 1000000 BY THE REFRESH RATE IN HZ ( EXEMPLE FOR 200HZ 1000000/200 = 5000)
-#define LED_HEART 7
-#define LED_GSR1 14
-#define LED_GSR2 0
-#define LED_TEMP 8
-//----------------------------------ADDING LIBRARIES-------------------------------//
+
+#define LED_HEART 7 //not PWM - this is fine
+#define LED_GSR1 14 // not PWM - this isn't ideal
+#define LED_GSR2 25 // PWM on bottom of Teensy
+#define LED_TEMP 32 // PWM on bottom of Teensy
+
+//------------ADDING LIBRARIES-------------------------------//
 
 #include <LiquidCrystalFast.h>
 #include <Chrono.h>
@@ -38,18 +39,10 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 
-
 //include biodata library
-//some of these file could be removed
 #include <Respiration.h>
-#include <MinMax.h> //this one
-#include <Lop.h> //this one
-#include <Threshold.h> //this one
-//#include <Hip.h> //this file is causing a bug
 #include <SkinConductance.h>
-#include <Average.h> // this one 
 #include <Heart.h>
-
 
 //include circular buffer library
 #include <CircularBuffer.h>
@@ -78,11 +71,9 @@ Recording r(NUM_SIGNALS); //create instance of Recording object
 
 
 Heart heart(A7); //Create instance for heart sensor
-SkinConductance sc1(A6); //Create instance for gsr sensor
-SkinConductance sc2(A2);
+SkinConductance sc1(A2); //Create instance for gsr sensor
+SkinConductance sc2(A6);
 Respiration resp(A3); //create instance for respiration sensor
-
-
 
 // set up variables using the SD utility library functions:
 Sd2Card card;
