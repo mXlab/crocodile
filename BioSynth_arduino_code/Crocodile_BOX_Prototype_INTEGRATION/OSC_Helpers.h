@@ -93,8 +93,8 @@ void routeLocation(OSCMessage &msg) {
 
 void routeDate(OSCMessage &msg) {
   //This function is a callback function for the /date message
-  //It sets the date of the recording in the header and send a
-  //reply to the computer telling it its received
+  //It sets the date of the recording in the header and sends a
+  //reply to the computer telling it that it is received
 
   Serial.println("Received Date");
 
@@ -127,8 +127,8 @@ void routeDate(OSCMessage &msg) {
 
 void routeRate(OSCMessage &msg) {
   //This function is a callback function for the /rate message
-  //It sets the sampling rate of the recording in the header and send a
-  //reply to the computer telling it its received
+  //It sets the sampling rate of the recording in the header and sends a
+  //reply to the computer telling it that it is received
 
   Serial.println("Received Sample Rate");
   char stringBuffer[32];

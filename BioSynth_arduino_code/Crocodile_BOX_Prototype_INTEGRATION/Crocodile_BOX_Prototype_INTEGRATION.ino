@@ -10,20 +10,15 @@
 #define ENCODER_PHASE_A 5
 #define ENCODER_PHASE_B 6
 #define ENCODER_SWITCH 2
-//#define ENCODER_OPTIMIZE_INTERRUPTS
-
 Encoder myEnc(ENCODER_PHASE_A, ENCODER_PHASE_B);
 long oldPosition = -999;
-
 
 #include "Helpers.h" // include file containing helpers function
 #include "hardware_helpers.h"
 #include "setup_Helpers.h"
-//#include "OSC_Helpers.h" //include file containing helpers function regardind OSC DONT NEED FOR BOX
+//#include "OSC_Helpers.h" //include file containing helpers function regarding OSC -- DONT NEED FOR BOX
 #include "update_helpers.h"
 #include "recording_helpers.h"
-
-
 
 // 0 - DISP RESET
 // 1 - SERIAL SEND
@@ -60,8 +55,6 @@ long oldPosition = -999;
 // TO - DO :::
 // SEND DATA VIA UDP @ 1000HZ IF POSSIBLE
 // BEING ABLE TO RECORD MULTIPLE SESSIONS WITHOUT DISCONNECTING THE ARDUINO
-
-
 //FOOT PEDAL gets stuck
 
 void setup() {
@@ -87,7 +80,6 @@ void setup() {
 
 void loop() {
 
- 
   updateButtons(); //update all the buttons state
    
   if( r.isRecording() == false){ //update encoder only when not recording
@@ -139,20 +131,16 @@ void loop() {
   }
 
 
-
   else  if (r.isReadyToStart() && fileOpen == false) //verify if it can start the recording
   {
     String nameInfo = infoEmotion + " " + filename[3] + filename[4] + filename[5] + " Laurence"; //compose the subjectName header line
     r.setSubjectName(nameInfo);
     r.setSignals(signalTypes);
-    setupRecording(); //goes trought all the steps to setup and start the recording
-
-
-
+    setupRecording(); //goes through all the steps to setup and start the recording
   }
 
 
-  else  if ( r.isRecording() ) //verify if it's in recording states
+  else  if ( r.isRecording() ) //verify if it's in recording state
   {
    // Serial.println("recording state"); //debug
     if ( startButton.fell()) //verify if the stop button was pressed
@@ -164,7 +152,7 @@ void loop() {
     recordingDisplay();
 
     //Serial.println("before interupts"); //debug
-    noInterrupts(); //prevents from interrupting until interrupts() is called to transfert the buffer
+    noInterrupts(); //prevents from interrupting until interrupts() is called to transfer to the buffer
   //  Serial.println("inside interrupt"); //debug
     updateAllSensors(); //update the sensors every loop
     if (bufferA.isFull() && readyToWrite == false) //verify if it's ready to transfer the buffer

@@ -34,7 +34,7 @@ void checkForCard() {
 //------------------------------------------------------------------------------------------------
 
 void cardInfo() {
-  //This function print out the card info to the serial port
+  //This function prints the card info to the serial port
 
   // print the type of card
   Serial.print("\nCard type: ");
