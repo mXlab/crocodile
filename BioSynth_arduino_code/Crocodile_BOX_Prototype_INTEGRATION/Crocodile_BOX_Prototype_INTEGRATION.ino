@@ -25,30 +25,32 @@ long oldPosition = -999;
 
 
 
-// 0 -
-// 1 -
-// 2 - Button 0 Start recording
-// 3 - Button 1 Place marker
+// 0 - DISP RESET
+// 1 - SERIAL SEND
+// 2 - Encoder Button / StartStop recording 
+// 3 - FootPedal Button / Place marker 
 // 4 - SD_ETHERNET ADAPTER
-// 5 - EMPTY
-// 6 - EMPTY
-// 7 - EMPTY
-// 8 - SD_ETHERNET ADAPTER
+// 5 - ENCODER A 
+// 6 - ENCODER B 
+// 7 - MOSI 
+// 8 - SD_ETHERNET ADAPTER / DISP DO 
 // 9 - SD_ETHERNET ADAPTER
-// 10 - SD_ETHERNET ADAPTER
+// 10 - SD ETHERNET - CS PIN -  
 // 11 - SD_ETHERNET ADAPTER
-// 12 - SD_ETHERNET ADAPTER
+// 12 - SD_ETHERNET ADAPTER / DISP MISO 
 // 13 - SD_ETHERNET ADAPTER
-// 14 - (A0) Selection potentiometer
-// 15 - (A1) Heart
-// 16 - (A2) GSR
+// 14 - (A0) DISP_SCK 
+// 15 - (A1) DISP_CS (map to pot in audio designs)
+// 16 - (A2) GSR2
 // 17 - (A3) Temp
-// 18 - (A4) LCD SCREEN
-// 19 - (A5) LCD SCREEN
-// 20 - (A6) GSR2
-// 21 - EMPTY
-// 22 - EMPTY
-// 23 - EMPTY
+// 18 - (A4) DISP SCL
+// 19 - (A5) DISP SDA
+// 20 - (A6) GSR1 (PWM)
+// 21 - (A7) PULSE (PWM)
+// 22 - Audio
+// 23 - Audio
+// 25 - Resp LED
+// 32 - GSR LED 
 
 // VIN - SD_ETHERNET ADAPTER
 // GND - SD_ETHERNET ADAPTER
