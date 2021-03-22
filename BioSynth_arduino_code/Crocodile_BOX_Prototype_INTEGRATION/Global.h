@@ -7,7 +7,8 @@
 
 //----------------------------------DEFINE STATEMENTS-------------------------------//
 
-#define CS_PIN 10   
+#define CS_ETH 10
+   
 #define BUFFER_SIZE 768 //set the buffer size here. it needs the be a multiple of the number of columns ex: timestamps, marker, heart, gsr, resp -- 5 columns so the buffer is 640
 #define NUM_SIGNALS 5  //Set number of signal recorded here 
 
@@ -17,13 +18,8 @@
 #define NUM_EMOTIONS  7
 #define REFRESH_RATE 5000 //IN MICROSECOND DIVIDE 1000000 BY THE REFRESH RATE IN HZ ( EXEMPLE FOR 200HZ 1000000/200 = 5000)
 
-#define LED_HEART 7 //not PWM - this is fine
-#define LED_GSR1 14 // not PWM - this isn't ideal
-#define LED_GSR2 25 // PWM on bottom of Teensy
-#define LED_TEMP 32 // PWM on bottom of Teensy
-
 //------------ADDING LIBRARIES-------------------------------//
-
+#include <FastLED.h>
 #include <LiquidCrystalFast.h>
 #include <Chrono.h>
 #include <LightChrono.h>
@@ -82,7 +78,7 @@ SdFile root;
 
 File recFile; // create an instance of File object for the recording file
 bool fileOpen = false; // boolean to keep track of if a file is open to write
-const int chipSelect = 4; // cs pin for sd card
+const int chipSelect = 10; // cs pin for sd card 10 for TeensyAudio, 4 for Ethernet.
 
 String fileDigits = "000";
 String fileExtension = ".txt";
