@@ -68,17 +68,13 @@ void updateAllSensors() {
   int intGSR2 = (sc2.getSCR()*100);
   int intRESP = (resp.getNormalized()*100);
   
-  analogWrite(LED_HEART,map(intHEART,1 , 100, 0 , 255));
+ // analogWrite(LED_HEART,map(intHEART,1 , 100, 0 , 255));
   //Serial.println(heart.getNormalized());  //uncomment to print heart signal in the serial monitor
   
-  analogWrite(LED_GSR1,map(intGSR1,1 , 100 , 0 , 255));
+ // analogWrite(LED_GSR1,map(intGSR1,1 , 100 , 0 , 255));
  //Serial.println(sc1.getSCR());  //uncomment to print GSR1  signal in the serial monitor
  
-  analogWrite(LED_GSR2,map(intGSR2,1 , 100 , 0 , 255));
-  //Serial.println(sc2.getSCR());   //uncomment to print GSR2  signal in the serial monitor
  
-  analogWrite(LED_TEMP,map(intRESP,1 ,100 , 0 , 255));
-  //Serial.println(resp.getNormalized());  //uncomment to print temp  signal in the serial monitor
 }
 
 //------------------------------------------------------------------------------------------------

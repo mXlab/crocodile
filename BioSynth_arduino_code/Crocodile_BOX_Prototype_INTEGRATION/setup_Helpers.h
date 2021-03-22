@@ -43,7 +43,7 @@ void setupAllSensors() {
 void udpSetup() {
   //This function runs the necessary code to setup the UDP connection
 
-  Ethernet.init(CS_PIN);    // You can use Ethernet.init(pin) to configure the CS pin
+  Ethernet.init(CS_ETH);    // You can use Ethernet.init(pin) to configure the CS pin
   Ethernet.begin(mac, ip);  // start the Ethernet
   detectHardware();
   detectCable();

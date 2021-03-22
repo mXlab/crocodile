@@ -1,7 +1,5 @@
-
 //Include all subfiles of the project
 #include "Global.h" //include file containing global variables
-
 
 //Encoder dependencies
 //#define ENCODER_DO_NOT_USE_INTERRUPTS
@@ -20,7 +18,7 @@ long oldPosition = -999;
 #include "update_helpers.h"
 #include "recording_helpers.h"
 
-// 0 - DISP RESET
+// 0 - LEDS
 // 1 - SERIAL SEND
 // 2 - Encoder Button / StartStop recording 
 // 3 - FootPedal Button / Place marker 
@@ -30,27 +28,23 @@ long oldPosition = -999;
 // 7 - MOSI 
 // 8 - SD_ETHERNET ADAPTER / DISP DO 
 // 9 - SD_ETHERNET ADAPTER
-// 10 - SD ETHERNET - CS PIN -  
+// 10 - CS PIN for SD card TEENSY AUDIO - ETH
 // 11 - SD_ETHERNET ADAPTER
 // 12 - SD_ETHERNET ADAPTER / DISP MISO 
 // 13 - SD_ETHERNET ADAPTER
 // 14 - (A0) DISP_SCK 
-// 15 - (A1) DISP_CS (map to pot in audio designs)
+// 15 - (A1) DISP_CS (map to pot in audio designs?)
 // 16 - (A2) GSR2
 // 17 - (A3) Temp
 // 18 - (A4) DISP SCL
 // 19 - (A5) DISP SDA
-// 20 - (A6) GSR1 (PWM)
-// 21 - (A7) PULSE (PWM)
+// 20 - (A6) GSR1 
+// 21 - (A7) PULSE 
 // 22 - Audio
 // 23 - Audio
-// 25 - Resp LED
-// 32 - GSR LED 
 
 // VIN - SD_ETHERNET ADAPTER
 // GND - SD_ETHERNET ADAPTER
-
-
 
 // TO - DO :::
 // SEND DATA VIA UDP @ 1000HZ IF POSSIBLE
@@ -61,6 +55,14 @@ void setup() {
 
   Serial.begin(9600);
 
+ // while (!Serial) {
+ //   ; // wait for serial port to connect. Needed for native USB
+ // }
+  delay(3000); // power-up safety delay
+  
+  SPI.setMOSI(7);  // Audio shield has MOSI on pin 7
+  SPI.setSCK(14);  // Audio shield has SCK on pin 14
+  
   ///udpSetup(); //set up the UDP connection NO NEED OF UDP FOR THE BOX
   setupAllSensors(); // restart all the sensors to initial state
 
@@ -69,17 +71,15 @@ void setup() {
  
   setupButtons(1); //setup all the buttons and set the refresh rate at 1ms
   lcdSetup(); //setup the lcd screen
-  pinMode(LED_HEART, OUTPUT);
-  pinMode(LED_GSR1, OUTPUT);
-  pinMode(LED_GSR2, OUTPUT);
-  pinMode(LED_TEMP, OUTPUT);
-  //digitalWrite(7,HIGH);
+  
+//  pinMode(LED_PIN, OUTPUT);  // Pin for NEOPIXELS
 
   lcdUpdate.restart();
+  Serial.print("Setup complete.");
 }
 
 void loop() {
-
+  
   updateButtons(); //update all the buttons state
    
   if( r.isRecording() == false){ //update encoder only when not recording
@@ -118,7 +118,6 @@ void loop() {
       r.startEndDelay(); //start delay to display info on lcd
       //Serial.println("end delay"); //debug
       sprintf(lcdLine1, "%s", lcdRecordingOver);
-
     }
 
     if (r.updateEndDelay() == true)
