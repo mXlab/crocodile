@@ -1,4 +1,4 @@
-//Include all subfiles of the project
+  ///Include all subfiles of the project
 #include "Global.h" //include file containing global variables
 
 //Encoder dependencies
@@ -66,8 +66,8 @@ void setup() {
   ///udpSetup(); //set up the UDP connection NO NEED OF UDP FOR THE BOX
   setupAllSensors(); // restart all the sensors to initial state
 
-  checkForCard(); //check if a SD card is inserted NO NEED TO RUN FOR PROTOTYPE
-  cardInfo(); //display the informations of the inserted sd card NO NEED TO RUN FOR PROTOTYPE
+  //checkForCard(); //check if a SD card is inserted NO NEED TO RUN FOR PROTOTYPE
+  //cardInfo(); //display the informations of the inserted sd card NO NEED TO RUN FOR PROTOTYPE
  
   setupButtons(1); //setup all the buttons and set the refresh rate at 1ms
   lcdSetup(); //setup the lcd screen
@@ -75,7 +75,7 @@ void setup() {
 //  pinMode(LED_PIN, OUTPUT);  // Pin for NEOPIXELS
 
   lcdUpdate.restart();
-  Serial.print("Setup complete.");
+  //Serial.print("Setup complete.");
 }
 
 void loop() {
@@ -153,7 +153,7 @@ void loop() {
     //Serial.println("before interupts"); //debug
     noInterrupts(); //prevents from interrupting until interrupts() is called to transfer to the buffer
   //  Serial.println("inside interrupt"); //debug
-    updateAllSensors(); //update the sensors every loop
+    //updateAllSensors(); //update the sensors every loop
     if (bufferA.isFull() && readyToWrite == false) //verify if it's ready to transfer the buffer
     {
     //  Serial.println("transfer buffer"); //debug
