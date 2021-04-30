@@ -29,7 +29,7 @@ void setupRecording() {
 void endRecordingSession() {
   // this function runs the necessary code to setup the recording before it starts
 
-  Serial.println("Writing last data to card");
+  //Serial.println("Writing last data to card");
   recFile.flush();
 
   r.recordingLength(timestamp);
@@ -52,7 +52,7 @@ void endRecordingSession() {
   }
   bufferA.clear(); //potentially unecessary
   recFile.close();
-  Serial.println("File Closed");
+  //Serial.println("File Closed");
   filenameAvailable = false;
   fileOpen = false; //uncomment when sure not to overite
   displayIndex = 0;

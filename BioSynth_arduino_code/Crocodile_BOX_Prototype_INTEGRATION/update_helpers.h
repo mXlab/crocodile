@@ -36,9 +36,12 @@ void updateData() {
   bufferA.push(timestamp);
   bufferA.push(marker);
 
-
+    heart.update();
+  sc1.update();
+  sc2.update();
+  resp.update();
   // pushing sampled data from the sensor
-    bufferA.push(heart.getRaw());
+    bufferA.push(heart.getNormalized()*100);
     //Serial.println(heart.getRaw());
     bufferA.push(sc1.getRaw());
     //Serial.println(sc1.getRaw());
@@ -48,8 +51,8 @@ void updateData() {
 
     bufferA.push(resp.getRaw());
     //Serial.println(resp.getRaw());
-
-
+    Serial.printf("%.2f,%d,%d,%d",heart.getNormalized()*100,sc1.getRaw(),sc2.getRaw(),resp.getRaw());
+  Serial.println();
 }
 
 //------------------------------------------------------------------------------------------------
@@ -67,7 +70,13 @@ void updateAllSensors() {
   int intGSR1 = (sc1.getSCR()*100);
   int intGSR2 = (sc2.getSCR()*100);
   int intRESP = (resp.getNormalized()*100);
+
+  Serial.printf("%d,%d,%d,%d",intHEART,intGSR1,intGSR2,intRESP);
+  +
   
+  
+  
+  Serial.println();
  // analogWrite(LED_HEART,map(intHEART,1 , 100, 0 , 255));
   //Serial.println(heart.getNormalized());  //uncomment to print heart signal in the serial monitor
   
