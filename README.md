@@ -9,7 +9,9 @@ The hardware requires the following libraries:
   - [Circular Buffer](https://github.com/rlogiacco/CircularBuffer)
   - [Liquid Crystal I2C](https://www.arduino.cc/reference/en/libraries/liquidcrystal-i2c/)
  
-
+In addition to the Teensyduino add-on to program the Teensy 3.2 microcontroller in Arduino IDE
+  - [Teensyduino](https://www.pjrc.com/teensy/teensyduino.html)
+ 
 ## Dataset
 
 You first need to extract the frame from the videos by running:
