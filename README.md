@@ -9,7 +9,7 @@ The hardware requires the following libraries:
   - [Circular Buffer](https://github.com/rlogiacco/CircularBuffer)
   - [Liquid Crystal I2C](https://www.arduino.cc/reference/en/libraries/liquidcrystal-i2c/)
  
-In addition to the Teensyduino add-on to program the Teensy 3.2 microcontroller in Arduino IDE
+In addition to the Teensyduino add-on to program the Teensy 3.2 microcontroller in Arduino IDE.  INSTALL ALL LIBRAIRIES when prompted.
   - [Teensyduino](https://www.pjrc.com/teensy/teensyduino.html)
  
 ## Dataset
