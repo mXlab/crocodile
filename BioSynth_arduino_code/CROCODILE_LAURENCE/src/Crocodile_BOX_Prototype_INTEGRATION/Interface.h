@@ -76,7 +76,16 @@ private:
         }
     }
 //---------------
-  
+  //---------------
+    void setLedBrightness(int led , float brightness)
+    {/*!
+     @function    setLedBrightness
+     @abstract    set the brightness of the given LED
+     @param  led  index of the led to change the brightness
+     @param  brightness  value of the brightness to set (0.0-1.0)
+     */
+        leds[led].setRGB(ledColors[led][0]*brightness,ledColors[led][1]*brightness,ledColors[led][2]*brightness);
+    }
 //---------------    
     void setupSensors()
     {/*!

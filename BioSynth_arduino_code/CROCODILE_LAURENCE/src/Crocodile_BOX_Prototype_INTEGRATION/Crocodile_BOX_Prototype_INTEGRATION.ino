@@ -2,8 +2,8 @@
 
 #include "Global.h" //include file containing global variables
 
-#define REVERSE_ENCODER false
-#define PLOT_SENSOR true
+#define REVERSE_ENCODER true  // change this value if the rotary encoder isn't working properly
+#define PLOT_SENSOR true      // change this value to see sensor data in serial plotter
 
 //Encoder dependencies
 //#define ENCODER_DO_NOT_USE_INTERRUPTS
