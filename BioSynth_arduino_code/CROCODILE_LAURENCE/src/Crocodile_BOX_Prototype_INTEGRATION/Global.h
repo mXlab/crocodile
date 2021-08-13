@@ -130,7 +130,7 @@ Bounce markerButton = Bounce();
 
 String emotionFilename;
 String selectedEmotion ;
-String emotions[NUM_EMOTIONS] = {" Happiness      " , " Sadness        " , " Fear           " , " Anger          " , " Arousal        " , " Surprise       " , " Neutral        "} ; //spaces in the strings are use to format text to display
+String emotions[NUM_EMOTIONS] = {"Happiness      " , " Sadness        " , " Fear           " , " Anger          " , " Arousal        " , " Surprise       " , " Neutral        "} ; //spaces in the strings are use to format text to display
 String emotionsName[NUM_EMOTIONS] = {"Happiness" , "Sadness" , "Fear" , "Anger" , "Arousal" , "Surprise" , "Neutral"} ; //spaces in the strings are use to format text to display
 String emotionsFile[NUM_EMOTIONS] = {"HAP" , "SAD" , "FEA" , "ANG" , "ARO" , "SUR" , "NEU"} ;
 String recordingLCD[4] = { "  Recording     ", "  Recording.  ", "  Recording..  ", "  Recording...  "};

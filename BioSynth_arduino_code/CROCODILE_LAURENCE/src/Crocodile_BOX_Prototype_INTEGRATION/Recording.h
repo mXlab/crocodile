@@ -30,7 +30,7 @@
 //#Name: Etienne Montenegro                         Date: 23/06/20
 //#Duration: 1:00:00                            Location: Montreal
 //#Start time: 13:40:34                         End Time: 13:40:34
-//#Signals: heart , gsr1 , gsr2 , resp        Sample Rate: 1000 Hz
+//#Signals: heart , gsr1 , resp , gsr2        Sample Rate: 1000 Hz
 //################################################################
 
 #ifndef RECORDING_H
@@ -58,7 +58,7 @@ class Recording {
     String date; //date of the recording formated dd/mm/yy
     String location ; // location where the recording took place --- Can allocate more space if needed
     String subjectName ; //name of the subject ------ Can allocate more space if needed
-    String signals[10]; // format ["heart, "gsr1" , "gsr2" ,"resp"]
+    String signals[10]; // format ["heart, "gsr1" , "resp" ,"gsr2"]
     int rate ; //refresh rate of the sensors
     int mode ; //current mode the object is in 0 = ready to start 1 =  recording 2 = ending recording -1 = idle
     int numSignals; //number of sampled signal

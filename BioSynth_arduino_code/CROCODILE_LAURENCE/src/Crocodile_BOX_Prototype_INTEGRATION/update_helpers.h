@@ -33,6 +33,7 @@ void updateData() {
     marker = 0 ;
   }
   int sensorData[4] = {0,0,0,0};
+  int lightData[4] = {0,0,0,0};
 
   bufferA.push(timestamp);
   bufferA.push(marker);
@@ -47,7 +48,7 @@ void updateData() {
             heart.update();
             sensorData[i] = heart.getRaw();
             bufferA.push(sensorData[i]);
-            setLedBrightness(i , (float)sensorData[i]/1024);
+            setLedBrightness(i , (float)heart.getNormalized());
         }
         break;
       case 1:
@@ -56,7 +57,7 @@ void updateData() {
             sc1.update();
             sensorData[i] = sc1.getRaw();
             bufferA.push(sensorData[i]);
-            setLedBrightness(i , (float)sensorData[i]/1024);
+            setLedBrightness(i , (float)sc1.getSCR()/1.75);
         }
         else
         {
@@ -69,7 +70,7 @@ void updateData() {
          resp.update();
          sensorData[i] = resp.getRaw();
          bufferA.push(sensorData[i]);
-         setLedBrightness(i , (float)sensorData[i]/1024); 
+         setLedBrightness(i , (float)resp.getNormalized()); 
         }
         else
         {
@@ -82,7 +83,7 @@ void updateData() {
           sc2.update();
           sensorData[i] = sc2.getRaw();
           bufferA.push(sensorData[i]);
-          setLedBrightness(i , (float)sensorData[i]/1024);
+          setLedBrightness(i , (float)sc2.getSCR()/1.75);
             
         }
         else
