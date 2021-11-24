@@ -52,10 +52,10 @@ class Preprocessing:
 
 preprocessing = Preprocessing()
 
-trainset = EmotionDataset(args.path_to_dataset, train=True, preprocessing=preprocessing, overlap=args.overlap, downsampling=args.downsampling)
+trainset = EmotionDataset(args.path_to_dataset, train=True, preprocessing=preprocessing, overlap=args.overlap, downsampling=args.downsampling, split_percent=0.8)
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size_train, shuffle=True)
 
-testset = EmotionDataset(args.path_to_dataset, train=False, preprocessing=preprocessing, overlap=args.overlap, downsampling=args.downsampling)
+testset = EmotionDataset(args.path_to_dataset, train=False, preprocessing=preprocessing, overlap=args.overlap, downsampling=args.downsampling, split_percent=0.8)
 test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size_test, shuffle=False)                                    
 
 # initialize the network and optimizer
