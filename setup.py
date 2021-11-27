@@ -22,5 +22,5 @@ setuptools.setup(
     ],
     packages=['pygan', 'pygan.dataset', 'pygan.utils'],
     python_requires=">=3.6",
-    install_requires=[],
+    install_requires=['simple_parsing', ],
 )
