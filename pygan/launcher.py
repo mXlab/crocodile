@@ -4,7 +4,7 @@ from typing import Optional
 from pathlib import Path
 
 
-@dataclass 
+@dataclass
 class SlurmConfig:
     log_folder: Path = MISSING
     gpus_per_node: int = 1
@@ -15,8 +15,8 @@ class SlurmConfig:
     time_in_min: int = 5
     nodes: int = 1
     cpus_per_task: int = 1
-    slurm_array_parallelism: int = 1  
-    
+    slurm_array_parallelism: int = 1
+
 
 class Launcher:
     @dataclass
@@ -36,7 +36,7 @@ class Launcher:
         return OmegaConf.merge(schema, conf)
 
     @staticmethod
-    def create_executor(config) -> submitit.AutoExecutor:
+    def create_executor(config):
         import submitit
 
         executor = submitit.AutoExecutor(folder=config.log_folder)
@@ -45,7 +45,7 @@ class Launcher:
             slurm_comment=config.comment,
             slurm_constraint=config.gpu_type,
             slurm_time=config.time_in_min,
-            timeout_min=configtime_in_min,
+            timeout_min=config.time_in_min,
             nodes=config.nodes,
             cpus_per_task=config.cpus_per_task,
             tasks_per_node=config.gpus_per_node,
@@ -53,8 +53,8 @@ class Launcher:
             mem_gb=config.mem_by_gpu * config.gpus_per_node,
             slurm_array_parallelism=config.slurm_array_parallelism,
         )
-        
-        return executor    
+
+        return executor
 
     def run(self, args):
         raise NotImplementedError
@@ -64,10 +64,4 @@ class Launcher:
             self.run(args)
         else:
             job = self.executor.submit(self.run, args)
-            print("Launched job: %s"%(str(job.job_id)))
-
-
-
-
-
-
+            print("Launched job: %s" % (str(job.job_id)))
