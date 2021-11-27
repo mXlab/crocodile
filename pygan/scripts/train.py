@@ -24,7 +24,6 @@ class Train(Launcher):
 
         if args.train.model_type == ModelType.STYLEFORMER:
             data_path = dataset.get_path()
-            print(os.path.isdir(data_path), os.path.exists(data_path))
             gpus = torch.cuda.device_count()
             os.chdir('pygan/models/Styleformer')
             command = "python train.py --outdir=%s --data=%s --gpus=%i" % (
