@@ -24,6 +24,8 @@ class Launcher:
         slurm: Optional[Path] = None
 
     def __init__(self, args: Params = Params()):
+        self.slurm = args.slurm
+        
         self.executor = None
         if self.slurm is not None:
             config = self.load_config(args.slurm)
