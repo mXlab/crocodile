@@ -5,6 +5,7 @@ import torch
 from dataclasses import dataclass
 import subprocess
 import os
+from simple_parsing import ArgumentParser
 
 
 class Train(Launcher):
@@ -26,3 +27,13 @@ class Train(Launcher):
             command = "python train.py --outdir=%s --data=%s --gpus=%i" % (
                 args.output_dir, dataset.get_path(), gpus)
             subprocess.run(command.split())
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_arguments(Train.Params)
+    parser.add_arguments(LaurenceDataset.Params, dest="dataset")
+    args = parser.parse_args()
+
+    launcher = Train()
+    launcher.run(args)
