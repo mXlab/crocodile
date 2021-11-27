@@ -37,7 +37,7 @@ class LaurenceDataset(Dataset):
         self.images = self.load_images(self.path / str(args.resolution))
 
     def get_path(self):
-        return self.path / str(self.resolution)
+        return (self.path / str(self.resolution)).resolve()
 
     @classmethod
     def download(cls, path: Path):
