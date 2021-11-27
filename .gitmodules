@@ -1,0 +1,3 @@
+[submodule "pygan/models/Styleformer"]
+	path = pygan/models/Styleformer
+	url = https://github.com/Jeeseung-Park/Styleformer
