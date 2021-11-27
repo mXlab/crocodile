@@ -22,11 +22,12 @@ class Train(Launcher):
         dataset = LaurenceDataset(args.dataset)
 
         if args.train.model_type == ModelType.STYLEFORMER:
+            data_path = dataset.get_path()
             gpus = torch.cuda.device_count()
-            print("Running Styleformer, nb of gpus: %i" % gpus)
+            print("Running Styleformer, nb of gpus: %i, dataset path: %s" %(gpus, data_path))
             os.chdir('pygan/models/Styleformer')
             command = "python train.py --outdir=%s --data=%s --gpus=%i" % (
-                args.train.output_dir, dataset.get_path(), gpus)
+                args.train.output_dir, data_path, gpus)
             subprocess.run(command.split())
 
 
