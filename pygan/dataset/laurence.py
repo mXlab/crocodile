@@ -76,6 +76,8 @@ class LaurenceDataset(Dataset):
         if cls.check_video_integrity(path_to_raw, config.num_frames):
             return
 
+        print("Extracting video frames...")
+
         path_to_raw.mkdir(exist_ok=True)
         command = "ffmpeg -i {} -f image2 {}".format(
             path / config.video_file, path_to_raw / "frame_%07d.png")
@@ -88,6 +90,8 @@ class LaurenceDataset(Dataset):
         path_img = path / str(resolution)
         if cls.check_video_integrity(path_img, config.num_frames):
             return
+
+        print("Processing frames at resolution %i ..."% resolution)
 
         path_img.mkdir(exist_ok=True)
         list_images = cls.load_images(path / "raw")
