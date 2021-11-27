@@ -19,6 +19,7 @@ class Train(Launcher):
 
     def run(self, args):
 
+        print("Loading dataset...")
         dataset = LaurenceDataset(args.dataset)
 
         if args.train.model_type == ModelType.STYLEFORMER:
