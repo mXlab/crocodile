@@ -23,7 +23,7 @@ class Face3D(Launcher):
 
         if args.model_type == Face3dModel.DDFA_V2:
             os.chdir('pygan/face3d/3DDFA_V2')
-            command = "python demo.py %s --onnx -o obj" % (
+            command = "python demo.py -f %s --onnx -o obj" % (
                 path)
             print("Running: %s" % command)
             subprocess.run(command.split())
