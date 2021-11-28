@@ -1,3 +1,6 @@
 [submodule "pygan/models/Styleformer"]
 	path = pygan/models/Styleformer
 	url = https://github.com/Jeeseung-Park/Styleformer
+[submodule "pygan/models/FastGAN"]
+	path = pygan/models/FastGAN
+	url = https://github.com/odegeasslbc/FastGAN-pytorch
