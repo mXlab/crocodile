@@ -39,4 +39,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     launcher = Train()
-    launcher.run(args)
+    launcher.launch(args)
