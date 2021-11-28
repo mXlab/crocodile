@@ -14,7 +14,7 @@ class Train(Launcher):
     class Params(Launcher.Params):
         output_dir: Path = Path("./results")
         model_type: ModelType = ModelType.STYLEFORMER
-        batch_size: int = 128
+        batch_size: int = 64
 
     def __init__(self, args):
         super().__init__(args)
