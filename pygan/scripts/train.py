@@ -14,8 +14,8 @@ class Train(Launcher):
         output_dir: str = "./results"
         model_type: ModelType = ModelType.STYLEFORMER
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, args):
+        super().__init__(args)
 
     def run(self, args):
 
