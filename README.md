@@ -12,6 +12,16 @@ The hardware requires the following libraries:
 In addition to the Teensyduino add-on to program the Teensy 3.2 microcontroller in Arduino IDE.  INSTALL ALL LIBRAIRIES when prompted.
   - [Teensyduino](https://www.pjrc.com/teensy/teensyduino.html)
  
+## Installation
+To install the pygan library run:
+```
+git clone --recurse-submodules git@github.com:a3lab/crocodile.git 
+cd crocodile/
+pip install -e .
+cd pygan/face3d/3DDFA_V2
+sh ./build.sh
+```
+
 ## Dataset
 
 You first need to extract the frame from the videos by running:
