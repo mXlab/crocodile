@@ -19,13 +19,15 @@ class Generate(Launcher):
         super().__init__(args)
 
     def run(self, args):
-        if args.model_path is None or not args.model_path.is_file():
+        model_path = args.model_path.resolve()
+        output_dir = args.output_dir.resolve()
+        if model_path is None or not model_path.is_file():
             raise("Please specify a valid path for the model to load.")
 
         if args.model_type == ModelType.STYLEFORMER:
             os.chdir('pygan/models/Styleformer')
             command = "python generate.py --outdir=%s --network %s --num_frames %i" % (
-                args.output_dir.resolve(), args.model_path.resolve(), args.num_frames)
+                output_dir, model_path, args.num_frames)
             print("Running: %s" % command)
             subprocess.run(command.split())
 
