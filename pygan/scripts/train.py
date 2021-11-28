@@ -6,13 +6,15 @@ from dataclasses import dataclass
 import subprocess
 import os
 from simple_parsing import ArgumentParser
+from pathlib import Path
 
 
 class Train(Launcher):
     @dataclass
     class Params(Launcher.Params):
-        output_dir: str = "./results"
+        output_dir: Path = Path("./results")
         model_type: ModelType = ModelType.STYLEFORMER
+        batch_size: int = 128
 
     def __init__(self, args):
         super().__init__(args)
@@ -27,7 +29,14 @@ class Train(Launcher):
             gpus = torch.cuda.device_count()
             os.chdir('pygan/models/Styleformer')
             command = "python train.py --outdir=%s --data=%s --gpus=%i --num_layers=1,2,1,1 --g_dict=1024,256,64,64 --linformer=1" % (
-                args.train.output_dir, data_path, gpus)
+                args.train.output_dir.resolve(), data_path, gpus)
+            print("Running: %s" % command)
+            subprocess.run(command.split())
+        elif args.train.model_type == ModelType.FASTGAN:
+            data_path = dataset.get_path()
+            os.chdir('pygan/models/FastGAN')
+            command = "python train.py --path=%s --batch_size %i --im_size %i" % (
+                data_path, args.train.batch_size, dataset.resolution)
             print("Running: %s" % command)
             subprocess.run(command.split())
 
