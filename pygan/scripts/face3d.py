@@ -17,7 +17,7 @@ class Face3D(Launcher):
         super().__init__(args)
 
     def run(self, args):
-        path = args.model_path.resolve()
+        path = args.path.resolve()
         if path is None or not path.is_dir():
             raise("Please specify a valid path for the directory containing the images.")
 
