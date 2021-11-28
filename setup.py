@@ -22,5 +22,6 @@ setuptools.setup(
     ],
     packages=['pygan', 'pygan.dataset', 'pygan.utils'],
     python_requires=">=3.6",
-    install_requires=['simple_parsing', ],
+    install_requires=['simple_parsing', 'click', 'requests', 'tqdm', 'pyspng', 'ninja', 'imageio-ffmpeg==0.4.3',
+                      'google-api-python-client', 'google-auth-httplib2', 'google-auth-oauthlib', 'omegaconf']
 )
