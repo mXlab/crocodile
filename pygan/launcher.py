@@ -6,7 +6,7 @@ from pathlib import Path
 
 @dataclass
 class SlurmConfig:
-    log_folder: Path = MISSING
+    log_folder: str = MISSING
     gpus_per_node: int = 1
     mem_by_gpu: int = 16
     partition: str = ""
