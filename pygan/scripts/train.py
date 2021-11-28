@@ -38,5 +38,5 @@ if __name__ == "__main__":
     parser.add_arguments(LaurenceDataset.Params, dest="dataset")
     args = parser.parse_args()
 
-    launcher = Train(args)
+    launcher = Train(args.train)
     launcher.launch(args)
