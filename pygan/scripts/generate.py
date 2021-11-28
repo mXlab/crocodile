@@ -22,7 +22,7 @@ class Generate(Launcher):
         if args.model_path is None or not args.model_path.is_file():
             raise("Please specify a valid path for the model to load.")
 
-        if args.train.model_type == ModelType.STYLEFORMER:
+        if args.model_type == ModelType.STYLEFORMER:
             os.chdir('pygan/models/Styleformer')
             command = "python generate.py --outdir=%s --network %s --num_frames %i" % (
                 args.output_dir.resolve(), args.model_path.resolve(), args.num_frames)
