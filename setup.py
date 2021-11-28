@@ -20,7 +20,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    packages=['pygan', 'pygan.dataset', 'pygan.utils'],
+    packages=['pygan', 'pygan.dataset', 'pygan.utils', 'pygan.face3d'],
     python_requires=">=3.6",
     install_requires=['simple_parsing', 'click', 'requests', 'tqdm', 'pyspng', 'ninja', 'imageio-ffmpeg==0.4.3',
                       'google-api-python-client', 'google-auth-httplib2', 'google-auth-oauthlib', 'omegaconf', 'psutil', 'scipy', 'lmdb', 'scikit-image', 'ipdb']

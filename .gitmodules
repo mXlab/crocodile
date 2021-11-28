@@ -4,3 +4,6 @@
 [submodule "pygan/models/FastGAN"]
 	path = pygan/models/FastGAN
 	url = https://github.com/hugobb/FastGAN-pytorch
+[submodule "pygan/face3d/3DDFA_V2"]
+	path = pygan/face3d/3DDFA_V2
+	url = https://github.com/hugobb/3DDFA_V2
