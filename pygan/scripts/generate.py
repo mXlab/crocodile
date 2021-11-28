@@ -10,7 +10,7 @@ from simple_parsing import ArgumentParser
 class Generate(Launcher):
     @dataclass
     class Params(Launcher.Params):
-        model_path: Path
+        model_path: Path = None
         num_frames: int = 100
         model_type: ModelType = ModelType.STYLEFORMER
         output_dir: Path = Path("./results/styleformer/test1")
