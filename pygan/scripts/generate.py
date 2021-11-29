@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 import subprocess
 from simple_parsing import ArgumentParser
+from typing import Optional
 
 
 class Generate(Launcher):
@@ -14,8 +15,8 @@ class Generate(Launcher):
         model_path: Path = None
         num_frames: int = 100
         model_type: ModelType = ModelType.STYLEFORMER
-        output_dir: Path = None
-        output_size: int = None
+        output_dir: Optional[Path] = None
+        output_size: Optional[int] = None
         name: str = "test1"
 
         def __post_init__(self):
