@@ -47,7 +47,7 @@ class Generate(Launcher):
 
         elif args.eval.model_type == ModelType.FASTGAN:
             os.chdir('pygan/models/FastGAN')
-            command = "python eval.py %s --ckpt=%s --im_size %i --out_size %i --n_samples %i" % (
+            command = "python eval.py %s --ckpt=%s --im_size %i --out_size %i --n_sample %i" % (
                 output_dir, model_path, dataset.resolution, args.eval.output_size, args.eval.num_frames)
             print("Running: %s" % command)
             subprocess.run(command.split())
