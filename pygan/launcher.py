@@ -22,24 +22,31 @@ class Launcher:
     @dataclass
     class Params:
         slurm: Optional[Path] = None
+        gpus_per_node: Optional[int] = None
 
     def __init__(self, args: Params = Params()):
-        self.slurm = args.slurm
-        
-        self.executor = None
-        if self.slurm is not None:
-            config = self.load_config(args.slurm)
-            self.executor = self.create_executor(config)
+        self.executor = self.create_executor(args)
+
+    @classmethod
+    def create_executor(cls, args: Params):
+        if args.slurm is None:
+            return None
+        return cls.create_slurm_executor(args)
 
     @staticmethod
-    def load_config(filename: Path):
+    def load_config(args: Params):
         schema = OmegaConf.structured(SlurmConfig)
-        conf = OmegaConf.load(filename)
-        return OmegaConf.merge(schema, conf)
+        conf = OmegaConf.load(args.slurm)
+        conf = OmegaConf.merge(schema, conf)
+        if args.gpus_per_node is not None:
+            conf.gpus_per_node = args.gpus_per_node
+        return conf
 
-    @staticmethod
-    def create_executor(config):
+    @classmethod
+    def create_slurm_executor(cls, args: Params):
         import submitit
+
+        config = cls.load_config(args)
 
         executor = submitit.AutoExecutor(folder=config.log_folder)
         executor.update_parameters(
