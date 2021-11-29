@@ -30,25 +30,25 @@ class Generate(Launcher):
     def run(self, args):
         dataset = LaurenceDataset(args.dataset)
 
-        if args.output_size is None:
-            args.ouput_size = dataset.resolution
+        if args.eval.output_size is None:
+            args.eval.ouput_size = dataset.resolution
 
-        model_path = args.model_path.resolve()
-        output_dir = args.output_dir.resolve()
+        model_path = args.eval.model_path.resolve()
+        output_dir = args.eval.output_dir.resolve()
         if model_path is None or not model_path.is_file():
             raise("Please specify a valid path for the model to load.")
 
-        if args.model_type == ModelType.STYLEFORMER:
+        if args.eval.model_type == ModelType.STYLEFORMER:
             os.chdir('pygan/models/Styleformer')
             command = "python generate.py --outdir=%s --network %s --num_frames %i" % (
-                output_dir, model_path, args.num_frames)
+                output_dir, model_path, args.eval.num_frames)
             print("Running: %s" % command)
             subprocess.run(command.split())
 
-        elif args.model_type == ModelType.FASTGAN:
+        elif args.eval.model_type == ModelType.FASTGAN:
             os.chdir('pygan/models/FastGAN')
             command = "python eval.py %s --ckpt=%s --im_size %i --out_size %i --n_samples %i" % (
-                output_dir, model_path, dataset.resolution, args.output_size, args.num_frames)
+                output_dir, model_path, dataset.resolution, args.eval.output_size, args.eval.num_frames)
             print("Running: %s" % command)
             subprocess.run(command.split())
 
@@ -56,8 +56,8 @@ class Generate(Launcher):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_arguments(LaurenceDataset.Params, dest="dataset")
-    parser.add_arguments(Generate.Params, dest="train")
+    parser.add_arguments(Generate.Params, dest="eval")
     args = parser.parse_args()
 
     launcher = Generate(args.train)
-    launcher.launch(args.train)
+    launcher.launch(args)
