@@ -6,7 +6,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_dir", type=Path)
     parser.add_argument(
-        "--token", default=Path("./data/laurence/token.json"), type=Path)
+        "--token", default=Path("./token.json"), type=Path)
     parser.add_argument(
         "--id", default="1E9BtfIBMCWgFj7fwmwP7H5vV0HDvY0DG", type=str)
 

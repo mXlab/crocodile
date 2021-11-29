@@ -84,8 +84,8 @@ class GoogleDrive:
             'name': path.name,
             'parents': [folder_id]
         }
+
         media = http.MediaFileUpload(path,
-                                     mimetype='image/jpeg',
                                      resumable=True)
         file = self.drive.files().create(body=file_metadata,
                                          media_body=media,
