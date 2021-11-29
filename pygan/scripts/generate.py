@@ -31,7 +31,7 @@ class Generate(Launcher):
         dataset = LaurenceDataset(args.dataset)
 
         if args.eval.output_size is None:
-            args.eval.ouput_size = dataset.resolution
+            args.eval.output_size = dataset.resolution
 
         model_path = args.eval.model_path.resolve()
         output_dir = args.eval.output_dir.resolve()
