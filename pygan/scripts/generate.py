@@ -55,6 +55,7 @@ class Generate(Launcher):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
+    parser.add_arguments(LaurenceDataset.Params, dest="dataset")
     parser.add_arguments(Generate.Params, dest="train")
     args = parser.parse_args()
 
