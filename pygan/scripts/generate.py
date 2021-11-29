@@ -59,5 +59,5 @@ if __name__ == "__main__":
     parser.add_arguments(Generate.Params, dest="eval")
     args = parser.parse_args()
 
-    launcher = Generate(args.train)
+    launcher = Generate(args.eval)
     launcher.launch(args)
