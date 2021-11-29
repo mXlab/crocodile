@@ -53,6 +53,45 @@ class GoogleDrive:
                 print("Downloading %s %d%%." %
                       (path, int(status.progress() * 100)))
 
+    def create_folder(self, name, folder_id):
+        print("Creating folder %s" % name)
+        folder_metadata = {
+            'name': name,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [folder_id]
+        }
+        folder = self.drive.files().create(body=folder_metadata,
+                                           fields='id').execute()
+        return folder.get('id')
+
+    def upload_folder(self, folder_id, path):
+        if not path.is_dir():
+            raise("Path %s is not a vail directory." % path)
+
+        for child in path.iterdir():
+            if child.is_dir():
+                folder_id = self.create_folder(child.stem, folder_id)
+                self.upload_folder(folder_id, child)
+            if child.is_file():
+                self.upload_file(folder_id, child)
+
+    def upload_file(self, folder_id, path):
+        if not path.is_file():
+            raise("Path %s is not a valid file." % path)
+
+        print("Uploading file %s." % path)
+        file_metadata = {
+            'name': path.name,
+            'parents': [folder_id]
+        }
+        media = http.MediaFileUpload(path,
+                                     mimetype='image/jpeg',
+                                     resumable=True)
+        file = self.drive.files().create(body=file_metadata,
+                                         media_body=media,
+                                         fields='id').execute()
+        return file.get('id')
+
     @staticmethod
     def connect_to_drive(token: Path, scopes=SCOPES):
         creds = None
