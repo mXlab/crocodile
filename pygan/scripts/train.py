@@ -34,6 +34,7 @@ class Train(Launcher):
                 output_dir, data_path, gpus)
             print("Running: %s" % command)
             subprocess.run(command.split())
+            
         elif args.train.model_type == ModelType.FASTGAN:
             os.chdir('pygan/models/FastGAN')
             command = "python train.py --path=%s --batch_size %i --im_size %i" % (
