@@ -18,8 +18,7 @@ class Styleformer(Model):
 
         output_dir = args.train.output_dir.resolve()
         gpus = torch.cuda.device_count()
-        os.chdir('pygan/models/Styleformer')
-        command = "python train.py --outdir=%s --data=%s --gpus=%i --num_layers=1,2,1,1 --g_dict=1024,256,64,64 --linformer=1" % (
+        command = "python -m Styleformer.train --outdir=%s --data=%s --gpus=%i --num_layers=1,2,1,1 --g_dict=1024,256,64,64 --linformer=1" % (
             output_dir, data_path, gpus)
         print("Running: %s" % command)
         subprocess.run(command.split())

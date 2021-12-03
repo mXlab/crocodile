@@ -20,9 +20,10 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    packages=['crocodile', 'crocodile.dataset', 'crocodile.encoder',
-              'crocodile.utils', 'crocodile.mask3d', 'crocodile.generator'],
+    packages=['Styleformer', 'FastGAN', 'crocodile'],
     python_requires=">=3.6",
-    install_requires=['simple_parsing', 'click', 'requests', 'tqdm', 'pyspng', 'ninja', 'imageio-ffmpeg==0.4.3',
-                      'google-api-python-client', 'google-auth-httplib2', 'google-auth-oauthlib', 'omegaconf', 'psutil', 'scipy', 'lmdb', 'scikit-image', 'ipdb']
+    install_requires=['simple_parsing', 'click', 'requests', 'tqdm', 'ninja', 'imageio-ffmpeg==0.4.3',
+                      'google-api-python-client', 'google-auth-httplib2', 'google-auth-oauthlib', 'omegaconf',
+                      'psutil', 'scipy', 'lmdb', 'scikit-image', 'ipdb']
+    # 'pyspng',
 )
