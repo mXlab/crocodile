@@ -173,15 +173,7 @@ def train(args):
             load_params(netG, backup_para)
 
         if iteration % (save_interval*50) == 0 or iteration == total_iterations:
-            backup_para = copy_G_params(netG)
-            load_params(netG, avg_param_G)
-            torch.save({'g':netG.state_dict(),'d':netD.state_dict(), 'args': args}, saved_model_folder+'/%d.pth'%iteration)
-            load_params(netG, backup_para)
-            torch.save({'g':netG.state_dict(),
-                        'd':netD.state_dict(),
-                        'g_ema': avg_param_G,
-                        'opt_g': optimizerG.state_dict(),
-                        'opt_d': optimizerD.state_dict()}, saved_model_folder+'/all_%d.pth'%iteration)
+            torch.save({'g':avg_param_G,'d':netD.state_dict(), 'args': args}, saved_model_folder+'/%.6d.pth'%iteration)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='region gan')
@@ -194,7 +186,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=8, help='mini batch number of images')
     parser.add_argument('--im_size', type=int, default=1024, help='image resolution')
     parser.add_argument('--ckpt', type=str, default='None', help='checkpoint weight path if have one')
-
+    parser.add_argument('--outdir', type=str)
 
     args = parser.parse_args()
     print(args)
