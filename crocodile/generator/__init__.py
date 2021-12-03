@@ -1,15 +1,19 @@
-from enum import Enum
 from .styleformer import Styleformer
 from .fastgan import FastGAN
+from .generator import Generator, GeneratorType, TrainParams
+from pathlib import Path
+from typing import Optional
 
 
-class ModelType(Enum):
-    STYLEFORMER = "styleformer"
-    FASTGAN = "fastgan"
+def load_from_path(path: Path, epoch: Optional[int] = None, device=None) -> Generator:
+    params = TrainParams.load(path, drop_extra_fields=False)
+    generator = load_generator(params)
+    generator.load(params, epoch, device)
+    return generator
 
-    @classmethod
-    def load(cls, model_type):
-        if model_type == ModelType.STYLEFORMER:
-            return Styleformer
-        elif model_type == ModelType.FASTGAN:
-            return FastGAN
+
+def load_generator(generator: GeneratorType) -> Generator:
+    if generator == GeneratorType.STYLEFORMER:
+        return Styleformer
+    elif generator == GeneratorType.FASTGAN:
+        return FastGAN
