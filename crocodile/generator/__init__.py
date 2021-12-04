@@ -7,7 +7,7 @@ from typing import Optional
 
 def load_from_path(path: Path, epoch: Optional[int] = None, device=None) -> Generator:
     params = TrainParams.load(path, drop_extra_fields=False)
-    generator = load_generator(params)
+    generator = load_generator(params.generator)
     generator.load(params, epoch, device)
     return generator
 
@@ -17,3 +17,5 @@ def load_generator(generator: GeneratorType) -> Generator:
         return Styleformer
     elif generator == GeneratorType.FASTGAN:
         return FastGAN
+    else:
+        raise ValueError()

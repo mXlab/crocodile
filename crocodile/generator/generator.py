@@ -41,6 +41,7 @@ def decode_generator_type(name: str) -> GeneratorType:
 
 
 register_decoding_fn(GeneratorType, decode_generator_type)
+register_decoding_fn(Path, Path)
 
 
 class Generator(ABC):
