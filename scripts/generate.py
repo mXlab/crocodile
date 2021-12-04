@@ -23,7 +23,7 @@ class EvalParams:
             self.output_dir = self.generator_path / "eval"
 
 
-def run(self, args: EvalParams = EvalParams()):
+def run(args: EvalParams = EvalParams()):
     device = torch.device('cuda')
     generator = load_from_path(args.generator_path, args.epoch, device=device)
 
