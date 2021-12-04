@@ -9,6 +9,6 @@ if __name__ == "__main__":
     parser.add_arguments(TrainParams, dest="train")
     args = parser.parse_args()
 
-    executor = load_executor(ExecutorConfig)
+    executor = load_executor(args.executor)
     generator = load_generator(args.train.generator)
     executor(generator.train, args.train)
