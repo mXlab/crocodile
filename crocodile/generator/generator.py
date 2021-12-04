@@ -1,8 +1,8 @@
-from __future__ import annotations
+# from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from crocodile.dataset import LaurenceDataset
 from simple_parsing.helpers import Serializable
 from typing import Optional
@@ -17,15 +17,14 @@ class GeneratorType(Enum):
 
 @dataclass
 class TrainParams(Serializable):
-    output_dir: Path = Path("./results")
+    output_dir: str = "./results"
     generator: GeneratorType = GeneratorType.STYLEFORMER
     batch_size: int = 64
     name: str = "test_1"
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
-    log_dir: field(init=False)
-    params_file: field(init=False)
 
     def __post_init__(self):
+        self.output_dir = Path(self.output_dir)
         self.log_dir = self.output_dir / self.name
         self.params_file = self.log_dir / "params.yaml"
 
@@ -48,7 +47,7 @@ class Generator(ABC):
 
     @staticmethod
     @abstractmethod
-    def load(self, params: TrainParams = TrainParams(), epoch: Optional[int] = None, device=None) -> Generator:
+    def load(self, params: TrainParams = TrainParams(), epoch: Optional[int] = None, device=None):
         pass
 
     @abstractmethod

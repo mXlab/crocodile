@@ -5,6 +5,7 @@ import Styleformer.dnnlib as dnnlib
 import Styleformer.legacy as legacy
 import numpy as np
 from .generator import TrainParams, Generator
+from typing import Optional
 
 
 class Styleformer(Generator):
