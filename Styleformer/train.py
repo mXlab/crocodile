@@ -544,7 +544,7 @@ def main(ctx, outdir, dry_run, **config_kwargs):
 
     # Create output directory.
     print('Creating output directory...')
-    os.makedirs(args.run_dir)
+    os.makedirs(args.run_dir, exist_ok=True)
     with open(os.path.join(args.run_dir, 'training_options.json'), 'wt') as f:
         json.dump(args, f, indent=2)
 
