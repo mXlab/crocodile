@@ -19,7 +19,7 @@ class LaurenceDataset(Dataset):
 
     @dataclass
     class Params:
-        root: Path = Path("./data")
+        dataset_path: Path = Path("./data")
         resolution: int = 64
         biodata: Biodata.Params = Biodata.Params()
         token: Path = Path("./token.json")
@@ -27,7 +27,7 @@ class LaurenceDataset(Dataset):
     def __init__(self, args: Params = Params(), transform=None, target_transform=None):
         super().__init__()
 
-        self.path = args.root / "laurence"
+        self.path = args.dataset_path / "laurence"
         self.transform = transform
         self.target_transform = target_transform
         self.resolution = args.resolution

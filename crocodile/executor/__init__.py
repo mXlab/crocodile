@@ -16,16 +16,16 @@ def load_slurm_config(path: Optional[Path] = None) -> SlurmConfig:
 
 @dataclass
 class ExecutorConfig:
-    path: Optional[Path] = None
+    config_file: Optional[Path] = None
     slurm_options: SlurmConfig = SlurmConfig()
 
     def __post_init__(self):
-        config = load_slurm_config(self.path)
+        config = load_slurm_config(self.config_file)
         self.slurm_options.merge(config)
 
 
 def load_executor(config: ExecutorConfig = ExecutorConfig()) -> Executor:
-    if config.path is None:
+    if config.config_file is None:
         return LocalExecutor()
     else:
         return SlurmExecutor(config)

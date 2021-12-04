@@ -21,11 +21,11 @@ class TrainParams(Serializable):
     output_dir: Path = Path("./results")
     generator: GeneratorType = GeneratorType.STYLEFORMER
     batch_size: int = 64
-    name: str = "test_1"
+    exp_name: str = "test_1"
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
 
     def __post_init__(self):
-        self.log_dir = self.output_dir / self.name
+        self.log_dir = self.output_dir / self.exp_name
         self.params_file = self.log_dir / "params.yaml"
 
 
