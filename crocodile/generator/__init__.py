@@ -8,7 +8,7 @@ from typing import Optional
 def load_from_path(path: Path, epoch: Optional[int] = None, device=None) -> Generator:
     params = TrainParams.load(path, drop_extra_fields=False)
     generator = load_generator(params.generator)
-    generator.load(params, epoch, device)
+    generator = generator.load(params, epoch, device)
     return generator
 
 
