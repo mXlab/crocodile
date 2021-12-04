@@ -2,7 +2,8 @@ from .generator import Generator, TrainParams
 from crocodile.dataset import LaurenceDataset
 import subprocess
 import torch
-import FastGAN.models as fastgan
+import FastGAN.models as models
+import FastGAN.operation as operation
 from typing import Optional
 
 
@@ -31,23 +32,20 @@ class FastGAN(Generator):
 
         checkpoint = torch.load(path, map_location=lambda a, b: a)
         args = checkpoint["args"]
-        print(args)
 
-        net_ig = fastgan.Generator(
+        net_ig = models.Generator(
             ngf=args.ngf, nz=args.nz, im_size=args.im_size)
         net_ig.to(device)
 
-        checkpoint['g'] = {
-            k.replace('module.', ''): v for k, v in checkpoint['g'].items()}
-        net_ig.load_state_dict(checkpoint['g'])
+        operation.load_params(net_ig, checkpoint['g_ema'])
 
         net_ig.eval()
         net_ig.to(device)
 
-        return FastGAN(net_ig, net_ig.nz, device)
+        return FastGAN(net_ig, args.nz, device)
 
     def sample_z(self, n_samples: int = 1) -> torch.Tensor:
-        return torch.randn(n_samples, self.model.nz).to(self.device)
+        return torch.randn(n_samples, self.latent_dim).to(self.device)
 
     def __call__(self, z: torch.Tensor) -> torch.Tensor:
         return self.model(z)[0]

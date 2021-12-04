@@ -173,7 +173,7 @@ def train(args):
             load_params(netG, backup_para)
 
         if iteration % (save_interval*50) == 0 or iteration == total_iterations:
-            torch.save({'g':avg_param_G,'d':netD.state_dict(), 'args': args}, saved_model_folder+'/%.6d.pth'%iteration)
+            torch.save({'g':netG.state_dict() ,'g_ema':avg_param_G,'d':netD.state_dict(), 'args': args}, saved_model_folder+'/%.6d.pth'%iteration)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='region gan')
