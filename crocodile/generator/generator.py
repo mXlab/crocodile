@@ -8,6 +8,7 @@ from simple_parsing.helpers import Serializable
 from typing import Optional
 from torch.nn import Module
 import torch
+import shutil
 
 
 class GeneratorType(Enum):
@@ -41,6 +42,8 @@ class Generator(ABC):
 
     @staticmethod
     def set_dir(params: TrainParams = TrainParams()):
+        if params.log_dir.is_dir():
+            shutil.rmtree(params.log_dir)
         params.log_dir.mkdir(exist_ok=True)
         params.save(params.params_file)
 
