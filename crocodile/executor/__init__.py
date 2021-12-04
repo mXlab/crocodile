@@ -24,8 +24,8 @@ class ExecutorConfig:
         self.slurm_options.merge(config)
 
 
-def load_executor(config: ExecutorConfig = ExecutorConfig()) -> Executor:
+def load_executor(config: ExecutorConfig) -> Executor:
     if config.config_file is None:
         return LocalExecutor()
     else:
-        return SlurmExecutor(config)
+        return SlurmExecutor(config.slurm_options)

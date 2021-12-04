@@ -19,8 +19,8 @@ class SlurmConfig:
 
     def merge(self, config):
         for key, value in asdict(self).items():
-            if value is None:
-                new_value = getattr(config, key)
+            if value is None or value == MISSING:
+                new_value = config[key]
                 setattr(self, key, new_value)
 
 
