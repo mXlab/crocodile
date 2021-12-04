@@ -17,14 +17,13 @@ class GeneratorType(Enum):
 
 @dataclass
 class TrainParams(Serializable):
-    output_dir: str = "./results"
+    output_dir: Path = Path("./results")
     generator: GeneratorType = GeneratorType.STYLEFORMER
     batch_size: int = 64
     name: str = "test_1"
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
 
     def __post_init__(self):
-        self.output_dir = Path(self.output_dir)
         self.log_dir = self.output_dir / self.name
         self.params_file = self.log_dir / "params.yaml"
 
