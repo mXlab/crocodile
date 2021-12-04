@@ -20,7 +20,7 @@ class EvalParams:
 
     def __post_init__(self):
         if self.output_dir is None:
-            self.output_dir = self.generator_path / "eval"
+            self.output_dir = self.generator_path.dirname / "eval"
 
 
 def run(args: EvalParams):
