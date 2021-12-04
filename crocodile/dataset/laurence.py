@@ -22,6 +22,7 @@ class LaurenceDataset(Dataset):
         root: Path = Path("./data")
         resolution: int = 64
         biodata: Biodata.Params = Biodata.Params()
+        token: Path = Path("./token.json")
 
     def __init__(self, args: Params = Params(), transform=None, target_transform=None):
         super().__init__()
@@ -30,8 +31,9 @@ class LaurenceDataset(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.resolution = args.resolution
+        self.token = args.token
 
-        self.download(self.path)
+        self.download(self.path, self.token)
         self.extract_video(self.path)
         self.process_images(self.path, args.resolution)
 
@@ -46,12 +48,11 @@ class LaurenceDataset(Dataset):
         return (self.path / str(self.resolution)).resolve()
 
     @classmethod
-    def download(cls, path: Path):
+    def download(cls, path: Path, token: Path):
         if cls.check_all_integrity(path):
             return
 
         path.mkdir(exist_ok=True)
-        token = path / "token.json"
 
         drive = GoogleDrive.connect_to_drive(token)
 
