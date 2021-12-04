@@ -7,7 +7,7 @@ from pathlib import Path
 import hashlib
 
 
-SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 
 def check_integrity(path: Path, md5=None) -> bool:
