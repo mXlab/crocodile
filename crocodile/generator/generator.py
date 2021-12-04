@@ -9,6 +9,7 @@ from typing import Optional
 from torch.nn import Module
 import torch
 import shutil
+from simple_parsing.helpers.serialization import encode, register_decoding_fn
 
 
 class GeneratorType(Enum):
@@ -27,6 +28,19 @@ class TrainParams(Serializable):
     def __post_init__(self):
         self.log_dir = self.output_dir / self.exp_name
         self.params_file = self.log_dir / "params.yaml"
+
+
+@encode.register
+def encode_generator_type(obj: GeneratorType) -> str:
+    """ We choose to encode a tensor as a list, for instance """
+    return obj.name
+
+
+def decode_generator_type(name: str) -> GeneratorType:
+    return GeneratorType[name]
+
+
+register_decoding_fn(GeneratorType, decode_generator_type)
 
 
 class Generator(ABC):
