@@ -20,7 +20,7 @@ class FastGAN(Generator):
         subprocess.run(command.split())
 
     @staticmethod
-    def load(self, params: TrainParams = TrainParams(), epoch: Optional[int] = None, device=None) -> Generator:
+    def load(params: TrainParams = TrainParams(), epoch: Optional[int] = None, device=None) -> Generator:
         if device is None:
             device = torch.device('cuda')
 
@@ -31,6 +31,7 @@ class FastGAN(Generator):
 
         checkpoint = torch.load(path, map_location=lambda a, b: a)
         args = checkpoint["args"]
+        print(args)
 
         net_ig = fastgan.Generator(
             ngf=args.ngf, nz=args.nz, im_size=args.im_size)

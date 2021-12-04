@@ -20,8 +20,9 @@ class ExecutorConfig:
     slurm_options: SlurmConfig = SlurmConfig()
 
     def __post_init__(self):
-        config = load_slurm_config(self.config_file)
-        self.slurm_options.merge(config)
+        if self.config_file is not None:
+            config = load_slurm_config(self.config_file)
+            self.slurm_options.merge(config)
 
 
 def load_executor(config: ExecutorConfig) -> Executor:

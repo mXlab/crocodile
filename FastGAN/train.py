@@ -59,8 +59,8 @@ def train(args):
     batch_size = args.batch_size
     im_size = args.im_size
     ndf = 64
-    ngf = 64
-    nz = 256
+    ngf = args.ngf
+    nz = args.nz
     nlr = 0.0002
     nbeta1 = 0.5
     use_cuda = True
@@ -187,6 +187,8 @@ if __name__ == "__main__":
     parser.add_argument('--im_size', type=int, default=1024, help='image resolution')
     parser.add_argument('--ckpt', type=str, default='None', help='checkpoint weight path if have one')
     parser.add_argument('--outdir', type=str)
+    parser.add_argument('--nz', type=int, default=256)
+    parser.add_argument('--ngf', type=int, default=64)
 
     args = parser.parse_args()
     print(args)
