@@ -14,7 +14,7 @@ class FastGAN(Generator):
 
         data_path = dataset.get_path()
         cls.set_dir(params)
-        command = "python FastGAN.train.py --outdir %s --path=%s --batch_size %i --im_size %i" % (
+        command = "python -m FastGAN.train --outdir %s --path=%s --batch_size %i --im_size %i" % (
             params.log_dir, data_path, params.batch_size, dataset.resolution)
         print("Running: %s" % command)
         subprocess.run(command.split())
