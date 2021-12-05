@@ -14,6 +14,6 @@ class MLP(Encoder):
 
     def build(self, input_dim: int, output_dim: int, device=None):
         self.network = nn.Sequential(nn.Linear(input_dim, self.args.num_hidden), nn.ReLU(
-        ), nn.Linear(self.params.num_hidden, output_dim))
+        ), nn.Linear(self.args.num_hidden, output_dim))
 
         return self
