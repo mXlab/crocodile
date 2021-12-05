@@ -29,7 +29,7 @@ class Params:
         self.save_dir = self.log_dir / self.name
 
 
-def run(args: Params = Params()):
+def run(args: Params):
     device = torch.device('cuda')
 
     transform_list = [
