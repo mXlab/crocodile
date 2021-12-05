@@ -15,13 +15,13 @@ from typing import Optional
 
 @dataclass
 class Params:
-    generator_path: Path = None
+    generator_path: Path
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
     encoder: EncoderParams = EncoderParams()
     lr: float = 1e-2
-    num_epochs: 100
+    num_epochs: int = 100
     log_dir: Path = Path("./results/encoder")
     name: str = "test_1"
 
