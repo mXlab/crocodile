@@ -13,7 +13,7 @@ class Params:
     model_type: Face3dModel = Face3dModel.DDFA_V2
 
 
-def run(self, args):
+def run(args):
     path = args.images_path.resolve()
     if path is None or not path.is_dir():
         raise("Please specify a valid path for the directory containing the images.")
