@@ -15,7 +15,7 @@ from typing import Optional
 
 @dataclass
 class Params:
-    generator_path: Optional[Path] = None
+    generator_path: Path
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
@@ -76,8 +76,8 @@ def run(args: Params):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument(Params, dest="params")
-    parser.add_argument(ExecutorConfig, dest="executor")
+    parser.add_arguments(Params, dest="params")
+    parser.add_arguments(ExecutorConfig, dest="executor")
     args = parser.parse_args()
 
     executor = load_executor(args.executor)
