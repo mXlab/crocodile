@@ -25,7 +25,7 @@ class Biodata:
                    self.config.sampling_rate + self.config.start_sensor)
 
     def __getitem__(self, index):
-        assert index > 0  # Only accepts positive index
+        assert index >= 0  # Only accepts positive index
         index = self.convert_index(index)
         assert index - self.window_size >= 0
         assert index < len(self)
