@@ -55,8 +55,8 @@ def run(args: Params):
 
     args.save_dir.mkdir(parents=True, exist_ok=True)
 
-    for epoch in tqdm(range(args.num_epochs)):
-        for img, label in dataloader:
+    for epoch in range(args.num_epochs):
+        for img, label in tqdm(dataloader):
             optimizer.zero_grad()
 
             img = img.to(device)
@@ -64,8 +64,6 @@ def run(args: Params):
 
             z = encoder(label)
             img_recons = generator(z)
-
-            print
 
             loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
             loss.backward()
