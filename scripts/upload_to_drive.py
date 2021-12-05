@@ -9,8 +9,10 @@ if __name__ == "__main__":
         "--token", default=Path("./token.json"), type=Path)
     parser.add_argument(
         "--id", default="1E9BtfIBMCWgFj7fwmwP7H5vV0HDvY0DG", type=str)
+    parser.add_argument(
+        "--name", default=None, type=str)
 
     args = parser.parse_args()
     drive = GoogleDrive.connect_to_drive(
         args.token, ["https://www.googleapis.com/auth/drive"])
-    drive.upload_folder(args.id, args.input_dir)
+    drive.upload_folder(args.id, args.input_dir, args.name)
