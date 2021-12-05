@@ -38,7 +38,7 @@ def run(args: EvalParams):
     with torch.no_grad():
         for i in tqdm(range(args.num_frames//args.batch_size + 1)):
             _noise = noise[i*args.batch_size: (i+1)*args.batch_size]
-            img = generator(_noise)[0]
+            img = generator(_noise)
             for j, g_img in enumerate(img):
                 vutils.save_image(g_img.add(1).mul(0.5),
                                   os.path.join(args.output_dir, f'{i*args.batch_size+j:04d}.png'))
