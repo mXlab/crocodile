@@ -29,7 +29,7 @@ class FastGAN(Generator):
             path = sorted(params.log_dir.glob("models/*.pth"))[-1]
         else:
             path = params.log_dir / "models/%.6d.pth" % epoch
-
+        
         checkpoint = torch.load(path, map_location=lambda a, b: a)
         args = checkpoint["args"]
 
@@ -37,7 +37,9 @@ class FastGAN(Generator):
             ngf=args.ngf, nz=args.nz, im_size=args.im_size)
         net_ig.to(device)
 
-        operation.load_params(net_ig, checkpoint['g_ema'])
+        # operation.load_params(net_ig, checkpoint['g_ema'])
+        checkpoint['g'] = {k.replace('module.', ''): v for k, v in checkpoint['g'].items()}
+        net_ig.load_state_dict(checkpoint['g'])
 
         net_ig.eval()
         net_ig.to(device)
