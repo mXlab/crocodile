@@ -58,7 +58,7 @@ def run(args: Params):
             optimizer.zero_grad()
 
             img = img.to(device)
-            label = label.to(device)
+            label = label.to(device).float()
 
             z = encoder(label)
             img_recons = generator(z)
