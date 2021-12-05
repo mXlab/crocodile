@@ -15,7 +15,7 @@ from typing import Optional
 
 @dataclass
 class Params:
-    generator_path: Path
+    generator_path: Path = None
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
@@ -49,6 +49,8 @@ def run(args: Params = Params()):
         dataset.seq_length*dataset.dim, generator.latent_dim, device=device)
 
     optimizer = optim.SGD(encoder.params(), lr=args.lr)
+
+    args.save_dir.mkdir(exist_ok=True)
 
     for epoch in range(args.num_epochs):
         for img, label in dataloader:
