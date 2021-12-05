@@ -48,7 +48,7 @@ def run(args: Params):
     encoder = load_encoder(args.encoder).build(
         dataset.seq_length*dataset.seq_dim, generator.latent_dim, device=device)
 
-    optimizer = optim.SGD(encoder.params(), lr=args.lr)
+    optimizer = optim.SGD(encoder.parameters(), lr=args.lr)
 
     args.save_dir.mkdir(exist_ok=True)
 
