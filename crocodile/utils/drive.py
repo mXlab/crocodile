@@ -64,9 +64,14 @@ class GoogleDrive:
                                            fields='id').execute()
         return folder.get('id')
 
-    def upload_folder(self, folder_id, path):
+    def upload_folder(self, folder_id, path, name=None):
         if not path.is_dir():
             raise("Path %s is not a vail directory." % path)
+
+        if name is None:
+            name = path.stem
+
+        folder_id = self.create_folder(name, folder_id)
 
         for child in path.iterdir():
             if child.is_dir():
