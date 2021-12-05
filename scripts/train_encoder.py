@@ -50,7 +50,7 @@ def run(args: Params):
 
     optimizer = optim.SGD(encoder.parameters(), lr=args.lr)
 
-    args.save_dir.mkdir(exist_ok=True)
+    args.save_dir.mkdir(parents=True, exist_ok=True)
 
     for epoch in range(args.num_epochs):
         for img, label in dataloader:
