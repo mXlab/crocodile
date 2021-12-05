@@ -1,6 +1,6 @@
 from crocodile.executor import load_executor, ExecutorConfig
 from dataclasses import dataclass
-from crocodile.face3d import Face3dModel
+from crocodile.mask3d import Face3dModel
 from pathlib import Path
 import os
 import subprocess
