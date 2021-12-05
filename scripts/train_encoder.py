@@ -68,6 +68,8 @@ def run(args: Params):
             loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
             loss.backward()
 
+            print(loss)
+
             optimizer.step()
 
         print(loss)
