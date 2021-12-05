@@ -11,6 +11,7 @@ import torch
 from simple_parsing import ArgumentParser
 import torchvision
 from typing import Optional
+from tqdm import tqdm
 
 
 @dataclass
@@ -54,7 +55,7 @@ def run(args: Params):
 
     args.save_dir.mkdir(parents=True, exist_ok=True)
 
-    for epoch in range(args.num_epochs):
+    for epoch in tqdm(range(args.num_epochs)):
         for img, label in dataloader:
             optimizer.zero_grad()
 
