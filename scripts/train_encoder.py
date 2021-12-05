@@ -38,12 +38,13 @@ def run(args: Params):
     ]
     trans = transforms.Compose(transform_list)
 
+    generator = load_from_path(args.generator_path, args.epoch, device=device)
+    args.dataset.resolution = generator.resolution
+
     dataset = LaurenceDataset(
         args.dataset, transform=trans, target_transform=transforms.ToTensor())
 
     dataloader = DataLoader(dataset, batch_size=args.batch_size)
-
-    generator = load_from_path(args.generator_path, args.epoch, device=device)
 
     encoder = load_encoder(args.encoder).build(
         dataset.seq_length*dataset.seq_dim, generator.latent_dim)
@@ -58,10 +59,12 @@ def run(args: Params):
             optimizer.zero_grad()
 
             img = img.to(device)
-            label = label.to(device).float()
+            label = label.float().to(device)
 
             z = encoder(label)
             img_recons = generator(z)
+
+            print
 
             loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
             loss.backward()

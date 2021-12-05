@@ -44,7 +44,7 @@ class FastGAN(Generator):
         net_ig.eval()
         net_ig.to(device)
 
-        return FastGAN(net_ig, args.nz, device)
+        return FastGAN(net_ig, args.nz, args.im_size, device)
 
     def sample_z(self, n_samples: int = 1) -> torch.Tensor:
         return torch.randn(n_samples, self.latent_dim).to(self.device)

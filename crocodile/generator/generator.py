@@ -45,10 +45,11 @@ register_decoding_fn(Path, Path)
 
 
 class Generator(ABC):
-    def __init__(self, model: Optional[Module] = None, latent_dim: Optional[int] = None, device=None):
+    def __init__(self, model: Optional[Module] = None, latent_dim: Optional[int] = None, resolution: Optional[int] = None, device=None):
         self.model = model
         self.device = device
         self.latent_dim = latent_dim
+        self.resolution = resolution
 
     @classmethod
     @abstractmethod
