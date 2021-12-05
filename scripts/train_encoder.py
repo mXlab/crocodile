@@ -15,7 +15,7 @@ from typing import Optional
 
 @dataclass
 class Params:
-    generator_path: Path
+    generator_path: Path = None
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
