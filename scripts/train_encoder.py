@@ -45,7 +45,7 @@ def run(args: Params):
     dataset = LaurenceDataset(
         args.dataset, transform=trans, target_transform=transforms.ToTensor())
 
-    dataloader = DataLoader(dataset, batch_size=args.batch_size)
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
     encoder = load_encoder(args.encoder).build(
         dataset.seq_length*dataset.seq_dim, generator.latent_dim)
@@ -68,11 +68,12 @@ def run(args: Params):
             loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
             loss.backward()
 
-            #print(loss)
+            print(loss)
 
             optimizer.step()
 
-        print(loss)
+        #print(loss)
+        print("Saving img")
         torchvision.utils.save_image(
             img, str(args.save_dir / f"{epoch:04d}.png"))
         torchvision.utils.save_image(
