@@ -60,7 +60,7 @@ def run(args: Params):
             img = img.to(device)
             label = label.to(device)
 
-            z = encoder(img)
+            z = encoder(label)
             img_recons = generator(z)
 
             loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
