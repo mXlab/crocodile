@@ -51,7 +51,7 @@ def run(args: Params):
         dataset.seq_length*dataset.seq_dim, generator.latent_dim)
     encoder.to(device)
 
-    optimizer = optim.SGD(encoder.parameters(), lr=args.lr)
+    optimizer = optim.Adam(encoder.parameters(), lr=args.lr)
 
     args.save_dir.mkdir(parents=True, exist_ok=True)
 
