@@ -56,7 +56,7 @@ def run(args: Params):
     args.save_dir.mkdir(parents=True, exist_ok=True)
 
     for epoch in range(args.num_epochs):
-        for img, label in tqdm(dataloader):
+        for img, label in dataloader:
             optimizer.zero_grad()
 
             img = img.to(device)
