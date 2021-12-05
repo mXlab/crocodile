@@ -10,7 +10,7 @@ from simple_parsing import ArgumentParser
 class Face3D(Launcher):
     @dataclass
     class Params(Launcher.Params):
-        path: Path = Path("./results/styleformer/test1")
+        path: Path = Path("./results/fastgan/test_1/eval")
         model_type: Face3dModel = Face3dModel.DDFA_V2
 
     def run(self, args):
