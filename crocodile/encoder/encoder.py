@@ -3,9 +3,9 @@ import torch.nn as nn
 
 
 class Encoder(ABC, nn.Module):
-    def __init__(self, params=None):
+    def __init__(self, args=None):
         super().__init__()
-        self.params = params
+        self.args = args
         self.network = None
 
     @abstractmethod
