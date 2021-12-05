@@ -46,7 +46,8 @@ def run(args: Params):
     generator = load_from_path(args.generator_path, args.epoch, device=device)
 
     encoder = load_encoder(args.encoder).build(
-        dataset.seq_length*dataset.seq_dim, generator.latent_dim, device=device)
+        dataset.seq_length*dataset.seq_dim, generator.latent_dim)
+    encoder.to(device)
 
     optimizer = optim.SGD(encoder.parameters(), lr=args.lr)
 
