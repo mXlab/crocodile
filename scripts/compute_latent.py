@@ -43,7 +43,7 @@ def run(args: Params, executor_args: ExecutorConfig):
     dataset = LaurenceDataset(
         args.dataset, transform=trans, target_transform=transforms.ToTensor())
 
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=executor_args.cpus_per_task)
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
     latent_dataset = LatentDataset(len(dataset), generator.num_latent)
 
