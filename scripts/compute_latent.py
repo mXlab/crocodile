@@ -54,7 +54,7 @@ def run(args: Params):
             img_ref.add(1).mul(0.5), str(args.save_dir / "groundtruth.png"))
 
     for epoch in range(args.num_epochs):
-        for img, label, index in tqdm(dataloader):
+        for img, label, index in dataloader:
             img = img.to(device)
             z = latent_dataset[index].to(device)
             z.requires_grad_()
@@ -66,11 +66,15 @@ def run(args: Params):
 
             z = z - args.lr*grad
             latent_dataset[index] = z.detach().cpu()
+            
+            print(loss.item())
+            break
 
         print(loss.item())
         print("Saving img")
-        z = latent_dataset[index_ref].to(device)
-        img_recons = generator(z)
+        with torch.no_grad():
+            z = latent_dataset[index_ref].to(device)
+            img_recons = generator(z)
         
         torchvision.utils.save_image(
             img_recons.add(1).mul(0.5), str(args.save_dir / f"recons_{epoch:04d}.png"))
