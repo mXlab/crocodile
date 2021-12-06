@@ -7,7 +7,6 @@ from crocodile.utils.logger import Logger
 from dataclasses import dataclass
 from torchvision import transforms
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data import Subset
 from pathlib import Path
 import torch
 from simple_parsing import ArgumentParser
@@ -78,7 +77,7 @@ class ComputeLatent(ExecutorCallable):
 
         for epoch in range(args.num_epochs):
             loss_mean = 0
-            for img, _, index in tqdm(dataloader, disable=not args.debug):
+            for img, _, index in tqdm(dataloader, disable=args.debug):
                 optimizer.zero_grad()
 
                 if args.debug:
