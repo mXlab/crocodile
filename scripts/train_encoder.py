@@ -75,9 +75,9 @@ def run(args: Params):
         #print(loss)
         print("Saving img")
         torchvision.utils.save_image(
-            img, str(args.save_dir / f"{epoch:04d}.png"))
+            img.add(1).mul(0.5), str(args.save_dir / f"{epoch:04d}.png"))
         torchvision.utils.save_image(
-            img_recons, str(args.save_dir / f"recons_{epoch:04d}.png"))
+            img_recons.add(1).mul(0.5), str(args.save_dir / f"recons_{epoch:04d}.png"))
 
 
 if __name__ == "__main__":
