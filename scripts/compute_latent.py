@@ -1,85 +1,107 @@
-from crocodile.executor import load_executor, ExecutorConfig
+from crocodile.executor import load_executor, ExecutorConfig, ExecutorCallable
 from crocodile.generator import load_from_path
 from crocodile.dataset import LaurenceDataset, LatentDataset
+from crocodile.utils.optim import OptimizerArgs, load_optimizer
+from crocodile.utils.loss import LossParams, load_loss
+from crocodile.utils.logger import Logger
 from dataclasses import dataclass
 from torchvision import transforms
 from torch.utils.data.dataloader import DataLoader
 from pathlib import Path
 import torch
 from simple_parsing import ArgumentParser
-import torchvision
 from typing import Optional
 from tqdm import tqdm
-import torch.autograd as autograd
+from simple_parsing.helpers import Serializable
+from simple_parsing.helpers.serialization import register_decoding_fn
+import os
 
 
 @dataclass
-class Params:
+class Params(Serializable):
     generator_path: Path
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
-    lr: float = 5e-5
+    optimizer: OptimizerArgs = OptimizerArgs()
+    loss: LossParams = LossParams()
     num_epochs: int = 100
     log_dir: Path = Path("./results/latent")
     name: str = "test_1"
+    num_test_samples: int = 10
+    slurm_job_id: Optional[str] = os.environ.get('SLURM_JOB_ID')
+    im_size: int = 64
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
 
 
-def run(args: Params):
-    torch.manual_seed(1234)
-    device = torch.device('cuda')
+register_decoding_fn(Path, Path)
 
-    transform_list = [
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    ]
-    trans = transforms.Compose(transform_list)
 
-    generator = load_from_path(args.generator_path, args.epoch, device=device)
-    args.dataset.resolution = generator.resolution
+class ComputeLatent(ExecutorCallable):
+    def __call__(self, args: Params, resume=False):
+        torch.manual_seed(1234)
+        device = torch.device('cuda')
 
-    dataset = LaurenceDataset(
-        args.dataset, transform=trans, target_transform=transforms.ToTensor())
+        resize = transforms.Resize((args.im_size, args.im_size))
+        transform_list = [
+            resize,
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        ]
+        trans = transforms.Compose(transform_list)
 
-    dataloader = DataLoader(
-        dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+        generator = load_from_path(
+            args.generator_path, args.epoch, device=device)
 
-    latent_dataset = LatentDataset(len(dataset), dim=generator.latent_dim)
+        dataset = LaurenceDataset(
+            args.dataset, transform=trans, target_transform=transforms.ToTensor())
 
-    args.save_dir.mkdir(parents=True, exist_ok=True)
+        dataloader = DataLoader(
+            dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-    img_ref, _, index_ref = iter(dataloader).next()
-    img_ref = img_ref[:10]
-    index_ref = index_ref[:10]
-    torchvision.utils.save_image(
-        img_ref.add(1).mul(0.5), str(args.save_dir / "groundtruth.png"))
+        latent_dataset = LatentDataset(len(dataset), dim=generator.latent_dim)
 
-    for epoch in range(args.num_epochs):
-        for img, label, index in tqdm(dataloader):
-            img = img.to(device)
-            z = latent_dataset[index]
-            z = z.to(device)
-            z.requires_grad_()
+        optimizer = load_optimizer(latent_dataset.parameters(), args.optimizer)
 
-            img_recons = generator(z)
+        loss_fn = load_loss(args.loss)
 
-            loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
-            grad = autograd.grad(loss, z)[0]
+        logger = Logger(args.save_dir)
+        logger.save_args(args)
 
-            z = z - args.lr*grad
-            latent_dataset[index] = z.detach().cpu()
+        img, _, index_ref = iter(dataloader).next()
+        img = img[:args.num_test_samples]
+        index_ref = index_ref[:args.num_test_samples]
+        logger.save_image("groundtruth", img)
 
-        print(epoch, loss.item())
-        with torch.no_grad():
-            z = latent_dataset[index_ref].to(device)
-            img_recons = generator(z)
+        for epoch in range(args.num_epochs):
+            loss_mean = 0
+            for img, label, index in tqdm(dataloader):
+                optimizer.zero_grad()
 
-        torchvision.utils.save_image(
-            img_recons.add(1).mul(0.5), str(args.save_dir / f"recons_{epoch:04d}.png"))
-        latent_dataset.save(str(args.save_dir / "latent.pt"))
+                img = img.to(device)
+                z = latent_dataset[index]
+                z = z.to(device)
+                z.requires_grad_()
+
+                img_recons = resize(generator(z))
+
+                loss = loss_fn(img, img_recons)
+                loss.backward()
+
+                optimizer.step()
+
+                loss_mean += loss.detach().item()
+
+            logger.add({"epoch": epoch, "loss_mean": loss_mean})
+
+            with torch.no_grad():
+                z = latent_dataset[index_ref].to(device)
+                img_recons = generator(z)
+
+            logger.save_image(f"recons_{epoch:04d}", img_recons)
+            logger.save("latent", latent_dataset)
 
 
 if __name__ == "__main__":
@@ -89,4 +111,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     executor = load_executor(args.executor)
-    executor(run, args.params)
+    executor(ComputeLatent(), args.params)

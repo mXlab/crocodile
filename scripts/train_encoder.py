@@ -1,4 +1,4 @@
-from crocodile.executor import load_executor, ExecutorConfig
+from crocodile.executor import load_executor, ExecutorConfig, ExecutorCallable
 from crocodile.encoder import load_encoder, EncoderParams
 from crocodile.generator import load_from_path
 from dataclasses import dataclass
@@ -9,13 +9,16 @@ from pathlib import Path
 import torch.optim as optim
 import torch
 from simple_parsing import ArgumentParser
-import torchvision
 from typing import Optional
 from tqdm import tqdm
+from simple_parsing.helpers import Serializable
+from simple_parsing.helpers.serialization import register_decoding_fn
+from crocodile.utils.logger import Logger
+import os
 
 
 @dataclass
-class Params:
+class Params(Serializable):
     generator_path: Path
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
@@ -25,57 +28,77 @@ class Params:
     num_epochs: int = 100
     log_dir: Path = Path("./results/encoder")
     name: str = "test_1"
+    slurm_job_id: Optional[str] = os.environ.get('SLURM_JOB_ID')
+    num_test_samples: int = 10
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
 
 
-def run(args: Params):
-    device = torch.device('cuda')
+register_decoding_fn(Path, Path)
 
-    transform_list = [
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    ]
-    trans = transforms.Compose(transform_list)
 
-    generator = load_from_path(args.generator_path, args.epoch, device=device)
-    args.dataset.resolution = generator.resolution
+class EncoderTraining(ExecutorCallable):
+    def __call__(self, args: Params, resume=False):
+        device = torch.device('cuda')
 
-    dataset = LaurenceDataset(
-        args.dataset, transform=trans, target_transform=transforms.ToTensor())
+        transform_list = [
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        ]
+        trans = transforms.Compose(transform_list)
 
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
+        generator = load_from_path(
+            args.generator_path, args.epoch, device=device)
+        args.dataset.resolution = generator.resolution
 
-    encoder = load_encoder(args.encoder).build(
-        dataset.seq_length*dataset.seq_dim, generator.latent_dim)
-    encoder.to(device)
+        dataset = LaurenceDataset(
+            args.dataset, transform=trans, target_transform=transforms.ToTensor())
 
-    optimizer = optim.Adam(encoder.parameters(), lr=args.lr)
+        dataloader = DataLoader(
+            dataset, batch_size=args.batch_size, shuffle=True)
 
-    args.save_dir.mkdir(parents=True, exist_ok=True)
+        encoder = load_encoder(args.encoder).build(
+            dataset.seq_length*dataset.seq_dim, generator.latent_dim)
+        encoder.to(device)
 
-    for epoch in range(args.num_epochs):
-        for img, label in tqdm(dataloader):
-            optimizer.zero_grad()
+        optimizer = optim.Adam(encoder.parameters(), lr=args.lr)
 
-            img = img.to(device)
-            label = label.float().to(device)
+        logger = Logger(args.save_dir)
+        logger.save_args(args)
 
-            z = encoder(label)
-            img_recons = generator(z)
+        img, label_ref, = iter(dataloader).next()
+        img = img[:args.num_test_samples]
+        label_ref = label_ref[:args.num_test_samples]
+        logger.save_image("groundtruth", img)
 
-            loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
-            loss.backward()
+        for epoch in range(args.num_epochs):
+            loss_mean = 0
+            for img, label, _ in tqdm(dataloader):
+                optimizer.zero_grad()
 
-            optimizer.step()
+                img = img.to(device)
+                label = label.float().to(device)
 
-        print(loss.item())
-        print("Saving img")
-        torchvision.utils.save_image(
-            img.add(1).mul(0.5), str(args.save_dir / f"{epoch:04d}.png"))
-        torchvision.utils.save_image(
-            img_recons.add(1).mul(0.5), str(args.save_dir / f"recons_{epoch:04d}.png"))
+                z = encoder(label)
+                img_recons = generator(z)
+
+                loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
+                loss.backward()
+
+                optimizer.step()
+
+                loss_mean += loss.detach().item()
+
+            logger.add({"epoch": epoch, "loss_mean": loss_mean})
+
+            with torch.no_grad():
+                label = label_ref.float().to(device)
+                z = encoder(label)
+                img_recons = generator(z)
+
+            logger.save_image(f"recons_{epoch:04d}", img_recons)
+            logger.save_model("{epoch:04d}", encoder)
 
 
 if __name__ == "__main__":
@@ -85,4 +108,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     executor = load_executor(args.executor)
-    executor(run, args.params)
+    executor(EncoderTraining(), args.params)
