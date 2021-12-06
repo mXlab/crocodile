@@ -72,7 +72,7 @@ class ComputeLatent(ExecutorCallable):
         logger.save_args(args)
 
         img_ref, _, index_ref = iter(dataloader).next()
-        img_ref = img_ref[:args.num_test_samples]
+        img_ref = img_ref[:args.num_test_samples].to(device)
         index_ref = index_ref[:args.num_test_samples]
         logger.save_image("groundtruth", img_ref)
 
