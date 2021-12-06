@@ -1,5 +1,5 @@
 from .executor import Executor, LocalExecutor
-from .slurm import SlurmExecutor, SlurmConfig, default_config
+from .slurm import SlurmExecutor, SlurmConfig, default_config, ExecutorCallable
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path

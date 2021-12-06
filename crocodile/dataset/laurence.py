@@ -20,7 +20,7 @@ class LaurenceDataset(Dataset):
     @dataclass
     class Params:
         dataset_path: Path = Path("./data")
-        resolution: int = 64
+        resolution: int = 512
         biodata: Biodata.Params = Biodata.Params()
         token: Path = Path("./token.json")
 

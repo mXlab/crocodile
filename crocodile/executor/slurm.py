@@ -2,6 +2,11 @@ from .executor import Executor
 from dataclasses import dataclass, asdict
 from omegaconf import MISSING
 from typing import Optional, Callable, Any
+from abc import ABC, abstractmethod
+try:
+    import submitit
+except ImportError:
+    print("Couldn't import submitit. Install it if you plan on running this code on the cluster.")
 
 
 @dataclass
@@ -39,7 +44,6 @@ default_config = SlurmConfig(
 
 
 def create_slurm_executor(config: SlurmConfig = SlurmConfig()):
-    import submitit
 
     executor = submitit.AutoExecutor(folder=config.log_folder)
     executor.update_parameters(
@@ -66,3 +70,12 @@ class SlurmExecutor(Executor):
     def __call__(self, func: Callable[[Any], None], *args, **kwargs):
         job = self.executor.submit(func, *args, **kwargs)
         print("Launched job: %s" % (str(job.job_id)))
+
+
+class ExecutorCallable(ABC):
+    @abstractmethod
+    def __call__(self, args: Any, resume=False):
+        pass
+
+    def checkpoint(self, args: Any, resume=False):
+        return submitit.helpers.DelayedSubmission(self, args, resume=True)
