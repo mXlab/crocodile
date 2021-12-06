@@ -28,7 +28,7 @@ class Params:
         self.save_dir = self.log_dir / self.name
 
 
-def run(args: Params, executor_args: ExecutorConfig):
+def run(args: Params):
     device = torch.device('cuda')
 
     transform_list = [
@@ -45,7 +45,7 @@ def run(args: Params, executor_args: ExecutorConfig):
 
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-    latent_dataset = LatentDataset(len(dataset), generator.num_latent)
+    latent_dataset = LatentDataset(len(dataset), generator.latent_dim)
 
     args.save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -83,4 +83,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     executor = load_executor(args.executor)
-    executor(run, args.params, args.executor)
+    executor(run, args.params)
