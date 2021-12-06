@@ -99,6 +99,9 @@ class ComputeLatent(ExecutorCallable):
 
                 loss_mean += loss.detach().item()
 
+                if args.debug:
+                    break
+
             with torch.no_grad():
                 z = latent_dataset[index_ref].to(device)
                 img_recons = generator(z)
