@@ -31,7 +31,7 @@ class Params(Serializable):
     name: str = "test_1"
     num_test_samples: int = 10
     slurm_job_id: Optional[str] = os.environ.get('SLURM_JOB_ID')
-    subset_size: Optional[int] = None
+    debug: bool = False
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
@@ -58,10 +58,6 @@ class ComputeLatent(ExecutorCallable):
         dataset = LaurenceDataset(
             args.dataset, transform=trans, target_transform=transforms.ToTensor())
 
-        if args.subset_size is not None:
-            dataset = Subset(dataset, torch.randperm(
-                len(dataset))[:args.subset_size])
-
         dataloader = DataLoader(
             dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
@@ -82,8 +78,12 @@ class ComputeLatent(ExecutorCallable):
 
         for epoch in range(args.num_epochs):
             loss_mean = 0
-            for img, label, index in tqdm(dataloader):
+            for img, _, index in tqdm(dataloader):
                 optimizer.zero_grad()
+
+                if args.debug:
+                    img = img_ref
+                    index = index_ref
 
                 img = img.to(device)
                 z = latent_dataset[index]
