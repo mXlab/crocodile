@@ -21,7 +21,7 @@ class Logger:
 
     def save_image(self, name: str, image: torch.Tensor):
         torchvision.utils.save_image(
-            image.add(1).mul(0.5), str(self.log_dir / "images/%s.png" % name))
+            image.add(1).mul(0.5), str(self.log_dir / f"images/{name}.png"))
 
     def add(self, obj):
         for key, value in obj.items:
@@ -34,4 +34,4 @@ class Logger:
         self.save("models/%s" % name, model)
 
     def save(self, name: str, obj: Any):
-        obj.save(self.log_dir / "%s.pth" % name)
+        obj.save(self.log_dir / f"{name}.pth")
