@@ -58,7 +58,7 @@ class Langevin(optim.Optimizer):
     def zero_grad(self, set_to_none: bool = False):
         self.optimizer.zero_grad()
 
-    def step(self, closure):
+    def step(self, closure=None):
         self.optimizer.step()
         for group in self.optimizer.param_groups:
             for p in group['params']:
