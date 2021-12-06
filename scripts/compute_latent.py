@@ -64,7 +64,7 @@ def run(args: Params):
             loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
             grad = autograd.grad(loss, z)[0]
 
-            z -= args.lr*grad
+            z = z - args.lr*grad
             latent_dataset[index] = z.detach().cpu()
 
         print(loss.item())
