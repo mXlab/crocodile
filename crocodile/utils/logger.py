@@ -27,7 +27,7 @@ class Logger:
     def add(self, obj):
         for key, value in obj.items():
             self.results[key].append(value)
-        with open('results.json', 'w') as f:
+        with open(str(self.log_dir / 'results.json'), 'w') as f:
             json.dump(self.results, f)
         print(obj)
 

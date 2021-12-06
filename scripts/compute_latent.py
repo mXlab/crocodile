@@ -1,7 +1,7 @@
 from crocodile.executor import load_executor, ExecutorConfig, ExecutorCallable
 from crocodile.generator import load_from_path
 from crocodile.dataset import LaurenceDataset, LatentDataset
-from crocodile.utils.optim import OptimizerArgs, load_optimizer
+from crocodile.utils.optim import OptimizerArgs, load_optimizer, OptimizerType
 from crocodile.utils.loss import LossParams, load_loss
 from crocodile.utils.logger import Logger
 from dataclasses import dataclass
@@ -34,6 +34,11 @@ class Params(Serializable):
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
+        if self.optimizer.lr is None:
+            if self.optimizer.optimizer == OptimizerType.SGD:
+                self.optimizer.lr = 20
+            elif self.optimizer.optimizer == OptimizerType.ADAM:
+                self.optimizer.lr = 2e-2
 
 
 register_decoding_fn(Path, Path)
@@ -41,7 +46,6 @@ register_decoding_fn(Path, Path)
 
 class ComputeLatent(ExecutorCallable):
     def __call__(self, args: Params, resume=False):
-        torch.manual_seed(1234)
         device = torch.device('cuda')
 
         transform_list = [
@@ -66,6 +70,8 @@ class ComputeLatent(ExecutorCallable):
 
         loss_fn = load_loss(args.loss.loss, args.loss)
         loss_eval = load_loss()
+
+        torch.manual_seed(1234)
 
         logger = Logger(args.save_dir)
         logger.save_args(args)
