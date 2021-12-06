@@ -1,6 +1,6 @@
 class LatentDataset:
     def __init__(self, n, init_func=None):
-        self.latent = init_func(n)
+        self.latent = init_func(n).cpu()
 
     def __getitem__(self, index):
         return self.latent[index]
