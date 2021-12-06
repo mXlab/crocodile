@@ -44,7 +44,8 @@ def run(args: Params):
     dataset = LaurenceDataset(
         args.dataset, transform=trans, target_transform=transforms.ToTensor())
 
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    dataloader = DataLoader(
+        dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
     latent_dataset = LatentDataset(len(dataset), dim=generator.latent_dim)
 
@@ -54,14 +55,14 @@ def run(args: Params):
     img_ref = img_ref[:10]
     index_ref = index_ref[:10]
     torchvision.utils.save_image(
-            img_ref.add(1).mul(0.5), str(args.save_dir / "groundtruth.png"))
+        img_ref.add(1).mul(0.5), str(args.save_dir / "groundtruth.png"))
 
     for epoch in range(args.num_epochs):
         for img, label, index in tqdm(dataloader):
             img = img.to(device)
             z = latent_dataset[index].to(device)
             z.requires_grad_()
-            
+
             img_recons = generator(z)
 
             loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
@@ -74,9 +75,10 @@ def run(args: Params):
         with torch.no_grad():
             z = latent_dataset[index_ref].to(device)
             img_recons = generator(z)
-        
+
         torchvision.utils.save_image(
             img_recons.add(1).mul(0.5), str(args.save_dir / f"recons_{epoch:04d}.png"))
+        latent_dataset.save(str(args.save_dir / "latent.pt"))
 
 
 if __name__ == "__main__":

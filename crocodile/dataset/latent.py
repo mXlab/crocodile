@@ -13,5 +13,5 @@ class LatentDataset:
     def __setitem__(self, index, value):
         self.latent[index] = value
 
-    def save(self):
-        raise NotImplementedError
+    def save(self, filename):
+        torch.save(self.latent, filename)
