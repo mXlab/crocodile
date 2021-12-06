@@ -68,7 +68,6 @@ def run(args: Params):
             latent_dataset[index] = z.detach().cpu()
             
             print(loss.item())
-            break
 
         print(loss.item())
         print("Saving img")
