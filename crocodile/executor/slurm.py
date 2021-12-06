@@ -63,6 +63,6 @@ class SlurmExecutor(Executor):
     def __init__(self, config: SlurmConfig = SlurmConfig()):
         self.executor = create_slurm_executor(config)
 
-    def __call__(self, func: Callable[[Any], None], args: Any):
-        job = self.executor.submit(func, args)
+    def __call__(self, func: Callable[[Any], None], *args, **kwargs):
+        job = self.executor.submit(func, *args, **kwargs)
         print("Launched job: %s" % (str(job.job_id)))
