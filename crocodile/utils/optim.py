@@ -63,5 +63,5 @@ class Langevin(optim.Optimizer):
         for group in self.optimizer.param_groups:
             for p in group['params']:
                 noise = torch.zeros_like(p).normal_()
-                p.add_(noise, alpha=self.noise_scale)
+                p = p.add(noise, alpha=self.noise_scale)
 
