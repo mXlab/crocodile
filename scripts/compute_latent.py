@@ -45,7 +45,7 @@ def run(args: Params):
 
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-    latent_dataset = LatentDataset(len(dataset), generator.latent_dim)
+    latent_dataset = LatentDataset(len(dataset), init_func=generator.sample_z)
 
     args.save_dir.mkdir(parents=True, exist_ok=True)
 

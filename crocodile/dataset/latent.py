@@ -1,9 +1,6 @@
-import torch
-
-
 class LatentDataset:
-    def __init__(self, n, dim):
-        self.latent = torch.zeros(n, dim)
+    def __init__(self, n, init_func=None):
+        self.latent = init_func(n)
 
     def __getitem__(self, index):
         return self.latent[index]
