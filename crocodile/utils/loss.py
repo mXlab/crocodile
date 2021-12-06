@@ -44,8 +44,8 @@ def EuclideanLoss(Loss):
         return F.mse_loss(x, y)
 
 
-def load_loss(args: LossParams = LossParams()):
-    if args.loss == LossType.EUCLIDEAN:
+def load_loss(loss_type: LossType = LossType.EUCLIDEAN, args: LossParams = LossParams()):
+    if loss_type == LossType.EUCLIDEAN:
         return EuclideanLoss()
-    elif args.loss == LossType.PERCEPTUAL:
+    elif loss_type == LossType.PERCEPTUAL:
         return PerceptualLoss(args.perceptual_options)
