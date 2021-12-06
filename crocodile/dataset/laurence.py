@@ -129,7 +129,7 @@ class LaurenceDataset(Dataset):
         if self.target_transform is not None:
             biodata = self.target_transform(biodata)
 
-        return img, biodata
+        return img, biodata, index
 
     def convert_index(self, index):
         return int((index - self.config.start_sensor)/self.config.sampling_rate * self.config.fps + self.config.start_video)
