@@ -13,6 +13,7 @@ class Logger:
         if self.log_dir.is_dir():
             shutil.rmtree(self.log_dir)
         (self.log_dir / "images").mkdir(parents=True, exist_ok=True)
+        (self.log_dir / "models").mkdir(parents=True, exist_ok=True)
 
         self.results = defaultdict(list)
 
@@ -24,7 +25,7 @@ class Logger:
             image.add(1).mul(0.5), str(self.log_dir / f"images/{name}.png"))
 
     def add(self, obj):
-        for key, value in obj.items:
+        for key, value in obj.items():
             self.results[key].append(value)
         with open('results.json', 'w') as f:
             json.dump(self.results, f)
