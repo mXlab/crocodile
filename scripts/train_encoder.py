@@ -56,7 +56,7 @@ def run(args: Params):
     args.save_dir.mkdir(parents=True, exist_ok=True)
 
     for epoch in range(args.num_epochs):
-        for img, label in dataloader:
+        for img, label in tqdm(dataloader):
             optimizer.zero_grad()
 
             img = img.to(device)
@@ -68,11 +68,9 @@ def run(args: Params):
             loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
             loss.backward()
 
-            print(loss)
-
             optimizer.step()
 
-        #print(loss)
+        print(loss.item())
         print("Saving img")
         torchvision.utils.save_image(
             img.add(1).mul(0.5), str(args.save_dir / f"{epoch:04d}.png"))
