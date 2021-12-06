@@ -29,6 +29,7 @@ class Params:
 
 
 def run(args: Params):
+    torch.manual_seed(1234)
     device = torch.device('cuda')
 
     transform_list = [
@@ -50,13 +51,16 @@ def run(args: Params):
     args.save_dir.mkdir(parents=True, exist_ok=True)
 
     img_ref, _, index_ref = iter(dataloader).next()
+    img_ref = img_ref[:10]
+    index_ref = index_ref[:10]
+    latent_dataset[index_ref] = torch.zeros_like(latent_dataset[index_ref])
     torchvision.utils.save_image(
             img_ref.add(1).mul(0.5), str(args.save_dir / "groundtruth.png"))
 
     for epoch in range(args.num_epochs):
         for img, label, index in dataloader:
-            img = img.to(device)
-            z = latent_dataset[index].to(device)
+            img = img_ref.to(device)
+            z = latent_dataset[index_ref].to(device)
             z.requires_grad_()
             
             img_recons = generator(z)
@@ -65,12 +69,11 @@ def run(args: Params):
             grad = autograd.grad(loss, z)[0]
 
             z = z - args.lr*grad
-            latent_dataset[index] = z.detach().cpu()
+            latent_dataset[index_ref] = z.detach().cpu()
             
             break
 
-        print(loss.item())
-        print("Saving img")
+        print(epoch, loss.item())
         with torch.no_grad():
             z = latent_dataset[index_ref].to(device)
             img_recons = generator(z)
