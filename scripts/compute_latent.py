@@ -67,7 +67,7 @@ def run(args: Params):
             z = z - args.lr*grad
             latent_dataset[index] = z.detach().cpu()
             
-            print(loss.item())
+            break
 
         print(loss.item())
         print("Saving img")
