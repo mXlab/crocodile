@@ -60,7 +60,8 @@ def run(args: Params):
     for epoch in range(args.num_epochs):
         for img, label, index in tqdm(dataloader):
             img = img.to(device)
-            z = latent_dataset[index].to(device)
+            z = latent_dataset[index]
+            z = z.to(device)
             z.requires_grad_()
 
             img_recons = generator(z)
