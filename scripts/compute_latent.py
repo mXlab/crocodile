@@ -78,7 +78,7 @@ class ComputeLatent(ExecutorCallable):
 
         for epoch in range(args.num_epochs):
             loss_mean = 0
-            for img, _, index in tqdm(dataloader):
+            for img, _, index in tqdm(dataloader, disable=not args.debug):
                 optimizer.zero_grad()
 
                 if args.debug:
