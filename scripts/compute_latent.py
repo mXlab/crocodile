@@ -19,7 +19,7 @@ class Params:
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
-    lr: float = 1e-2
+    lr: float = 5e-5
     num_epochs: int = 100
     log_dir: Path = Path("./results/latent")
     name: str = "test_1"
@@ -46,21 +46,20 @@ def run(args: Params):
 
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-    latent_dataset = LatentDataset(len(dataset), init_func=generator.sample_z)
+    latent_dataset = LatentDataset(len(dataset), dim=generator.latent_dim)
 
     args.save_dir.mkdir(parents=True, exist_ok=True)
 
     img_ref, _, index_ref = iter(dataloader).next()
     img_ref = img_ref[:10]
     index_ref = index_ref[:10]
-    latent_dataset[index_ref] = torch.zeros_like(latent_dataset[index_ref])
     torchvision.utils.save_image(
             img_ref.add(1).mul(0.5), str(args.save_dir / "groundtruth.png"))
 
     for epoch in range(args.num_epochs):
-        for img, label, index in dataloader:
-            img = img_ref.to(device)
-            z = latent_dataset[index_ref].to(device)
+        for img, label, index in tqdm(dataloader):
+            img = img.to(device)
+            z = latent_dataset[index].to(device)
             z.requires_grad_()
             
             img_recons = generator(z)
@@ -69,9 +68,7 @@ def run(args: Params):
             grad = autograd.grad(loss, z)[0]
 
             z = z - args.lr*grad
-            latent_dataset[index_ref] = z.detach().cpu()
-            
-            break
+            latent_dataset[index] = z.detach().cpu()
 
         print(epoch, loss.item())
         with torch.no_grad():
