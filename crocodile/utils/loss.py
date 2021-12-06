@@ -39,7 +39,7 @@ class PerceptualLoss(Loss):
         return self.percept(F.avg_pool2d(x, 2, 2), F.avg_pool2d(y, 2, 2)).sum() + self.args.mse_coeff*F.mse_loss(x, y)
 
 
-def EuclideanLoss(Loss):
+class EuclideanLoss(Loss):
     def __call__(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(x, y)
 
