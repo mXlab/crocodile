@@ -14,7 +14,7 @@ class OptimizerType(Enum):
 @dataclass
 class OptimizerArgs(Serializable):
     optimizer: OptimizerType = OptimizerType.SGD
-    lr: Optional[int] = None
+    lr: Optional[float] = None
     
     def __post_init__(self):
         if self.lr is None:
