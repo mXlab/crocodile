@@ -28,6 +28,7 @@ class Logger:
             self.results[key].append(value)
         with open('results.json', 'w') as f:
             json.dump(self.results, f)
+        print(obj)
 
     def save_model(self, name: str, model: Any):
         self.save("models/%s" % name, model)
