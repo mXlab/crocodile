@@ -1,47 +1,15 @@
 from crocodile.executor import load_executor, ExecutorConfig, ExecutorCallable
 from crocodile.generator import load_from_path
 from crocodile.dataset import LaurenceDataset, LatentDataset
-from crocodile.utils.optim import OptimizerArgs, load_optimizer, OptimizerType
-from crocodile.utils.loss import LossParams, load_loss
+from crocodile.utils.optim import load_optimizer
+from crocodile.utils.loss import load_loss
 from crocodile.utils.logger import Logger
-from dataclasses import dataclass, asdict
 from torchvision import transforms
 from torch.utils.data.dataloader import DataLoader
-from pathlib import Path
 import torch
 from simple_parsing import ArgumentParser
-from typing import Optional
 from tqdm import tqdm
-from simple_parsing.helpers import Serializable
-from simple_parsing.helpers.serialization import register_decoding_fn
-import os
-
-
-@dataclass
-class Params(Serializable):
-    generator_path: Path
-    epoch: Optional[int] = None
-    dataset: LaurenceDataset.Params = LaurenceDataset.Params()
-    batch_size: int = 64
-    optimizer: OptimizerArgs = OptimizerArgs(OptimizerType.ADAM)
-    loss: LossParams = LossParams()
-    num_epochs: int = 100
-    log_dir: Path = Path("./results/latent")
-    name: str = "test_1"
-    num_test_samples: int = 10
-    slurm_job_id: Optional[str] = os.environ.get('SLURM_JOB_ID')
-    debug: bool = False
-
-    def __post_init__(self):
-        self.save_dir = self.log_dir / self.name
-        if self.optimizer.lr is None:
-            if self.optimizer.optimizer == OptimizerType.SGD:
-                self.optimizer.lr = 20
-            elif self.optimizer.optimizer == OptimizerType.ADAM:
-                self.optimizer.lr = 2e-2
-
-
-register_decoding_fn(Path, Path)
+from .params import ComputeLatentParams as Params
 
 
 class ComputeLatent(ExecutorCallable):
@@ -74,13 +42,7 @@ class ComputeLatent(ExecutorCallable):
         torch.manual_seed(1234)
 
         logger = Logger(args.save_dir)
-        # logger.save_args(args)
-        # args = Params(**asdict(args))
-        print(type(args))
-        # print(args)
-        print(args.to_dict())
-        print(asdict(args))
-        args.save(logger.log_dir / "args.yaml")
+        logger.save_args(args)
 
         img_ref, _, index_ref = iter(dataloader).next()
         img_ref = img_ref[:args.num_test_samples].to(device)
