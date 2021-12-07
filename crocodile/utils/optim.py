@@ -17,6 +17,7 @@ class OptimizerArgs(Serializable):
     optimizer: OptimizerType = OptimizerType.SGD
     lr: Optional[float] = None
     noise_scale: Optional[float] = None
+    momentum: float = 0.9
     
     def __post_init__(self):
         if self.lr is None:
@@ -41,7 +42,7 @@ register_decoding_fn(OptimizerType, decode_optimizer_type)
 
 def load_optimizer(parameters, args: OptimizerArgs = OptimizerArgs()) -> optim.Optimizer:
     if args.optimizer == OptimizerType.SGD:
-        optimizer = optim.SGD(parameters, lr=args.lr)
+        optimizer = optim.SGD(parameters, lr=args.lr, momentum=args.momentum)
     elif args.optimizer == OptimizerType.ADAM:
         optimizer = optim.Adam(parameters, lr=args.lr)
 
