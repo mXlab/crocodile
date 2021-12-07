@@ -9,7 +9,7 @@ from torch.utils.data.dataloader import DataLoader
 import torch
 from simple_parsing import ArgumentParser
 from tqdm import tqdm
-from .params import ComputeLatentParams as Params
+from crocodile.params import ComputeLatentParams as Params
 
 
 class ComputeLatent(ExecutorCallable):
