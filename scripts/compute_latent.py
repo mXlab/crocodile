@@ -66,11 +66,12 @@ class ComputeLatent(ExecutorCallable):
                 img_recons = generator(z)
 
                 loss = loss_fn(img, img_recons)
-                loss.backward()
+                loss_sum = loss.sum()
+                loss_sum.backward()
 
                 optimizer.step()
 
-                loss_mean += loss.detach().item()*len(img)
+                loss_mean += loss.detach().item()
 
                 if args.debug:
                     break
