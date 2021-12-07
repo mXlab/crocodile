@@ -15,7 +15,7 @@ class ComputeLatentParams(Serializable):
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
-    optimizer: OptimizerArgs = OptimizerArgs()
+    optimizer: OptimizerArgs = OptimizerArgs(momentum=0.9)
     loss: LossParams = LossParams()
     num_epochs: int = 100
     log_dir: Path = Path("./results/latent")
