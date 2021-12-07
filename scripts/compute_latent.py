@@ -43,6 +43,7 @@ class ComputeLatent(ExecutorCallable):
 
         logger = Logger(args.save_dir)
         logger.save_args(args)
+        print(args.to_dict())
 
         img_ref, _, index_ref = iter(dataloader).next()
         img_ref = img_ref[:args.num_test_samples].to(device)
