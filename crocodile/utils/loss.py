@@ -56,7 +56,7 @@ class PerceptualLoss(Loss):
 
 class EuclideanLoss(Loss):
     def __call__(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return F.mse_loss(x, y)
+        return ((x - y)**2).view(len(x), -1).sum(-1)
 
 
 def load_loss(loss_type: LossType = LossType.EUCLIDEAN, args: LossParams = LossParams()):

@@ -75,13 +75,7 @@ class PolyakStep(optim.Optimizer):
         defaults = dict()
         super().__init__(params, defaults)
 
-    def step(self, closure=None, loss=None):
-        if loss is None and closure is None:
-            raise ValueError('please specify either closure or loss')
-
-        if loss is None:
-            loss = closure()
-
+    def step(self, loss=None):
         grad_norm = compute_grad_norm(self.params)
 
         if grad_norm < self.eps:
