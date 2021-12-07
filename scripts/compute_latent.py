@@ -102,10 +102,12 @@ class ComputeLatent(ExecutorCallable):
 
                 optimizer.step()
 
-                loss_mean += loss.detach().item()
+                loss_mean += loss.detach().item()*len(img)
 
                 if args.debug:
                     break
+            
+            loss_mean /= len(dataset)
 
             with torch.no_grad():
                 z = latent_dataset[index_ref].to(device)
