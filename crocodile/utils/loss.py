@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 import FastGAN.lpips as lpips
 import torch
+from simple_parsing.helpers import Serializable
+from simple_parsing.helpers.serialization import encode, register_decoding_fn
 
 
 class LossType(Enum):
@@ -19,9 +21,22 @@ class PerceptualLossParams:
 
 
 @dataclass
-class LossParams:
+class LossParams(Serializable):
     loss: LossType = LossType.EUCLIDEAN
     perceptual_options: PerceptualLossParams = PerceptualLossParams()
+
+
+@encode.register
+def encode_loss_type(obj: LossType) -> str:
+    """ We choose to encode a tensor as a list, for instance """
+    return obj.name
+
+
+def decode_loss_type(name: str) -> LossType:
+    return LossType[name]
+
+
+register_decoding_fn(LossType, decode_loss_type)
 
 
 class Loss(ABC):
