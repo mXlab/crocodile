@@ -4,7 +4,7 @@ from crocodile.dataset import LaurenceDataset, LatentDataset
 from crocodile.utils.optim import OptimizerArgs, load_optimizer, OptimizerType
 from crocodile.utils.loss import LossParams, load_loss
 from crocodile.utils.logger import Logger
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from torchvision import transforms
 from torch.utils.data.dataloader import DataLoader
 from pathlib import Path
@@ -17,32 +17,34 @@ from simple_parsing.helpers.serialization import register_decoding_fn
 import os
 
 
+@dataclass
+class Params(Serializable):
+    generator_path: Path
+    epoch: Optional[int] = None
+    dataset: LaurenceDataset.Params = LaurenceDataset.Params()
+    batch_size: int = 64
+    optimizer: OptimizerArgs = OptimizerArgs(OptimizerType.ADAM)
+    loss: LossParams = LossParams()
+    num_epochs: int = 100
+    log_dir: Path = Path("./results/latent")
+    name: str = "test_1"
+    num_test_samples: int = 10
+    slurm_job_id: Optional[str] = os.environ.get('SLURM_JOB_ID')
+    debug: bool = False
+
+    def __post_init__(self):
+        self.save_dir = self.log_dir / self.name
+        if self.optimizer.lr is None:
+            if self.optimizer.optimizer == OptimizerType.SGD:
+                self.optimizer.lr = 20
+            elif self.optimizer.optimizer == OptimizerType.ADAM:
+                self.optimizer.lr = 2e-2
+
+
+register_decoding_fn(Path, Path)
+
+
 class ComputeLatent(ExecutorCallable):
-    @dataclass
-    class Params(Serializable):
-        generator_path: Path
-        epoch: Optional[int] = None
-        dataset: LaurenceDataset.Params = LaurenceDataset.Params()
-        batch_size: int = 64
-        optimizer: OptimizerArgs = OptimizerArgs(OptimizerType.ADAM)
-        loss: LossParams = LossParams()
-        num_epochs: int = 100
-        log_dir: Path = Path("./results/latent")
-        name: str = "test_1"
-        num_test_samples: int = 10
-        slurm_job_id: Optional[str] = os.environ.get('SLURM_JOB_ID')
-        debug: bool = False
-
-        def __post_init__(self):
-            self.save_dir = self.log_dir / self.name
-            if self.optimizer.lr is None:
-                if self.optimizer.optimizer == OptimizerType.SGD:
-                    self.optimizer.lr = 20
-                elif self.optimizer.optimizer == OptimizerType.ADAM:
-                    self.optimizer.lr = 2e-2
-
-    register_decoding_fn(Path, Path)
-
     def __call__(self, args: Params, resume=False):
         device = torch.device('cuda')
 
@@ -73,9 +75,11 @@ class ComputeLatent(ExecutorCallable):
 
         logger = Logger(args.save_dir)
         # logger.save_args(args)
+        # args = Params(**asdict(args))
         print(type(args))
-        print(args)
-        print(args.dumps())
+        # print(args)
+        print(args.to_dict())
+        print(asdict(args))
         args.save(logger.log_dir / "args.yaml")
 
         img_ref, _, index_ref = iter(dataloader).next()
@@ -108,7 +112,7 @@ class ComputeLatent(ExecutorCallable):
 
                 if args.debug:
                     break
-            
+
             loss_mean /= len(dataset)
 
             with torch.no_grad():
@@ -124,7 +128,7 @@ class ComputeLatent(ExecutorCallable):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_arguments(ComputeLatent.Params, dest="params")
+    parser.add_arguments(Params, dest="params")
     parser.add_arguments(ExecutorConfig, dest="executor")
     args = parser.parse_args()
 
