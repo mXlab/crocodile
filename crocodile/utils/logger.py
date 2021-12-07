@@ -18,6 +18,7 @@ class Logger:
         self.results = defaultdict(list)
 
     def save_args(self, args: Any):
+        print(args)
         args.save(self.log_dir / "args.yaml")
 
     def save_image(self, name: str, image: torch.Tensor):
