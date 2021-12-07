@@ -6,8 +6,6 @@ import torch
 from simple_parsing import ArgumentParser
 from typing import Optional
 from tqdm import tqdm
-import os
-from torchvision import utils as vutils
 from crocodile.dataset import LaurenceDataset
 from torchvision import transforms
 
