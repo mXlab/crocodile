@@ -34,8 +34,6 @@ class ComputeLatent(ExecutorCallable):
 
         latent_dataset = LatentDataset(len(dataset), dim=generator.latent_dim)
 
-        optimizer = load_optimizer(latent_dataset.parameters(), args.optimizer)
-
         loss_fn = load_loss(args.loss.loss, args.loss)
         loss_eval = load_loss()
 
@@ -49,44 +47,37 @@ class ComputeLatent(ExecutorCallable):
         index_ref = index_ref[:args.num_test_samples]
         logger.save_image("groundtruth", img_ref)
 
-        for epoch in range(args.num_epochs):
-            loss_mean = 0
-            for img, _, index in tqdm(dataloader, disable=args.debug):
+        loss_mean = 0
+        n_samples = 0
+        for img, _, index in dataloader:
+            img = img.to(device)
+            z = latent_dataset[index]
+            z = z.to(device)
+            z.requires_grad_()
+
+            optimizer = load_optimizer([z], args.optimizer)
+            for i in tqdm(range(args.num_iter)):
                 optimizer.zero_grad()
-
-                if args.debug:
-                    img = img_ref
-                    index = index_ref
-
-                img = img.to(device)
-                z = latent_dataset[index]
-                z = z.to(device)
-                z.requires_grad_()
-
+                
                 img_recons = generator(z)
-
                 loss = loss_fn(img, img_recons)
                 loss_sum = loss.sum()
                 loss_sum.backward()
 
-                optimizer.step()
+                optimizer.step(closure=loss)
 
-                loss_mean += loss.detach().item()
+            latent_dataset[index] = z
+            n_samples += len(img)
+            loss = loss_sum.detach().item()
+            print(loss)
+            loss_mean += loss 
+            logger.save_image(f"recons", img_recons)
+            if args.debug:
+                break
 
-                if args.debug:
-                    break
-
-            loss_mean /= len(dataset)
-
-            with torch.no_grad():
-                z = latent_dataset[index_ref].to(device)
-                img_recons = generator(z)
-                loss = loss_eval(img_ref, img_recons).detach().item()
-
-            logger.save_image(f"recons_{epoch:04d}", img_recons)
-            logger.save("latent", latent_dataset)
-            logger.add(
-                {"epoch": epoch, "train_loss": loss_mean, "eval_loss": loss})
+        loss_mean /= n_samples
+        logger.save("latent", latent_dataset)
+        logger.add({"loss": loss_mean})
 
 
 if __name__ == "__main__":
