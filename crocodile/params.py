@@ -17,7 +17,7 @@ class ComputeLatentParams(Serializable):
     batch_size: int = 64
     optimizer: OptimizerArgs = OptimizerArgs(momentum=0.9)
     loss: LossParams = LossParams()
-    num_epochs: int = 100
+    num_iter: int = 100
     log_dir: Path = Path("./results/latent")
     name: str = "test_1"
     num_test_samples: int = 10

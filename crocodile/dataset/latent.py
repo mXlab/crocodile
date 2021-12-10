@@ -12,8 +12,6 @@ class LatentDataset(nn.Module):
         else:
             self.latent = init_func(n).cpu()
 
-        self.latent = nn.Parameter(self.latent)
-
     def __getitem__(self, index: int) -> torch.Tensor:
         return self.latent[index]
 

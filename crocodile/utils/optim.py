@@ -75,29 +75,37 @@ class PolyakStep(optim.Optimizer):
         defaults = dict()
         super().__init__(params, defaults)
 
-    def step(self, loss=None):
-        grad_norm = compute_grad_norm(self.params)
+    def step(self, closure=None):
+        loss = closure
+        if not isinstance(loss, torch.Tensor):
+            loss = closure()
 
-        if grad_norm < self.eps:
-            step_size = 0.
-        else:
-            step_size = loss / grad_norm
+        reduction = loss.numel() > 1
+        grad_norm = compute_grad_norm(self.params, reduction)
+
+        step_size = loss / grad_norm
+        step_size[grad_norm < self.eps] = 0.
 
         for group in self.param_groups:
             for p in group['params']:
                 if p.grad is None:
                     continue
                 d_p = p.grad
-                p.add_(d_p, alpha=-step_size)
+                p.data = p.data - step_size*d_p
 
         return loss
 
 
-def compute_grad_norm(params):
+def compute_grad_norm(params, reduction=True):
     grad_norm = 0.
     for p in params:
         g = p.grad
         if g is None:
             continue
-        grad_norm = ((g.data)**2).sum()
+        _norm = ((g.data)**2).view(len(g), -1).sum(dim=-1, keepdim=True)
+
+        if reduction:
+            _norm = _norm.sum()
+        grad_norm += _norm
+        
     return grad_norm
