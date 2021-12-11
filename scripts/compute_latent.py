@@ -44,11 +44,12 @@ class ComputeLatent(ExecutorCallable):
         img_ref, _, index_ref = iter(dataloader).next()
         img_ref = img_ref[:args.num_test_samples].to(device)
         index_ref = index_ref[:args.num_test_samples]
-        logger.save_image("groundtruth", img_ref)
 
         loss_mean = 0
         n_samples = 0
         for img, _, index in dataloader:
+            logger.save_image("groundtruth", img[:args.num_test_samples])
+
             img = img.to(device)
             z = latent_dataset[index]
             z = z.to(device)
@@ -57,7 +58,7 @@ class ComputeLatent(ExecutorCallable):
             optimizer = load_optimizer([z], args.optimizer)
             for i in tqdm(range(args.num_iter), disable=args.debug):
                 optimizer.zero_grad()
-                
+
                 img_recons = generator(z)
                 loss = loss_fn(img, img_recons)
                 loss_sum = loss.sum()
@@ -67,14 +68,15 @@ class ComputeLatent(ExecutorCallable):
 
                 if args.debug:
                     print(loss_sum.detach().item())
-                    logger.save_image("recons_%i" % i, img_recons)
+                    logger.save_image("recons_%.4d" %
+                                      i, img_recons[:args.num_test_samples])
 
             latent_dataset[index] = z.detach().cpu()
             n_samples += len(img)
             loss = loss_sum.detach().item()
             print(loss)
-            loss_mean += loss 
-            logger.save_image("recons", img_recons)
+            loss_mean += loss
+            logger.save_image("recons", img_recons[:args.num_test_samples])
             if args.debug:
                 break
 
