@@ -66,7 +66,7 @@ class ComputeLatent(ExecutorCallable):
 
                 optimizer.step(loss=loss)
 
-            latent_dataset[index] = z
+            latent_dataset[index] = z.detach().cpu()
             n_samples += len(img)
             loss = loss_sum.detach().item()
             print(loss)
