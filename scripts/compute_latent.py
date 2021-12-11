@@ -64,7 +64,7 @@ class ComputeLatent(ExecutorCallable):
                 loss_sum = loss.sum()
                 loss_sum.backward()
 
-                optimizer.step(closure=loss)
+                optimizer.step(loss=loss)
 
             latent_dataset[index] = z
             n_samples += len(img)
