@@ -80,7 +80,7 @@ class Langevin(OptimizerWrapper):
 
 
 class PolyakStep(optim.Optimizer):
-    def __init__(self, params):
+    def __init__(self, params, eps=1e-8):
         defaults = dict()
         super().__init__(params, defaults)
 
