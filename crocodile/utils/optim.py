@@ -95,7 +95,7 @@ class PolyakStep(optim.Optimizer):
             loss = closure()
 
         reduction = loss.numel() > 1
-        grad_norm = compute_grad_norm(self.params, reduction)
+        grad_norm = compute_grad_norm(self.param_groups, reduction)
 
         step_size = loss / grad_norm
         step_size[grad_norm < self.eps] = 0.
@@ -110,16 +110,17 @@ class PolyakStep(optim.Optimizer):
         return loss
 
 
-def compute_grad_norm(params, reduction=True):
+def compute_grad_norm(param_groups, reduction=True):
     grad_norm = 0.
-    for p in params:
-        g = p.grad
-        if g is None:
-            continue
-        _norm = ((g.data)**2).view(len(g), -1).sum(dim=-1, keepdim=True)
+    for group in param_groups:
+        for p in group['params']:
+            g = p.grad
+            if g is None:
+                continue
+            _norm = ((g.data)**2).view(len(g), -1).sum(dim=-1, keepdim=True)
 
-        if reduction:
-            _norm = _norm.sum()
-        grad_norm += _norm
+            if reduction:
+                _norm = _norm.sum()
+            grad_norm += _norm
 
     return grad_norm
