@@ -43,15 +43,24 @@ register_decoding_fn(OptimizerType, decode_optimizer_type)
 
 def load_optimizer(parameters, args: OptimizerArgs = OptimizerArgs()) -> optim.Optimizer:
     if args.optimizer == OptimizerType.SGD:
-        optimizer = optim.SGD(parameters, lr=args.lr, momentum=args.momentum)
+        optimizer = OptimizerWrapper(
+            optim.SGD(parameters, lr=args.lr, momentum=args.momentum))
     elif args.optimizer == OptimizerType.ADAM:
-        optimizer = optim.Adam(parameters, lr=args.lr)
+        optimizer = OptimizerWrapper(optim.Adam(parameters, lr=args.lr))
     elif args.optimizer == OptimizerType.POLYAK:
         optimizer = PolyakStep(parameters)
 
     if args.noise_scale is not None:
         optimizer = Langevin(optimizer, noise_scale=args.noise_scale)
     return optimizer
+
+
+class OptimizerWrapper:
+    def __init__(self, optimizer: optim.Optimizer,):
+        self.optimizer = optimizer
+
+    def step(self, closure=None, loss=None):
+        return self.optimizer.step(closure=closure)
 
 
 class Langevin(optim.Optimizer):
@@ -62,7 +71,7 @@ class Langevin(optim.Optimizer):
     def zero_grad(self, set_to_none: bool = False):
         self.optimizer.zero_grad()
 
-    def step(self, closure=None):
+    def step(self, closure=None, loss=None):
         self.optimizer.step()
         for group in self.optimizer.param_groups:
             for p in group['params']:
