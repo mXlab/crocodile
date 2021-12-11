@@ -35,7 +35,6 @@ class ComputeLatent(ExecutorCallable):
         latent_dataset = LatentDataset(len(dataset), dim=generator.latent_dim)
 
         loss_fn = load_loss(args.loss.loss, args.loss)
-        loss_eval = load_loss()
 
         torch.manual_seed(1234)
 
@@ -68,13 +67,14 @@ class ComputeLatent(ExecutorCallable):
 
                 if args.debug:
                     print(loss_sum.detach().item())
+                    logger.save_image("recons_%i" % i, img_recons)
 
             latent_dataset[index] = z.detach().cpu()
             n_samples += len(img)
             loss = loss_sum.detach().item()
             print(loss)
             loss_mean += loss 
-            logger.save_image(f"recons", img_recons)
+            logger.save_image("recons", img_recons)
             if args.debug:
                 break
 
