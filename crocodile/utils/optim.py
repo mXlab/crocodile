@@ -95,8 +95,10 @@ class PolyakStep(optim.Optimizer):
         if loss is None:
             loss = closure()
 
-        reduction = loss.numel() > 1
+        reduction = loss.numel() == 1
         grad_norm = compute_grad_norm(self.param_groups, reduction)
+
+        loss = loss.view_as(grad_norm)
 
         step_size = loss / grad_norm
         step_size[grad_norm < self.eps] = 0.

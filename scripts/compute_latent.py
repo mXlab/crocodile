@@ -56,7 +56,7 @@ class ComputeLatent(ExecutorCallable):
             z.requires_grad_()
 
             optimizer = load_optimizer([z], args.optimizer)
-            for i in tqdm(range(args.num_iter)):
+            for i in tqdm(range(args.num_iter), disable=args.debug):
                 optimizer.zero_grad()
                 
                 img_recons = generator(z)
@@ -65,6 +65,9 @@ class ComputeLatent(ExecutorCallable):
                 loss_sum.backward()
 
                 optimizer.step(loss=loss)
+
+                if args.debug:
+                    print(loss_sum.detach().item())
 
             latent_dataset[index] = z.detach().cpu()
             n_samples += len(img)
