@@ -10,10 +10,12 @@ import torch
 from simple_parsing import ArgumentParser
 from tqdm import tqdm
 from crocodile.params import ComputeLatentParams as Params
+import os
 
 
 class ComputeLatent(ExecutorCallable):
     def __call__(self, args: Params, resume=False):
+        args.slurm_job_id = os.environ.get('SLURM_JOB_ID')
         device = torch.device('cuda')
 
         transform_list = [
@@ -47,9 +49,7 @@ class ComputeLatent(ExecutorCallable):
 
         loss_mean = 0
         n_samples = 0
-        for img, _, index in dataloader:
-            logger.save_image("groundtruth", img[:args.num_test_samples])
-
+        for j, (img, _, index) in enumerate(dataloader):
             img = img.to(device)
             z = latent_dataset[index]
             z = z.to(device)
@@ -67,16 +67,19 @@ class ComputeLatent(ExecutorCallable):
                 optimizer.step(loss=loss)
 
                 if args.debug:
-                    print(loss_sum.detach().item())
+                    print(i, loss_sum.detach().item())
                     logger.save_image("recons_%.4d" %
                                       i, img_recons[:args.num_test_samples])
 
             latent_dataset[index] = z.detach().cpu()
             n_samples += len(img)
             loss = loss_sum.detach().item()
-            print(loss)
+            print("Epoch %i / %i, Loss: %2f" % (j, len(dataloader), loss))
             loss_mean += loss
-            logger.save_image("recons", img_recons[:args.num_test_samples])
+            logger.save_image("groundtruth_%.4d" %
+                              j, img[:args.num_test_samples])
+            logger.save_image("recons_%.4d" %
+                              j, img_recons[:args.num_test_samples])
             if args.debug:
                 break
 
