@@ -56,23 +56,23 @@ def load_optimizer(parameters, args: OptimizerArgs = OptimizerArgs()) -> optim.O
 
 
 class OptimizerWrapper:
-    def __init__(self, optimizer: optim.Optimizer,):
+    def __init__(self, optimizer: optim.Optimizer):
         self.optimizer = optimizer
-
-    def step(self, closure=None, loss=None):
-        return self.optimizer.step(closure=closure)
-
-
-class Langevin(optim.Optimizer):
-    def __init__(self, optimizer: optim.Optimizer, noise_scale: float = 1.):
-        self.optimizer = optimizer
-        self.noise_scale = noise_scale
 
     def zero_grad(self, set_to_none: bool = False):
         self.optimizer.zero_grad()
 
     def step(self, closure=None, loss=None):
-        self.optimizer.step()
+        return self.optimizer.step(closure=closure)
+
+
+class Langevin(OptimizerWrapper):
+    def __init__(self, optimizer: optim.Optimizer, noise_scale: float = 1.):
+        super().__init__(optimizer)
+        self.noise_scale = noise_scale
+
+    def step(self, closure=None, loss=None):
+        super().step(closure, loss)
         for group in self.optimizer.param_groups:
             for p in group['params']:
                 noise = torch.zeros_like(p).normal_()
