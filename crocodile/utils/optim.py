@@ -75,9 +75,14 @@ class PolyakStep(optim.Optimizer):
         defaults = dict()
         super().__init__(params, defaults)
 
-    def step(self, closure=None):
-        loss = closure
-        if not isinstance(loss, torch.Tensor):
+    def step(self, closure=None, loss=None):
+        if closure is None and loss is None:
+            raise ValueError(
+                "Please specify either a closure function or pass directly the loss.")
+        if closure is not None and loss is not None:
+            raise ValueError(
+                "Please either specify a closure function or pass directly the loss. But you can't do both.")
+        if loss is None:
             loss = closure()
 
         reduction = loss.numel() > 1
@@ -107,5 +112,5 @@ def compute_grad_norm(params, reduction=True):
         if reduction:
             _norm = _norm.sum()
         grad_norm += _norm
-        
+
     return grad_norm
