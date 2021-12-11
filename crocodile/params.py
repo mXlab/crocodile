@@ -20,8 +20,8 @@ class ComputeLatentParams(Serializable):
     num_iter: int = 100
     log_dir: Path = Path("./results/latent")
     name: str = "test_1"
-    num_test_samples: int = 10
-    slurm_job_id: Optional[str] = os.environ.get('SLURM_JOB_ID')
+    num_test_samples: int = 8
+    slurm_job_id: Optional[str] = None
     debug: bool = False
 
     def __post_init__(self):
