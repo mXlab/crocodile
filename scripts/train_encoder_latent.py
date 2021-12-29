@@ -33,7 +33,7 @@ class TrainEncoder(ExecutorCallable):
             args.dataset.resolution = generator.resolution
 
         dataset = LaurenceDataset(
-            args.dataset, transform=trans, target_transform=transforms.ToTensor())
+            args.dataset, transform=trans)
         
         dataloader = DataLoader(
             dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
@@ -54,8 +54,10 @@ class TrainEncoder(ExecutorCallable):
         logger.save_args(args)
 
         img, biodata_ref, index = iter(dataloader).next()
+        print(dataset[0][0].size(), dataset[0][1].size())
+        print(img.size(), biodata_ref.size(), index.size())
         img = img[:args.num_test_samples]
-        biodata_ref = biodata_ref[:args.num_test_samples]
+        biodata_ref = biodata_ref[:args.num_test_samples].float()
         index = index[:args.num_test_samples]
         logger.save_image("groundtruth", img)
         if generator is not  None:
@@ -63,6 +65,8 @@ class TrainEncoder(ExecutorCallable):
             z = z.to(device)
             img = generator(z)
             logger.save_image("groundtruth_latent", img)
+            
+        print("Biodata size: ", biodata_ref.size())
 
 
         loss_mean = 0
