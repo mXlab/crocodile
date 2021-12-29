@@ -5,15 +5,24 @@ from .encoder import Encoder
 
 @dataclass
 class MLPParams:
-    num_hidden = 100
+    num_hidden: int = 100
+    num_layers: int = 1
 
 
 class MLP(Encoder):
+    def __init__(self, options: MLPParams = MLPParams()):
+        super().__init__()
+        self.options = options
+
     def forward(self, x):
         return self.network(x.view(len(x), -1))
 
     def build(self, input_dim: int, output_dim: int):
-        self.network = nn.Sequential(nn.Linear(input_dim, self.args.num_hidden), nn.ReLU(
-        ), nn.Linear(self.args.num_hidden, output_dim))
+        list_layers = []
+        for i in range(self.options.num_layers):
+            list_layers += [nn.Linear(input_dim, self.options.num_hidden), nn.ReLU()]
+            input_dim = self.options.num_hidden
+        list_layers += [nn.Linear(input_dim, output_dim)]
+        self.network = nn.Sequential(*list_layers)
 
         return self
