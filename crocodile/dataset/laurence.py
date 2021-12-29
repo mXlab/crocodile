@@ -7,6 +7,7 @@ from pathlib import Path
 from crocodile.utils.drive import GoogleDrive, check_integrity
 from omegaconf import OmegaConf
 from .biodata import Biodata
+import torch
 
 
 class LaurenceDataset(Dataset):
@@ -124,7 +125,7 @@ class LaurenceDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        biodata = self.biodata[index]
+        biodata = torch.from_numpy(self.biodata[index])
 
         if self.target_transform is not None:
             biodata = self.target_transform(biodata)
