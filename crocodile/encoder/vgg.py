@@ -39,8 +39,9 @@ class VGG(Encoder):
         super().__init__()
         self.options = options
 
-    def build(self, input_dim: int, output_dim: int):
-        self.network = _vgg(self.options.vgg, self.options.batchnorm, num_class=output_dim)
+    def build(self, num_channels: int, seq_length: int, output_dim: int, device=None):
+        self.network = _vgg(self.options.vgg, num_channels, self.options.batchnorm, num_classes=output_dim)
+        return self
 
     def forward(self, x):
         return self.network(x)
@@ -52,9 +53,9 @@ class _VGG(nn.Module):
     ) -> None:
         super().__init__()
         self.features = features
-        self.avgpool = nn.AdaptiveAvgPool1d((7, 7))
+        self.avgpool = nn.AdaptiveAvgPool1d(7)
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 7 * 7, 4096),
+            nn.Linear(512 * 7, 4096),
             nn.ReLU(True),
             nn.Dropout(p=dropout),
             nn.Linear(4096, 4096),
@@ -86,9 +87,8 @@ class _VGG(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 
-def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False) -> nn.Sequential:
+def make_layers(cfg: List[Union[str, int]], in_channels: int, batch_norm: bool = False) -> nn.Sequential:
     layers: List[nn.Module] = []
-    in_channels = 3
     for v in cfg:
         if v == "M":
             layers += [nn.MaxPool1d(kernel_size=2, stride=2)]
@@ -111,8 +111,6 @@ cfgs: Dict[VGGType, List[Union[str, int]]] = {
 }
 
 
-def _vgg(type: VGGType, batch_norm: bool, pretrained: bool, **kwargs: Any) -> VGG:
-    if pretrained:
-        kwargs["init_weights"] = False
-    model = VGG(make_layers(cfgs[type], batch_norm=batch_norm), **kwargs)
+def _vgg(type: VGGType, in_channels: int, batch_norm: bool, **kwargs: Any) -> VGG:
+    model = _VGG(make_layers(cfgs[type], in_channels, batch_norm=batch_norm), **kwargs)
     return model

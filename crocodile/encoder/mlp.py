@@ -17,7 +17,8 @@ class MLP(Encoder):
     def forward(self, x):
         return self.network(x.view(len(x), -1))
 
-    def build(self, input_dim: int, output_dim: int):
+    def build(self, num_channels: int, seq_length: int, output_dim: int, device=None):
+        inpût_dim = num_channels*seq_length
         list_layers = []
         for i in range(self.options.num_layers):
             list_layers += [nn.Linear(input_dim, self.options.num_hidden), nn.ReLU()]
