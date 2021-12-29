@@ -6,7 +6,11 @@ from typing import Optional
 from crocodile.dataset import LaurenceDataset
 from crocodile.utils.optim import OptimizerArgs, OptimizerType
 from crocodile.utils.loss import LossParams
+from crocodile.encoder import EncoderParams
 import os
+
+
+register_decoding_fn(Path, Path)
 
 
 @dataclass
@@ -32,5 +36,24 @@ class ComputeLatentParams(Serializable):
             elif self.optimizer.optimizer == OptimizerType.ADAM:
                 self.optimizer.lr = 2e-2
 
+@dataclass
+class TrainEncoderLatentParams(Serializable):
+    latent_path: Path
+    encoder: EncoderParams = EncoderParams()
+    dataset: LaurenceDataset.Params = LaurenceDataset.Params()
+    batch_size: int = 64
+    optimizer: OptimizerArgs = OptimizerArgs(momentum=0.9)
+    loss: LossParams = LossParams()
+    num_epochs: int = 100
+    log_dir: Path = Path("./results/encoder_latent")
+    name: str = "test_1"
+    slurm_job_id: Optional[str] = None
+    debug: bool = False
 
-register_decoding_fn(Path, Path)
+    def __post_init__(self):
+        self.save_dir = self.log_dir / self.name
+        if self.optimizer.lr is None:
+            if self.optimizer.optimizer == OptimizerType.SGD:
+                self.optimizer.lr = 20
+            elif self.optimizer.optimizer == OptimizerType.ADAM:
+                self.optimizer.lr = 2e-2
