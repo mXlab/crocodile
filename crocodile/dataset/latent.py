@@ -25,6 +25,6 @@ class LatentDataset:
         torch.save(self.latent, filename)
 
     @staticmethod
-    def load(self, filename: Path):
+    def load(filename: Path):
         latent = torch.load(filename)
         return LatentDataset(latent=latent)

@@ -53,7 +53,7 @@ class TrainEncoder(ExecutorCallable):
 
                 z = latent_dataset[index]
                 z = z.to(device)
-                biodata = biodata.to(device)
+                biodata = biodata.float().to(device)
 
                 z_recons = encoder(biodata)
                 loss = loss_fn(z, z_recons).mean()
