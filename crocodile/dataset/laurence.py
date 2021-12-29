@@ -125,7 +125,7 @@ class LaurenceDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        biodata = torch.from_numpy(self.biodata[index])
+        biodata = torch.from_numpy(self.biodata[index]).transpose(0,1)
 
         if self.target_transform is not None:
             biodata = self.target_transform(biodata)
