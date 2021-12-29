@@ -43,7 +43,7 @@ class TrainEncoder(ExecutorCallable):
         loss_fn = load_loss(args.loss.loss, args.loss)
 
         encoder = load_encoder(args.encoder).build(
-            dataset.seq_length*dataset.seq_dim, latent_dataset.dim)
+            dataset.seq_dim, dataset.seq_length, latent_dataset.dim)
         encoder.to(device)
 
         optimizer = load_optimizer(encoder.parameters(), args.optimizer)
@@ -54,8 +54,6 @@ class TrainEncoder(ExecutorCallable):
         logger.save_args(args)
 
         img, biodata_ref, index = iter(dataloader).next()
-        print(dataset[0][0].size(), dataset[0][1].size())
-        print(img.size(), biodata_ref.size(), index.size())
         img = img[:args.num_test_samples]
         biodata_ref = biodata_ref[:args.num_test_samples].float()
         index = index[:args.num_test_samples]
@@ -65,9 +63,6 @@ class TrainEncoder(ExecutorCallable):
             z = z.to(device)
             img = generator(z)
             logger.save_image("groundtruth_latent", img)
-            
-        print("Biodata size: ", biodata_ref.size())
-
 
         loss_mean = 0
         n_samples = 0

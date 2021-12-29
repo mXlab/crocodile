@@ -9,7 +9,7 @@ class Encoder(ABC, nn.Module):
         self.network = None
 
     @abstractmethod
-    def build(self, input_dim: int, output_dim: int, device=None):
+    def build(self, num_channels: int, seq_length: int, output_dim: int, device=None):
         pass
 
     def save(self, filename):
