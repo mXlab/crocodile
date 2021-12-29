@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from crocodile import generator
 from simple_parsing.helpers import Serializable
 from simple_parsing.helpers.serialization import register_decoding_fn
 from pathlib import Path
@@ -39,6 +40,7 @@ class ComputeLatentParams(Serializable):
 @dataclass
 class TrainEncoderLatentParams(Serializable):
     latent_path: Path
+    generator_path: Optional[Path] = None
     encoder: EncoderParams = EncoderParams()
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
@@ -49,6 +51,7 @@ class TrainEncoderLatentParams(Serializable):
     name: str = "test_1"
     slurm_job_id: Optional[str] = None
     debug: bool = False
+    num_test_samples: int = 8
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
