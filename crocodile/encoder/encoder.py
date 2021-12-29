@@ -4,9 +4,8 @@ import torch
 
 
 class Encoder(ABC, nn.Module):
-    def __init__(self, args=None):
+    def __init__(self):
         super().__init__()
-        self.args = args
         self.network = None
 
     @abstractmethod
