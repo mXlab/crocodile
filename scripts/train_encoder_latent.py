@@ -1,6 +1,8 @@
+from crocodile import generator
 from crocodile.executor import load_executor, ExecutorConfig, ExecutorCallable
 from crocodile.encoder import load_encoder
-from crocodile.dataset import LaurenceDataset, LatentDataset
+from crocodile.generator import load_from_path
+from crocodile.dataset import LaurenceDataset, LatentDataset, latent
 from crocodile.utils.optim import load_optimizer
 from crocodile.utils.loss import load_loss
 from crocodile.utils.logger import Logger
@@ -24,6 +26,12 @@ class TrainEncoder(ExecutorCallable):
         ]
         trans = transforms.Compose(transform_list)
 
+        generator = None
+        if args.generator_path is not None:
+            generator = load_from_path(
+                args.generator_path, args.epoch, device=device)
+            args.dataset.resolution = generator.resolution
+
         dataset = LaurenceDataset(
             args.dataset, transform=trans, target_transform=transforms.ToTensor())
         
@@ -44,6 +52,18 @@ class TrainEncoder(ExecutorCallable):
 
         logger = Logger(args.save_dir)
         logger.save_args(args)
+
+        img, biodata_ref, index = iter(dataloader).next()
+        img = img[:args.num_test_samples]
+        biodata_ref = biodata_ref[:args.num_test_samples]
+        index = index[:args.num_test_samples]
+        logger.save_image("groundtruth", img)
+        if generator is not  None:
+            z = latent_dataset[index]
+            z = z.to(device)
+            img = generator(z)
+            logger.save_image("groundtruth_latent", img)
+
 
         loss_mean = 0
         n_samples = 0
@@ -73,6 +93,13 @@ class TrainEncoder(ExecutorCallable):
 
             logger.add({"loss": loss_mean})
             logger.save_model("{epoch:04d}", encoder)
+
+            if generator is not None:
+                biodata = biodata_ref.to(device)
+                z = encoder(biodata)
+                img = generator(z)
+                logger.save_image("recons_%.4d" % epoch, img)
+
 
 
 if __name__ == "__main__":
