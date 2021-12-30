@@ -2,7 +2,6 @@ import torch
 from typing import Optional, Callable
 from torch import Tensor
 import torch.nn as nn
-from . import fx
 
 class ConvNormActivation(torch.nn.Sequential):
     """
@@ -132,7 +131,7 @@ def stochastic_depth(input: Tensor, p: float, mode: str, training: bool = True) 
     return input * noise
 
 
-fx.wrap("stochastic_depth")
+torch.fx.wrap("stochastic_depth")
 
 
 class StochasticDepth(nn.Module):
