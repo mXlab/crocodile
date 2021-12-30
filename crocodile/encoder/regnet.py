@@ -425,7 +425,7 @@ class _RegNet(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
                 # Note that there is no bias due to BN
-                fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                fan_out = m.kernel_size[0] * m.out_channels
                 nn.init.normal_(m.weight, mean=0.0, std=math.sqrt(2.0 / fan_out))
             elif isinstance(m, nn.BatchNorm1d):
                 nn.init.ones_(m.weight)
