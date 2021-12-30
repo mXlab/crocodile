@@ -55,7 +55,7 @@ class RegNetOptions(Serializable):
     regnet: RegNetType = RegNetType.X_400MF
 
 
-class EfficientNet(Encoder):
+class RegNet(Encoder):
     def __init__(self, options: RegNetOptions = RegNetOptions()):
         super().__init__()
         self.options = options
