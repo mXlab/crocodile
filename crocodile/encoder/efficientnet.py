@@ -5,9 +5,8 @@ from typing import Any, Callable, Optional, List, Sequence
 
 import torch
 from torch import nn, Tensor
-from torchvision.ops import StochasticDepth
 
-from .ops import ConvNormActivation, SqueezeExcitation
+from .ops import ConvNormActivation, SqueezeExcitation, StochasticDepth
 from .utils import _make_divisible
 from .encoder import Encoder
 from enum import Enum
