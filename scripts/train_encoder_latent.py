@@ -83,21 +83,19 @@ class TrainEncoder(ExecutorCallable):
                 loss_mean += loss.detach().item()*len(index)
                 n_samples += len(index)
                 if args.debug:
-                    print(loss_mean/n_samples)
+                    break
 
             loss_mean /= n_samples
-            print("Epoch %i / %i, Loss: %2f" % (epoch, args.num_epochs, loss_mean))
-            if args.debug:
-                break
-
-            logger.add({"loss": loss_mean})
-            logger.save_model("{epoch:04d}", encoder)
-
+            print("Epoch %i / %i, Loss: %.2f" % (epoch, args.num_epochs, loss_mean))
             if generator is not None:
-                biodata = biodata_ref.to(device)
-                z = encoder(biodata)
-                img = generator(z)
-                logger.save_image("recons_%.4d" % epoch, img)
+                with torch.no_grad():
+                    biodata = biodata_ref.to(device)
+                    z = encoder(biodata)
+                    img = generator(z)
+                    logger.save_image("recons_%.4d" % epoch, img)
+                
+            logger.add({"loss": loss_mean})
+            logger.save_model("%.4d" % epoch, encoder)
 
 
 

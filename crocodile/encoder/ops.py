@@ -2,6 +2,8 @@ import torch
 from typing import Optional, Callable
 from torch import Tensor
 import torch.nn as nn
+import torch.fx
+
 
 class ConvNormActivation(torch.nn.Sequential):
     """
