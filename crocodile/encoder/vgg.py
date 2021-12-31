@@ -102,6 +102,6 @@ cfgs: Dict[VGGType, List[Union[str, int]]] = {
 }
 
 
-def _vgg(type: VGGType, in_channels: int, batch_norm: bool, **kwargs: Any) -> VGG:
+def _vgg(type: VGGType, in_channels: int, batch_norm: bool, **kwargs: Any) -> _VGG:
     model = _VGG(make_layers(cfgs[type], in_channels, batch_norm=batch_norm), **kwargs)
     return model

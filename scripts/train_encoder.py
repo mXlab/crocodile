@@ -10,7 +10,7 @@ from torch.utils.data.dataloader import DataLoader
 import torch
 from simple_parsing import ArgumentParser
 from tqdm import tqdm
-from crocodile.params import TrainEncoderLatentParams as Params
+from crocodile.params import TrainEncoderParams as Params
 import os
 
 
