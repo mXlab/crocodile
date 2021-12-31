@@ -2,7 +2,6 @@ from typing import Union, List, Dict, Any, cast
 
 import torch
 import torch.nn as nn
-from .encoder import Encoder
 from dataclasses import dataclass
 from enum import Enum
 from simple_parsing.helpers import Serializable
@@ -34,17 +33,9 @@ class VGGOptions(Serializable):
     vgg: VGGType = VGGType.VGG11
     batchnorm: bool = True
 
-class VGG(Encoder):
-    def __init__(self, options: VGGOptions = VGGOptions()):
-        super().__init__()
-        self.options = options
 
-    def build(self, num_channels: int, seq_length: int, output_dim: int, device=None):
-        self.network = _vgg(self.options.vgg, num_channels, self.options.batchnorm, num_classes=output_dim)
-        return self
-
-    def forward(self, x):
-        return self.network(x)
+def load_vgg(num_channels: int, seq_length: int, output_dim: int, options: VGGOptions = VGGOptions()):
+    return _vgg(options.vgg, num_channels, options.batchnorm, num_classes=output_dim)
 
 
 class _VGG(nn.Module):
