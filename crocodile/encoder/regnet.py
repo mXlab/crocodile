@@ -404,7 +404,7 @@ class _RegNet(nn.Module):
 
         self.trunk_output = nn.Sequential(OrderedDict(blocks))
 
-        self.avgpool = nn.AdaptiveAvgPool1d((1, 1))
+        self.avgpool = nn.AdaptiveAvgPool1d(1)
         self.fc = nn.Linear(in_features=current_width, out_features=num_classes)
 
         # Init weights and good to go
