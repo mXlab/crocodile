@@ -13,7 +13,6 @@ from torch import nn, Tensor
 
 from .ops import ConvNormActivation, SqueezeExcitation
 from .utils import _make_divisible
-from .encoder import Encoder
 from enum import Enum
 from simple_parsing.helpers import Serializable
 from simple_parsing.helpers.serialization import encode, register_decoding_fn
@@ -55,45 +54,35 @@ class RegNetOptions(Serializable):
     regnet: RegNetType = RegNetType.X_400MF
 
 
-class RegNet(Encoder):
-    def __init__(self, options: RegNetOptions = RegNetOptions()):
-        super().__init__()
-        self.options = options
-
-    def build(self, num_channels: int, seq_length: int, output_dim: int, device=None):
-        if self.options.regnet == RegNetType.X_400MF:
-            self.network = regnet_x_400mf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.X_800MF:
-            self.network = regnet_x_800mf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.X_1_6GF:
-            self.network = regnet_x_1_6gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.X_3_2GF:
-            self.network = regnet_x_3_2gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.X_8GF:
-            self.network = regnet_x_8gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.X_16GF:
-            self.network = regnet_x_16gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.X_32GF:
-            self.network = regnet_x_32gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.Y_400MF:
-            self.network = regnet_y_400mf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.Y_800MF:
-            self.network = regnet_y_800mf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.Y_1_6GF:
-            self.network = regnet_y_1_6gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.Y_3_2GF:
-            self.network = regnet_y_3_2gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.Y_8GF:
-            self.network = regnet_y_8gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.Y_16GF:
-            self.network = regnet_y_16gf(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.regnet == RegNetType.Y_32GF:
-            self.network = regnet_y_32gf(num_channels=num_channels, num_classes=output_dim)
-
-        return self
-
-    def forward(self, x):
-        return self.network(x)
+def load_regnet(num_channels: int, seq_length: int, output_dim: int, options: RegNetOptions = RegNetOptions()):
+    if options.regnet == RegNetType.X_400MF:
+        return regnet_x_400mf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.X_800MF:
+        return regnet_x_800mf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.X_1_6GF:
+        return regnet_x_1_6gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.X_3_2GF:
+        return regnet_x_3_2gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.X_8GF:
+        return regnet_x_8gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.X_16GF:
+        return regnet_x_16gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.X_32GF:
+        return regnet_x_32gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.Y_400MF:
+        return regnet_y_400mf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.Y_800MF:
+        return regnet_y_800mf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.Y_1_6GF:
+        return regnet_y_1_6gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.Y_3_2GF:
+        return regnet_y_3_2gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.Y_8GF:
+        return regnet_y_8gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.Y_16GF:
+        return regnet_y_16gf(num_channels=num_channels, num_classes=output_dim)
+    elif options.regnet == RegNetType.Y_32GF:
+        return regnet_y_32gf(num_channels=num_channels, num_classes=output_dim)
 
 
 class SimpleStemIN(ConvNormActivation):

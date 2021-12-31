@@ -8,7 +8,6 @@ from torch import nn, Tensor
 
 from .ops import ConvNormActivation, SqueezeExcitation, StochasticDepth
 from .utils import _make_divisible
-from .encoder import Encoder
 from enum import Enum
 from simple_parsing.helpers import Serializable
 from simple_parsing.helpers.serialization import encode, register_decoding_fn
@@ -44,33 +43,23 @@ class EfficientNetOptions(Serializable):
     efficientnet: EfficientNetType = EfficientNetType.B0
 
 
-class EfficientNet(Encoder):
-    def __init__(self, options: EfficientNetOptions = EfficientNetOptions()):
-        super().__init__()
-        self.options = options
-
-    def build(self, num_channels: int, seq_length: int, output_dim: int, device=None):
-        if self.options.efficientnet == EfficientNetType.B0:
-            self.network = efficientnet_b0(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.efficientnet == EfficientNetType.B1:
-            self.network = efficientnet_b1(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.efficientnet == EfficientNetType.B2:
-            self.network = efficientnet_b2(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.efficientnet == EfficientNetType.B3:
-            self.network = efficientnet_b3(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.efficientnet == EfficientNetType.B4:
-            self.network = efficientnet_b4(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.efficientnet == EfficientNetType.B5:
-            self.network = efficientnet_b5(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.efficientnet == EfficientNetType.B6:
-            self.network = efficientnet_b6(num_channels=num_channels, num_classes=output_dim)
-        elif self.options.efficientnet == EfficientNetType.B7:
-            self.network = efficientnet_b7(num_channels=num_channels, num_classes=output_dim)
-
-        return self
-
-    def forward(self, x):
-        return self.network(x)
+def load_efficientnet(num_channels: int, seq_length: int, output_dim: int, options: EfficientNetOptions = EfficientNetOptions()):
+    if options.efficientnet == EfficientNetType.B0:
+        return efficientnet_b0(num_channels=num_channels, num_classes=output_dim)
+    elif options.efficientnet == EfficientNetType.B1:
+        return efficientnet_b1(num_channels=num_channels, num_classes=output_dim)
+    elif options.efficientnet == EfficientNetType.B2:
+        return efficientnet_b2(num_channels=num_channels, num_classes=output_dim)
+    elif options.efficientnet == EfficientNetType.B3:
+        return efficientnet_b3(num_channels=num_channels, num_classes=output_dim)
+    elif options.efficientnet == EfficientNetType.B4:
+        return efficientnet_b4(num_channels=num_channels, num_classes=output_dim)
+    elif options.efficientnet == EfficientNetType.B5:
+        return efficientnet_b5(num_channels=num_channels, num_classes=output_dim)
+    elif options.efficientnet == EfficientNetType.B6:
+        return efficientnet_b6(num_channels=num_channels, num_classes=output_dim)
+    elif options.efficientnet == EfficientNetType.B7:
+        return efficientnet_b7(num_channels=num_channels, num_classes=output_dim)
 
 
 class MBConvConfig:

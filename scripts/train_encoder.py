@@ -1,45 +1,22 @@
 from crocodile.executor import load_executor, ExecutorConfig, ExecutorCallable
-from crocodile.encoder import load_encoder, EncoderParams
+from crocodile.encoder import Encoder
 from crocodile.generator import load_from_path
-from dataclasses import dataclass
 from crocodile.dataset import LaurenceDataset
+from crocodile.utils.optim import load_optimizer
+from crocodile.utils.loss import load_loss
+from crocodile.utils.logger import Logger
 from torchvision import transforms
 from torch.utils.data.dataloader import DataLoader
-from pathlib import Path
-import torch.optim as optim
 import torch
 from simple_parsing import ArgumentParser
-from typing import Optional
 from tqdm import tqdm
-from simple_parsing.helpers import Serializable
-from simple_parsing.helpers.serialization import register_decoding_fn
-from crocodile.utils.logger import Logger
+from crocodile.params import TrainEncoderLatentParams as Params
 import os
 
 
-@dataclass
-class Params(Serializable):
-    generator_path: Path
-    epoch: Optional[int] = None
-    dataset: LaurenceDataset.Params = LaurenceDataset.Params()
-    batch_size: int = 64
-    encoder: EncoderParams = EncoderParams()
-    lr: float = 1e-2
-    num_epochs: int = 100
-    log_dir: Path = Path("./results/encoder")
-    name: str = "test_1"
-    slurm_job_id: Optional[str] = os.environ.get('SLURM_JOB_ID')
-    num_test_samples: int = 10
-
-    def __post_init__(self):
-        self.save_dir = self.log_dir / self.name
-
-
-register_decoding_fn(Path, Path)
-
-
-class EncoderTraining(ExecutorCallable):
+class TrainEncoder(ExecutorCallable):
     def __call__(self, args: Params, resume=False):
+        args.slurm_job_id = os.environ.get('SLURM_JOB_ID')
         device = torch.device('cuda')
 
         transform_list = [
@@ -48,57 +25,69 @@ class EncoderTraining(ExecutorCallable):
         ]
         trans = transforms.Compose(transform_list)
 
-        generator = load_from_path(
-            args.generator_path, args.epoch, device=device)
-        args.dataset.resolution = generator.resolution
+        generator = None
+        if args.generator_path is not None:
+            generator = load_from_path(
+                args.generator_path, args.epoch, device=device)
+            args.dataset.resolution = generator.resolution
 
         dataset = LaurenceDataset(
-            args.dataset, transform=trans, target_transform=transforms.ToTensor())
-
+            args.dataset, transform=trans)
+        
         dataloader = DataLoader(
-            dataset, batch_size=args.batch_size, shuffle=True)
+            dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-        encoder = load_encoder(args.encoder).build(
-            dataset.seq_length*dataset.seq_dim, generator.latent_dim)
+
+        loss_fn = load_loss(args.loss.loss, args.loss)
+
+        encoder = Encoder(dataset.seq_dim, dataset.seq_length, generator.latent_dim, args.encoder)
         encoder.to(device)
 
-        optimizer = optim.Adam(encoder.parameters(), lr=args.lr)
+        optimizer = load_optimizer(encoder.parameters(), args.optimizer)
+
+        torch.manual_seed(1234)
 
         logger = Logger(args.save_dir)
         logger.save_args(args)
 
-        img, label_ref, = iter(dataloader).next()
+        img, biodata_ref, _ = iter(dataloader).next()
         img = img[:args.num_test_samples]
-        label_ref = label_ref[:args.num_test_samples]
+        biodata_ref = biodata_ref[:args.num_test_samples].float()
         logger.save_image("groundtruth", img)
 
+        loss_mean = 0
+        n_samples = 0
         for epoch in range(args.num_epochs):
-            loss_mean = 0
-            for img, label, _ in tqdm(dataloader):
+            for img, biodata, _ in tqdm(dataloader, disable=args.debug):
                 optimizer.zero_grad()
 
                 img = img.to(device)
-                label = label.float().to(device)
+                biodata = biodata.float().to(device)
 
-                z = encoder(label)
+                z = encoder(biodata)
                 img_recons = generator(z)
-
-                loss = ((img - img_recons)**2).view(len(img), -1).sum(-1).mean()
+                loss = loss_fn(img, img_recons).mean()
                 loss.backward()
 
-                optimizer.step()
+                optimizer.step(loss=loss)
 
-                loss_mean += loss.detach().item()
+                loss_mean += loss.detach().item()*len(img)
+                n_samples += len(img)
+                if args.debug:
+                    break
 
-            logger.add({"epoch": epoch, "loss_mean": loss_mean})
+            loss_mean /= n_samples
+            print("Epoch %i / %i, Loss: %.2f" % (epoch, args.num_epochs, loss_mean))
+            if generator is not None:
+                with torch.no_grad():
+                    biodata = biodata_ref.to(device)
+                    z = encoder(biodata)
+                    img = generator(z)
+                    logger.save_image("recons_%.4d" % epoch, img)
+                
+            logger.add({"loss": loss_mean})
+            logger.save_model("%.4d" % epoch, encoder)
 
-            with torch.no_grad():
-                label = label_ref.float().to(device)
-                z = encoder(label)
-                img_recons = generator(z)
-
-            logger.save_image(f"recons_{epoch:04d}", img_recons)
-            logger.save_model("{epoch:04d}", encoder)
 
 
 if __name__ == "__main__":
@@ -108,4 +97,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     executor = load_executor(args.executor)
-    executor(EncoderTraining(), args.params)
+    executor(TrainEncoder(), args.params)

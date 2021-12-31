@@ -1,6 +1,6 @@
 from crocodile import generator
 from crocodile.executor import load_executor, ExecutorConfig, ExecutorCallable
-from crocodile.encoder import load_encoder
+from crocodile.encoder import Encoder
 from crocodile.generator import load_from_path
 from crocodile.dataset import LaurenceDataset, LatentDataset, latent
 from crocodile.utils.optim import load_optimizer
@@ -42,8 +42,7 @@ class TrainEncoder(ExecutorCallable):
 
         loss_fn = load_loss(args.loss.loss, args.loss)
 
-        encoder = load_encoder(args.encoder).build(
-            dataset.seq_dim, dataset.seq_length, latent_dataset.dim)
+        encoder = Encoder(dataset.seq_dim, dataset.seq_length, latent_dataset.dim, args.encoder)
         encoder.to(device)
 
         optimizer = load_optimizer(encoder.parameters(), args.optimizer)
