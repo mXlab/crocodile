@@ -27,6 +27,7 @@ class EncoderParams(Serializable):
 
 class Encoder(nn.Module):
     def __init__(self, num_channels: int, seq_length: int, output_dim: int, options: EncoderParams = EncoderParams()):
+        super().__init__()
         self.options = options
         self.num_channels = num_channels
         self.seq_length = seq_length
