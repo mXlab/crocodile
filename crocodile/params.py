@@ -64,7 +64,8 @@ class TrainEncoderLatentParams(Serializable):
 
 @dataclass
 class TrainEncoderParams(Serializable):
-    generator_path: Optional[Path] = None
+    generator_path: Path
+    latent_path: Optional[Path] = None
     epoch: Optional[int] = None
     encoder: EncoderParams = EncoderParams()
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
@@ -77,6 +78,7 @@ class TrainEncoderParams(Serializable):
     slurm_job_id: Optional[str] = None
     debug: bool = False
     num_test_samples: int = 8
+    latent_regularization: float = 10.
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name

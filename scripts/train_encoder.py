@@ -1,7 +1,7 @@
 from crocodile.executor import load_executor, ExecutorConfig, ExecutorCallable
 from crocodile.encoder import Encoder
 from crocodile.generator import load_from_path
-from crocodile.dataset import LaurenceDataset
+from crocodile.dataset import LaurenceDataset, LatentDataset
 from crocodile.utils.optim import load_optimizer
 from crocodile.utils.loss import load_loss
 from crocodile.utils.logger import Logger
@@ -37,6 +37,9 @@ class TrainEncoder(ExecutorCallable):
         dataloader = DataLoader(
             dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
+        latent_dataset = None
+        if args.latent_path is not None:
+            latent_dataset = LatentDataset.load(args.latent_path)
 
         loss_fn = load_loss(args.loss.loss, args.loss)
 
@@ -58,7 +61,7 @@ class TrainEncoder(ExecutorCallable):
         loss_mean = 0
         n_samples = 0
         for epoch in range(args.num_epochs):
-            for img, biodata, _ in tqdm(dataloader, disable=args.debug):
+            for img, biodata, idx in tqdm(dataloader, disable=args.debug):
                 optimizer.zero_grad()
 
                 img = img.to(device)
@@ -67,11 +70,18 @@ class TrainEncoder(ExecutorCallable):
                 z = encoder(biodata)
                 img_recons = generator(z)
                 loss = loss_fn(img, img_recons).mean()
+
+                loss_mean += loss.detach().item()*len(img)
+
+                if latent_dataset is not None:
+                    z_true = latent_dataset[idx]
+                    z_true = z.to(device)
+                    loss += args.latent_regularization * loss_fn(z, z_true).mean()
+
                 loss.backward()
 
                 optimizer.step(loss=loss)
-
-                loss_mean += loss.detach().item()*len(img)
+          
                 n_samples += len(img)
                 if args.debug:
                     break
