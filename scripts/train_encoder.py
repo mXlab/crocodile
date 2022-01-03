@@ -65,7 +65,7 @@ class TrainEncoder(ExecutorCallable):
             logger.save_image("groundtruth_latent", img)
 
         regularization_coeff = args.latent_regularization
-        best_loss = 0
+        best_loss = None
         for epoch in range(args.num_epochs):
             if args.decreasing_regularization:
                 regularization_coeff = args.latent_regularization*(1 - epoch/(args.num_epochs -1))
@@ -112,7 +112,7 @@ class TrainEncoder(ExecutorCallable):
                 
             logger.add({"loss": loss_mean, "regularization": loss_latent_mean})
             
-            if -loss_mean >= -best_loss:
+            if best_loss is None or loss_mean < best_loss:
                 best_loss = loss_mean
                 logger.save_model("model", encoder)
 
