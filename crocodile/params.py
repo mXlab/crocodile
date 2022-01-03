@@ -40,7 +40,6 @@ class ComputeLatentParams(Serializable):
 @dataclass
 class TrainEncoderLatentParams(Serializable):
     latent_path: Path
-    generator_path: Optional[Path] = None
     epoch: Optional[int] = None
     encoder: EncoderParams = EncoderParams()
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
@@ -64,7 +63,6 @@ class TrainEncoderLatentParams(Serializable):
 
 @dataclass
 class TrainEncoderParams(Serializable):
-    generator_path: Path
     latent_path: Optional[Path] = None
     epoch: Optional[int] = None
     encoder: EncoderParams = EncoderParams()

@@ -1,4 +1,8 @@
 from enum import Enum
+from re import I
+from typing import Optional
+
+from crocodile import generator
 from .efficientnet import EfficientNetOptions, load_efficientnet
 from .regnet import RegNetOptions, load_regnet
 from .mlp import MLPParams, load_mlp
@@ -8,6 +12,7 @@ from simple_parsing.helpers import Serializable
 from simple_parsing.helpers.serialization import encode, register_decoding_fn
 import torch
 import torch.nn as nn
+from pathlib import Path
 
 class EncoderType(Enum):
     MLP = "mlp"
@@ -18,6 +23,7 @@ class EncoderType(Enum):
 
 @dataclass
 class EncoderParams(Serializable):
+    generator_path: Optional[Path] = None
     encoder: EncoderType = EncoderType.MLP
     mlp_options: MLPParams = MLPParams()
     vgg_options: VGGOptions = VGGOptions()
