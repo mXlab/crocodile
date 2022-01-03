@@ -26,7 +26,7 @@ class TrainEncoder(ExecutorCallable):
         ]
         trans = transforms.Compose(transform_list)
 
-        generator = load_from_path(args.encoder.generator_path, args.epoch, device=device)
+        generator = load_from_path(args.encoder.generator_path, args.encoder.epoch, device=device)
         args.dataset.resolution = generator.resolution
 
         dataset = LaurenceDataset(
