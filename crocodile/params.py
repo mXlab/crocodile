@@ -79,6 +79,7 @@ class TrainEncoderParams(Serializable):
     debug: bool = False
     num_test_samples: int = 8
     latent_regularization: float = 10.
+    decreasing_regularization: bool = False
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name

@@ -64,7 +64,12 @@ class TrainEncoder(ExecutorCallable):
             img = generator(z)
             logger.save_image("groundtruth_latent", img)
 
+        regularization_coeff = args.latent_regularization
+        best_loss = 0
         for epoch in range(args.num_epochs):
+            if args.decreasing_regularization:
+                regularization_coeff = args.latent_regularization*(1 - epoch/(args.num_epochs -1))
+            
             loss_mean = 0
             loss_latent_mean = 0
             n_samples = 0
@@ -84,7 +89,7 @@ class TrainEncoder(ExecutorCallable):
                     z_true = latent_dataset[idx]
                     z_true = z_true.to(device)
                     loss_latent = loss_fn(z, z_true, reduce="sum").mean()
-                    loss = (1-args.latent_regularization)*loss + args.latent_regularization * loss_latent * 1000
+                    loss = (1-args.latent_regularization)*loss + regularization_coeff * loss_latent * 1000
                     loss_latent_mean += loss_latent.detach().item()*len(img)
 
                 loss.backward()
@@ -105,8 +110,11 @@ class TrainEncoder(ExecutorCallable):
                     img = generator(z)
                     logger.save_image("recons_%.4d" % epoch, img)
                 
-            logger.add({"loss": loss_mean})
-            logger.save_model("%.4d" % epoch, encoder)
+            logger.add({"loss": loss_mean, "regularization": loss_latent_mean})
+            
+            if -loss_mean >= -best_loss:
+                best_loss = loss_mean
+                logger.save_model("model", encoder)
 
 
 
