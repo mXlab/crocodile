@@ -39,7 +39,7 @@ def run(params: Params):
         params.tmp_dir = Path(os.environ.get('SLURM_TMPDIR'))
 
     encoder = Encoder.load(params.encoder_path)
-    generator = load_from_path(params.generator_path, encoder.options.epoch, device=device)
+    generator = load_from_path(encoder.options.generator_path, encoder.options.epoch, device=device)
     params.dataset.resolution = generator.resolution
     encoder = encoder.to(device)
     encoder.eval()
