@@ -18,7 +18,8 @@ class SequenceSampler(Sampler):
     def __iter__(self): 
         for i in self.indices:
             sequence = self.list_sequences[i]
-            yield sequence.tolist()
+            sequence = sequence.tolist()
+            yield sequence
             
     def __len__(self):
         return self.num_sequences
