@@ -41,7 +41,7 @@ register_decoding_fn(LossType, decode_loss_type)
 
 class Loss(ABC):
     @abstractmethod
-    def __call__(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def __call__(self, x: torch.Tensor, y: torch.Tensor, reduce: str = "mean") -> torch.Tensor:
         pass
 
 
@@ -50,13 +50,18 @@ class PerceptualLoss(Loss):
         self.args = args
         self.percept = lpips.PerceptualLoss(model=args.perceptual_model, net=args.perceptual_net, use_gpu=True)
 
-    def __call__(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def __call__(self, x: torch.Tensor, y: torch.Tensor, reduce: str = "mean") -> torch.Tensor:
         return self.percept(F.avg_pool2d(x, 2, 2), F.avg_pool2d(y, 2, 2)).sum() + self.args.mse_coeff*F.mse_loss(x, y)
 
 
 class EuclideanLoss(Loss):
-    def __call__(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return ((x - y)**2).view(len(x), -1).sum(-1)
+    def __call__(self, x: torch.Tensor, y: torch.Tensor, reduce: str = "mean") -> torch.Tensor:
+        loss = ((x - y)**2).view(len(x), -1)
+        if reduce == "mean":
+            return loss.mean(-1)
+        elif reduce == "sum":
+            return loss.sum(-1)
+        return  loss
 
 
 def load_loss(loss_type: LossType = LossType.EUCLIDEAN, args: LossParams = LossParams()):

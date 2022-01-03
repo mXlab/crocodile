@@ -18,6 +18,7 @@ class TrainEncoder(ExecutorCallable):
     def __call__(self, args: Params, resume=False):
         args.slurm_job_id = os.environ.get('SLURM_JOB_ID')
         device = torch.device('cuda')
+        torch.manual_seed(1234)
 
         transform_list = [
             transforms.ToTensor(),
@@ -48,19 +49,25 @@ class TrainEncoder(ExecutorCallable):
 
         optimizer = load_optimizer(encoder.parameters(), args.optimizer)
 
-        torch.manual_seed(1234)
-
         logger = Logger(args.save_dir)
         logger.save_args(args)
 
-        img, biodata_ref, _ = iter(dataloader).next()
+        img, biodata_ref, index = iter(dataloader).next()
         img = img[:args.num_test_samples]
         biodata_ref = biodata_ref[:args.num_test_samples].float()
         logger.save_image("groundtruth", img)
+        
+        if latent_dataset is not None:
+            index = index[:args.num_test_samples]
+            z = latent_dataset[index]
+            z = z.to(device)
+            img = generator(z)
+            logger.save_image("groundtruth_latent", img)
 
-        loss_mean = 0
-        n_samples = 0
         for epoch in range(args.num_epochs):
+            loss_mean = 0
+            loss_latent_mean = 0
+            n_samples = 0
             for img, biodata, idx in tqdm(dataloader, disable=args.debug):
                 optimizer.zero_grad()
 
@@ -69,14 +76,16 @@ class TrainEncoder(ExecutorCallable):
 
                 z = encoder(biodata)
                 img_recons = generator(z)
-                loss = loss_fn(img, img_recons).mean()
+                loss = loss_fn(img, img_recons, reduce="sum").mean()
 
                 loss_mean += loss.detach().item()*len(img)
 
                 if latent_dataset is not None:
                     z_true = latent_dataset[idx]
-                    z_true = z.to(device)
-                    loss += args.latent_regularization * loss_fn(z, z_true).mean()
+                    z_true = z_true.to(device)
+                    loss_latent = loss_fn(z, z_true, reduce="sum").mean()
+                    loss = (1-args.latent_regularization)*loss + args.latent_regularization * loss_latent * 1000
+                    loss_latent_mean += loss_latent.detach().item()*len(img)
 
                 loss.backward()
 
@@ -87,7 +96,8 @@ class TrainEncoder(ExecutorCallable):
                     break
 
             loss_mean /= n_samples
-            print("Epoch %i / %i, Loss: %.2f" % (epoch, args.num_epochs, loss_mean))
+            loss_latent_mean /= n_samples
+            print("Epoch %i / %i, Loss: %.2f, Loss latent: %.2f" % (epoch, args.num_epochs, loss_mean, loss_latent_mean))
             if generator is not None:
                 with torch.no_grad():
                     biodata = biodata_ref.to(device)

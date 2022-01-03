@@ -19,6 +19,7 @@ class TrainEncoder(ExecutorCallable):
     def __call__(self, args: Params, resume=False):
         args.slurm_job_id = os.environ.get('SLURM_JOB_ID')
         device = torch.device('cuda')
+        torch.manual_seed(1234)
 
         transform_list = [
             transforms.ToTensor(),
@@ -47,8 +48,6 @@ class TrainEncoder(ExecutorCallable):
 
         optimizer = load_optimizer(encoder.parameters(), args.optimizer)
 
-        torch.manual_seed(1234)
-
         logger = Logger(args.save_dir)
         logger.save_args(args)
 
@@ -63,9 +62,9 @@ class TrainEncoder(ExecutorCallable):
             img = generator(z)
             logger.save_image("groundtruth_latent", img)
 
-        loss_mean = 0
-        n_samples = 0
         for epoch in range(args.num_epochs):
+            loss_mean = 0
+            n_samples = 0
             for _, biodata, index in tqdm(dataloader, disable=args.debug):
                 optimizer.zero_grad()
 
