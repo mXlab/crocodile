@@ -26,11 +26,8 @@ class TrainEncoder(ExecutorCallable):
         ]
         trans = transforms.Compose(transform_list)
 
-        generator = None
-        if args.generator_path is not None:
-            generator = load_from_path(
-                args.generator_path, args.epoch, device=device)
-            args.dataset.resolution = generator.resolution
+        generator = load_from_path(args.encoder.generator_path, args.epoch, device=device)
+        args.dataset.resolution = generator.resolution
 
         dataset = LaurenceDataset(
             args.dataset, transform=trans)

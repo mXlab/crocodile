@@ -19,7 +19,6 @@ from simple_parsing import ArgumentParser
 @dataclass
 class Params:
     encoder_path: Path
-    generator_path: Path
     seq_length: int = 1800
     batch_size: int = 32
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
@@ -39,7 +38,7 @@ def run(params: Params):
         params.tmp_dir = Path(os.environ.get('SLURM_TMPDIR'))
 
     encoder = Encoder.load(params.encoder_path)
-    generator = load_from_path(encoder.options.generator_path, encoder.options.epoch, device=device)
+    generator = load_from_path(encoder.options.generator_path, device=device)
     params.dataset.resolution = generator.resolution
     encoder = encoder.to(device)
     encoder.eval()
@@ -52,7 +51,7 @@ def run(params: Params):
     dataset = LaurenceDataset(
             params.dataset, transform=trans, target_transform=transforms.ToTensor())
 
-    sampler = SequenceSampler(len(dataset), params.seq_length, shuffle=True)
+    sampler = SequenceSampler(dataset, params.seq_length, shuffle=True)
     dataloader = DataLoader(
             dataset, batch_sampler=sampler, num_workers=4)
 
