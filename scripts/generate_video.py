@@ -8,15 +8,18 @@ from torch.utils.data import DataLoader
 
 from crocodile.dataset import LaurenceDataset, biodata
 from crocodile.encoder import Encoder
+from crocodile.executor import ExecutorConfig, load_executor
 import torch
 from torchvision import utils as vutils
 import os
 import subprocess
+from simple_parsing import ArgumentParser
 
 
 @dataclass
 class Params:
     encoder_path: Path
+    generator_path: Path
     seq_length: int = 1800
     batch_size: int = 32
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
@@ -29,7 +32,7 @@ class Params:
         self.save_dir = self.log_dir / self.name
 
 
-def train(params: Params):
+def run(params: Params):
     device = torch.device('cuda')
 
     if params.tmp_dir is None:
@@ -70,3 +73,11 @@ def train(params: Params):
         cmd = "ffmpeg -framerate %.2f -i %s/%%04d.png %s" % (dataset.config.fps, params.tmp_dir, output_file)
         subprocess.run(cmd.split())
         
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_arguments(Params, dest="params")
+    parser.add_arguments(ExecutorConfig, dest="executor")
+    args = parser.parse_args()
+
+    executor = load_executor(args.executor)
+    executor(run, args.params)

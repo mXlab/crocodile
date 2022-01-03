@@ -63,7 +63,7 @@ class Encoder(nn.Module):
     @staticmethod
     def load(filename):
         checkpoint = torch.load(filename)
-        encoder = Encoder(checkpoint["num_channels"], checkpoint["seq_length"], checkpoint["output_dim"], checkpoint=["options"])
+        encoder = Encoder(checkpoint["num_channels"], checkpoint["seq_length"], checkpoint["output_dim"], checkpoint["options"])
         encoder.load_state_dict(checkpoint["state_dict"])
         return encoder
 
