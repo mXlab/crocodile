@@ -24,6 +24,7 @@ class EncoderType(Enum):
 @dataclass
 class EncoderParams(Serializable):
     generator_path: Optional[Path] = None
+    epoch: Optional[int] = None
     encoder: EncoderType = EncoderType.MLP
     mlp_options: MLPParams = MLPParams()
     vgg_options: VGGOptions = VGGOptions()
