@@ -40,7 +40,6 @@ class ComputeLatentParams(Serializable):
 @dataclass
 class TrainEncoderLatentParams(Serializable):
     latent_path: Path
-    epoch: Optional[int] = None
     encoder: EncoderParams = EncoderParams()
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
@@ -64,7 +63,6 @@ class TrainEncoderLatentParams(Serializable):
 @dataclass
 class TrainEncoderParams(Serializable):
     latent_path: Optional[Path] = None
-    epoch: Optional[int] = None
     encoder: EncoderParams = EncoderParams()
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
