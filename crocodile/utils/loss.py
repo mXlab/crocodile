@@ -6,6 +6,7 @@ import FastGAN.lpips as lpips
 import torch
 from simple_parsing.helpers import Serializable
 from simple_parsing.helpers.serialization import encode, register_decoding_fn
+from typing import Optional
 
 
 class LossType(Enum):
@@ -15,15 +16,14 @@ class LossType(Enum):
 
 @dataclass
 class PerceptualLossParams:
-    mse_coeff: float = 0.2
     perceptual_model: str = 'net-lin'
     perceptual_net: str = 'vgg'
 
 
 @dataclass
 class LossParams(Serializable):
-    loss: LossType = LossType.EUCLIDEAN
     perceptual_options: PerceptualLossParams = PerceptualLossParams()
+    percep_coeff: Optional[float] = None
 
 
 @encode.register
@@ -55,11 +55,10 @@ class PerceptualLoss(Loss):
     def __init__(self, args: PerceptualLossParams = PerceptualLossParams()):
         self.args = args
         self.percept = lpips.PerceptualLoss(model=args.perceptual_model, net=args.perceptual_net, use_gpu=True)
-        self.mse_loss = EuclideanLoss()
 
     def __call__(self, x: torch.Tensor, y: torch.Tensor, reduce: str = "mean") -> torch.Tensor:
         loss = self.percept(F.avg_pool2d(x, 2, 2), F.avg_pool2d(y, 2, 2)).view(len(x), -1)
-        return  self.aggregate(loss, reduce=reduce) + self.args.mse_coeff*self.mse_loss(x, y, reduce=reduce)
+        return  self.aggregate(loss, reduce=reduce)
 
 
 class EuclideanLoss(Loss):
