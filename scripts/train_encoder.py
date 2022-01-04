@@ -80,19 +80,19 @@ class TrainEncoder(ExecutorCallable):
                 z = encoder(biodata)
                 img_recons = generator(z)
 
-                loss = EuclideanLoss(img, img_recons, reduce="sum").mean()
+                loss = EuclideanLoss()(img, img_recons, reduce="sum").mean()
                 metrics["loss_recons"] += loss.detach().item()*len(img)
                 
-                if loss_percep is not None:
+                if percep_loss is not None:
                     loss_percep = percep_loss(img, img_recons, reduce="sum").mean()
-                    loss = (1-args.loss.percep_coeff)*loss + args.loss.percep_coeff * loss_percep
+                    loss = (1-args.loss.percep_coeff)*loss + args.loss.percep_coeff * loss_percep *100000
                     metrics["loss_percep"] += loss_percep.detach().item()*len(img)
 
                 if latent_dataset is not None:
                     z_true = latent_dataset[idx]
                     z_true = z_true.to(device)
                     loss_latent = EuclideanLoss()(z, z_true, reduce="sum").mean()
-                    loss = (1-args.latent_regularization)*loss + regularization_coeff * loss_latent * 1000
+                    loss = (1-args.latent_regularization)*loss + regularization_coeff * loss_latent * 10000
                     metrics["loss_latent"] += loss_latent.detach().item()*len(img)
 
                 loss.backward()
