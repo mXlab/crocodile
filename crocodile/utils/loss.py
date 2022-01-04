@@ -44,24 +44,28 @@ class Loss(ABC):
     def __call__(self, x: torch.Tensor, y: torch.Tensor, reduce: str = "mean") -> torch.Tensor:
         pass
 
+    def aggregate(self, x: torch.Tensor, reduce: str = "mean"):
+        if reduce == "mean":
+            return x.mean(-1)
+        elif reduce == "sum":
+            return x.sum(-1)
+
 
 class PerceptualLoss(Loss):
     def __init__(self, args: PerceptualLossParams = PerceptualLossParams()):
         self.args = args
         self.percept = lpips.PerceptualLoss(model=args.perceptual_model, net=args.perceptual_net, use_gpu=True)
+        self.mse_loss = EuclideanLoss()
 
     def __call__(self, x: torch.Tensor, y: torch.Tensor, reduce: str = "mean") -> torch.Tensor:
-        return self.percept(F.avg_pool2d(x, 2, 2), F.avg_pool2d(y, 2, 2)).sum() + self.args.mse_coeff*F.mse_loss(x, y)
+        loss = self.percept(F.avg_pool2d(x, 2, 2), F.avg_pool2d(y, 2, 2)).view(len(x), -1)
+        return  self.aggregate(loss, reduce=reduce) + self.args.mse_coeff*self.mse_loss(x, y, reduce=reduce)
 
 
 class EuclideanLoss(Loss):
     def __call__(self, x: torch.Tensor, y: torch.Tensor, reduce: str = "mean") -> torch.Tensor:
         loss = ((x - y)**2).view(len(x), -1)
-        if reduce == "mean":
-            return loss.mean(-1)
-        elif reduce == "sum":
-            return loss.sum(-1)
-        return  loss
+        return self.aggregate(loss, reduce=reduce)
 
 
 def load_loss(loss_type: LossType = LossType.EUCLIDEAN, args: LossParams = LossParams()):

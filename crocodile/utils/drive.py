@@ -105,14 +105,11 @@ class GoogleDrive:
             creds = Credentials.from_authorized_user_file(token, scopes)
 
         if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                credentials_path = Path(input(
-                    "Credentials file (default = './google-credentials.json'):") or "./google-credentials.json")
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    credentials_path, scopes)
-                creds = flow.run_local_server(port=0)
+            credentials_path = Path(input(
+                "Credentials file (default = './google-credentials.json'):") or "./google-credentials.json")
+            flow = InstalledAppFlow.from_client_secrets_file(
+                credentials_path, scopes)
+            creds = flow.run_local_server(port=0)
 
             with open(token, 'w') as _token:
                 _token.write(creds.to_json())
