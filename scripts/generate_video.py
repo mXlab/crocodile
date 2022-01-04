@@ -70,13 +70,17 @@ def run(params: Params):
         if (params.tmp_dir / 'images').is_dir():
             shutil.rmtree(params.tmp_dir / 'images')
         (params.tmp_dir / 'images').mkdir(parents=True)
-        z_smooth = 0
+        
+        z_smooth = None
         for _, biodata, _  in tqdm(dataloader):
             with torch.no_grad():
                 biodata = biodata.float().to(device)
                 z = encoder(biodata)            
             for _z in z:
-                z_smooth = params.smoothing*_z + (1 - params.smoothing)*z_smooth
+                if z_smooth is None:
+                    z_smooth = _z
+                else:
+                    z_smooth = params.smoothing*_z + (1 - params.smoothing)*z_smooth
                 img = generator(z_smooth.unsqueeze(0)).cpu()
                 save_image(img, params.tmp_dir / ('images/%.4d.png' % image_idx))
                 image_idx += 1
