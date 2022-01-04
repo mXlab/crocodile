@@ -3,7 +3,7 @@ from crocodile.encoder import Encoder
 from crocodile.generator import load_from_path
 from crocodile.dataset import LaurenceDataset, LatentDataset
 from crocodile.utils.optim import load_optimizer
-from crocodile.utils.loss import EuclideanLoss, load_loss
+from crocodile.utils.loss import EuclideanLoss, PerceptualLoss
 from crocodile.utils.logger import Logger
 from torchvision import transforms
 from torch.utils.data.dataloader import DataLoader
@@ -12,6 +12,7 @@ from simple_parsing import ArgumentParser
 from tqdm import tqdm
 from crocodile.params import TrainEncoderParams as Params
 import os
+from collections import defaultdict
 
 
 class TrainEncoder(ExecutorCallable):
@@ -39,12 +40,14 @@ class TrainEncoder(ExecutorCallable):
         if args.latent_path is not None:
             latent_dataset = LatentDataset.load(args.latent_path)
 
-        loss_fn = load_loss(args.loss.loss, args.loss)
-
         encoder = Encoder(dataset.seq_dim, dataset.seq_length, generator.latent_dim, args.encoder)
         encoder.to(device)
 
         optimizer = load_optimizer(encoder.parameters(), args.optimizer)
+
+        percep_loss = None
+        if args.loss.percep_coeff is not None:
+            percep_loss = PerceptualLoss(args.loss.perceptual_options)
 
         logger = Logger(args.save_dir)
         logger.save_args(args)
@@ -67,9 +70,7 @@ class TrainEncoder(ExecutorCallable):
             if args.decreasing_regularization:
                 regularization_coeff = args.latent_regularization*(1 - epoch/(args.num_epochs -1))
             
-            loss_mean = 0
-            loss_latent_mean = 0
-            n_samples = 0
+            metrics = defaultdict(float)
             for img, biodata, idx in tqdm(dataloader, disable=args.debug):
                 optimizer.zero_grad()
 
@@ -78,28 +79,33 @@ class TrainEncoder(ExecutorCallable):
 
                 z = encoder(biodata)
                 img_recons = generator(z)
-                loss = loss_fn(img, img_recons, reduce="sum").mean()
 
-                loss_mean += loss.detach().item()*len(img)
+                loss = EuclideanLoss(img, img_recons, reduce="sum").mean()
+                metrics["loss_recons"] += loss.detach().item()*len(img)
+                
+                if loss_percep is not None:
+                    loss_percep = percep_loss(img, img_recons, reduce="sum").mean()
+                    loss = (1-args.loss.percep_coeff)*loss + args.loss.percep_coeff * loss_percep
+                    metrics["loss_percep"] += loss_percep.detach().item()*len(img)
 
                 if latent_dataset is not None:
                     z_true = latent_dataset[idx]
                     z_true = z_true.to(device)
                     loss_latent = EuclideanLoss()(z, z_true, reduce="sum").mean()
                     loss = (1-args.latent_regularization)*loss + regularization_coeff * loss_latent * 1000
-                    loss_latent_mean += loss_latent.detach().item()*len(img)
+                    metrics["loss_latent"] += loss_latent.detach().item()*len(img)
 
                 loss.backward()
 
                 optimizer.step(loss=loss)
           
-                n_samples += len(img)
+                metrics["n_samples"] += len(img)
                 if args.debug:
                     break
 
-            loss_mean /= n_samples
-            loss_latent_mean /= n_samples
-            print("Epoch %i / %i, Loss: %.2f, Loss latent: %.2f" % (epoch, args.num_epochs, loss_mean, loss_latent_mean))
+            metrics["loss_recons"] /= metrics["n_samples"]
+            metrics["loss_latent"] /= metrics["n_samples"]
+            metrics["loss_percep"] /= metrics["n_samples"]
             if generator is not None:
                 with torch.no_grad():
                     biodata = biodata_ref.to(device)
@@ -107,10 +113,10 @@ class TrainEncoder(ExecutorCallable):
                     img = generator(z)
                     logger.save_image("recons_%.4d" % epoch, img)
                 
-            logger.add({"loss": loss_mean, "regularization": loss_latent_mean})
+            logger.add(metrics)
             
-            if best_loss is None or loss_mean < best_loss:
-                best_loss = loss_mean
+            if best_loss is None or metrics["loss_recons"] < best_loss:
+                best_loss = metrics["loss_recons"]
                 logger.save_model("model", encoder)
 
 
