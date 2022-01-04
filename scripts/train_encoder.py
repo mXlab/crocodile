@@ -3,7 +3,7 @@ from crocodile.encoder import Encoder
 from crocodile.generator import load_from_path
 from crocodile.dataset import LaurenceDataset, LatentDataset
 from crocodile.utils.optim import load_optimizer
-from crocodile.utils.loss import load_loss
+from crocodile.utils.loss import EuclideanLoss, load_loss
 from crocodile.utils.logger import Logger
 from torchvision import transforms
 from torch.utils.data.dataloader import DataLoader
@@ -85,7 +85,7 @@ class TrainEncoder(ExecutorCallable):
                 if latent_dataset is not None:
                     z_true = latent_dataset[idx]
                     z_true = z_true.to(device)
-                    loss_latent = loss_fn(z, z_true, reduce="sum").mean()
+                    loss_latent = EuclideanLoss()(z, z_true, reduce="sum").mean()
                     loss = (1-args.latent_regularization)*loss + regularization_coeff * loss_latent * 1000
                     loss_latent_mean += loss_latent.detach().item()*len(img)
 
