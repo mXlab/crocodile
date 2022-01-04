@@ -22,7 +22,7 @@ import torch.nn.functional as F
 @dataclass
 class Params:
     encoder_path: Path
-    seq_length: int = 1800
+    seq_length: int = 1000
     batch_size: int = 32
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     num_videos: int = 10
@@ -33,14 +33,15 @@ class Params:
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
-        shutil.rmtree(self.save_dir)
+        if self.save_dir.is_dir():
+            shutil.rmtree(self.save_dir)
         self.save_dir.mkdir(parents=True)
 
 def save_image(img, filename):
     vutils.save_image(img.add(1).mul(0.5), filename)
 
 def run(params: Params):
-    device = torch.device('cuda')
+    device = torch.device('cpu')
 
     if params.tmp_dir is None:
         params.tmp_dir = Path(os.environ.get('SLURM_TMPDIR'))
@@ -66,7 +67,8 @@ def run(params: Params):
         subset = Subset(dataset, idx)
         dataloader = DataLoader(subset, batch_size=params.batch_size, shuffle=False, num_workers=4)
         image_idx = 0
-        shutil.rmtree(params.tmp_dir / 'images')
+        if (params.tmp_dir / 'images').is_dir():
+            shutil.rmtree(params.tmp_dir / 'images')
         (params.tmp_dir / 'images').mkdir(parents=True)
         z_smooth = 0
         for _, biodata, _  in tqdm(dataloader):
