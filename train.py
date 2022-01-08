@@ -4,8 +4,6 @@ from lib import models
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import torchvision
-from torch import nn
-from torch.nn.utils import spectral_norm
 from torch import optim
 import torch
 from torch import autograd
@@ -14,7 +12,7 @@ import argparse
 import time
 import json
 from lib.fid import FID
-
+import numpy as np
 
 
 def get_config():
@@ -51,7 +49,7 @@ def run(args, logger=None):
     RESOLUTION = args.resolution
     GRADIENT_PENALTY = args.gradient_penalty
     torch.manual_seed(SEED)
-    OUTPUT_PATH = os.path.join(args.output_path, "exp_%i/"%int(time.time()))
+    OUTPUT_PATH = os.path.join(args.output_path, "exp_%i_%i/"%(int(time.time()), np.random.randint(9999)))
     ROOT = args.path_to_dataset
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

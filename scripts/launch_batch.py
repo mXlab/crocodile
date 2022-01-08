@@ -13,14 +13,14 @@ NUM_CONFIG = 25
 NUM_SEEDS = 100
 partition = "learnfair"
 total_time = 24*60 
-NAME = "video_only_2"
+NAME = "video_only_3"
 PROJECT_NAME = "crocodile"
 
 args.resolution = 128
 
 
 def run_with_logger(args):
-    from logger import ExpvizLogger
+    from lib.logger import ExpvizLogger
     log_dir = os.path.join(args.output_path, "exp_%i_%i/"%(int(time.time()), np.random.randint(9999)))
     logger = ExpvizLogger(projectname=PROJECT_NAME, hyperparams=args, log_dir=log_dir, expname=NAME)
     run(args, logger)
@@ -30,15 +30,15 @@ def generate_config(num_config):
     list_configs = []
     for i in range(num_config):
         config = copy.deepcopy(args)
-        config.num_filters = int(np.random.choice([128, 256, 512]))
-        config.learning_rate_dis = 1e-4
-        config.learning_rate_gen = 1e-4
+        config.num_filters = int(np.random.choice([256, 512]))
+        config.learning_rate_dis = float(np.random.choice([1e-5, 1e-4, 1e-3]))
+        config.learning_rate_gen = float(np.random.choice([1e-5, 1e-4, 1e-3]))
         config.batch_size = 128
-        config.num_latent = int(np.random.choice([10, 50, 100]))
+        config.num_latent = int(np.random.choice([5, 10, 50, 100]))
         config.seed = int(np.random.randint(NUM_SEEDS))
         #config.gradient_penalty = bool(np.random.choice([True, False]))
         #config.spectral_norm_gen = bool(np.random.choice([True, False]))
-        config.num_layers = int(np.random.choice([3, 4, 5]))
+        config.num_layers = int(np.random.choice([3, 4]))
 
         list_configs.append(config)
     return list_configs
