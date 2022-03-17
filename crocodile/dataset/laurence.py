@@ -5,10 +5,26 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from crocodile.utils.drive import GoogleDrive, check_integrity
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, MISSING
 from .biodata import Biodata
 import torch
+from typing import List, Tuple
 
+@dataclass
+class Config:
+    video_file: str = MISSING
+    sensor_file: str = MISSING
+    num_frames: int = MISSING
+    sampling_rate: int = MISSING
+    fps: float = MISSING
+    start_video: int = MISSING
+    end_video: int = MISSING
+    start_sensor: int = MISSING
+    crop_x: int = MISSING
+    crop_y: int = MISSING
+    crop_width: int = MISSING
+    crop_height: int = MISSING
+    usecols: List[int] = MISSING
 
 class LaurenceDataset(Dataset):
     FILES = [
@@ -41,11 +57,11 @@ class LaurenceDataset(Dataset):
         self.config = self.load_config(self.path)
 
         self.images = self.load_images(self.path / str(args.resolution))
-        self.biodata = Biodata(self.path, self.config, args.biodata)
+        self.biodata = Biodata(self.path / self.config.sensor_file, self.config.sampling_rate, args.biodata)
         self.seq_length = self.biodata.seq_length
         self.seq_dim = self.biodata.dim
 
-    def get_path(self):
+    def get_path(self) -> Path:
         return (self.path / str(self.resolution)).resolve()
 
     @classmethod
@@ -61,11 +77,11 @@ class LaurenceDataset(Dataset):
             drive.download_file(file_id, path / filename, md5)
 
     @classmethod
-    def check_all_integrity(cls, path):
+    def check_all_integrity(cls, path: Path) -> bool:
         return all(check_integrity(path / filemame, md5) for _, filemame, md5 in cls.FILES)
 
     @classmethod
-    def check_video_integrity(cls, path, num_frames=None):
+    def check_video_integrity(cls, path: Path, num_frames: int=None) -> bool:
         if not path.exists():
             return False
         if num_frames is None:
@@ -73,7 +89,7 @@ class LaurenceDataset(Dataset):
         return num_frames == cls.get_num_frames(path)
 
     @classmethod
-    def get_num_frames(cls, path: Path):
+    def get_num_frames(cls, path: Path) -> int:
         return len(cls.load_images(path))
 
     @classmethod
@@ -111,29 +127,33 @@ class LaurenceDataset(Dataset):
             img.save(path_img / ("%.7i.png" % i))
 
     @staticmethod
-    def load_config(path: Path):
+    def load_config(path: Path) -> Config:
         path = path / "config.yaml"
-        return OmegaConf.load(path)
+        schema = OmegaConf.structured(Config)
+        conf = OmegaConf.load(path)
+        return OmegaConf.merge(schema, conf)
 
     @staticmethod
-    def load_images(path: Path):
+    def load_images(path: Path) -> List[Path]:
         return sorted(path.glob("*.png"))
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Tuple(torch.Tensor, torch.Tensor, int):
         img = Image.open(self.images[index])
 
         if self.transform is not None:
             img = self.transform(img)
 
-        biodata = torch.from_numpy(self.biodata[index]).transpose(0,1)
+        biodata_index = int((index - self.config.start_video) / self.config.fps *
+                   self.config.sampling_rate + self.config.start_sensor) + self.biodata.window_size
+        biodata = torch.from_numpy(self.biodata[biodata_index]).transpose(0,1)
 
         if self.target_transform is not None:
             biodata = self.target_transform(biodata)
 
         return img, biodata, index
 
-    def convert_index(self, index):
+    def convert_index(self, index: int) -> int:
         return int((index - self.config.start_sensor)/self.config.sampling_rate * self.config.fps + self.config.start_video)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return min(len(self.images), self.convert_index(len(self.biodata)))
