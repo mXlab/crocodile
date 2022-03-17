@@ -6,7 +6,7 @@ from crocodile.dataset.sampler import SequenceSampler
 from torchvision import transforms
 from torch.utils.data import DataLoader, Subset
 
-from crocodile.dataset import LaurenceDataset, biodata
+from crocodile.dataset import load_biodata, LaurenceDataset
 from crocodile.encoder import Encoder
 from crocodile.executor import ExecutorConfig, load_executor
 import torch
@@ -22,9 +22,10 @@ import torch.nn.functional as F
 @dataclass
 class Params:
     encoder_path: Path
+    biodata: Path
+    config: Path = Path("./data/laurence/")
     seq_length: int = 1000
     batch_size: int = 32
-    dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     num_videos: int = 10
     tmp_dir: Optional[Path] = None
     log_dir: Path = Path("./results/videos")
@@ -52,13 +53,8 @@ def run(params: Params):
     encoder = encoder.to(device)
     encoder.eval()
 
-    transform_list = [
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-        ]
-    trans = transforms.Compose(transform_list)
-    dataset = LaurenceDataset(
-            params.dataset, transform=trans)
+    config = LaurenceDataset.load_config(".data" / "laurence")
+    dataset = load_biodata(params.biodata)
 
     sampler = SequenceSampler(dataset, params.seq_length, shuffle=True)
     iterator = iter(sampler)
@@ -71,8 +67,8 @@ def run(params: Params):
             shutil.rmtree(params.tmp_dir / 'images')
         (params.tmp_dir / 'images').mkdir(parents=True)
         
-        z_smooth = None
-        for _, biodata, _  in tqdm(dataloader):
+        z_smooth: torch.Tensor = None # TODO: fix this so that z_smooth is always a tensor.
+        for biodata in tqdm(dataloader):
             with torch.no_grad():
                 biodata = biodata.float().to(device)
                 z = encoder(biodata)            
@@ -87,7 +83,7 @@ def run(params: Params):
         
         output_file = params.save_dir / ("video_%.4d.mp4"%i)
         input_file = params.tmp_dir / "images/%04d.png"
-        cmd = "ffmpeg -framerate %.2f -i %s %s" % (dataset.config.fps, input_file, output_file)
+        cmd = "ffmpeg -framerate %.2f -i %s %s" % (config.fps, input_file, output_file)
         subprocess.run(cmd.split())
         
 if __name__ == "__main__":
