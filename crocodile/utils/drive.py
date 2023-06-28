@@ -1,6 +1,4 @@
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from apiclient import http
 from pathlib import Path
@@ -99,20 +97,8 @@ class GoogleDrive:
 
     @staticmethod
     def connect_to_drive(token: Path, scopes=SCOPES):
-        creds = None
-
-        if token.exists():
-            creds = Credentials.from_authorized_user_file(token, scopes)
-
-        if not creds or not creds.valid:
-            credentials_path = Path(input(
-                "Credentials file (default = './google-credentials.json'):") or "./google-credentials.json")
-            flow = InstalledAppFlow.from_client_secrets_file(
-                credentials_path, scopes)
-            creds = flow.run_local_server(port=0)
-
-            with open(token, 'w') as _token:
-                _token.write(creds.to_json())
+        credentials = service_account.Credentials.from_service_account_file(credentials_path)
+        credentials = credentials.with_scopes(scopes)
 
         drive = build('drive', 'v3', credentials=creds)
         return GoogleDrive(drive)

@@ -9,12 +9,18 @@ from typing import Optional
 
 class FastGAN(Generator):
     @classmethod
-    def train(cls, params: TrainParams = TrainParams()):
+    def prepare(cls, params: TrainParams = TrainParams()):
         print("Loading dataset...")
         dataset = LaurenceDataset(params.dataset)
-
-        data_path = dataset.get_path()
         cls.set_dir(params)
+
+        return dataset
+
+
+    @classmethod
+    def train(cls, params: TrainParams = TrainParams()):
+        dataset = cls.prepare(params)
+        data_path = dataset.get_path()
         command = "python -m FastGAN.train --outdir %s --path=%s --batch_size %i --im_size %i" % (
             params.log_dir, data_path, params.batch_size, dataset.resolution)
         print("Running: %s" % command)

@@ -10,13 +10,15 @@ from typing import Optional
 
 class Styleformer(Generator):
     @classmethod
-    def train(cls, params: TrainParams = TrainParams()):
+    def prepare(cls, params: TrainParams = TrainParams()):
         print("Loading dataset...")
         dataset = LaurenceDataset(params.dataset)
-
-        data_path = dataset.get_path()
-
         cls.set_dir(params)
+        return dataset
+
+    @classmethod
+    def train(cls, params: TrainParams = TrainParams()):
+        dataset = cls.prepare(params)
         gpus = torch.cuda.device_count()
         command = "python -m Styleformer.train --outdir=%s --data=%s --gpus=%i --num_layers=1,2,1,1 --g_dict=1024,256,64,64 --linformer=1" % (
             params.log_dir, data_path, gpus)
