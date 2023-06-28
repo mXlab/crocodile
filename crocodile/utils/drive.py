@@ -99,7 +99,7 @@ class GoogleDrive:
             done = False
             while done is False:
                 status, done = downloader.next_chunk()
-                print(f"Downloading {path} {int(status.progress() * 100):.0%}.")
+                print(f"Downloading {path} {status.progress():.0%}.")
 
     def create_folder(self, name: str, folder_id: str):
         """Create a folder."""
@@ -148,7 +148,7 @@ class GoogleDrive:
     @staticmethod
     def connect_to_drive(scopes=SCOPES):
         credentials_path = Path(
-            input(f"Credentials file (default = 'f{default_credentials_path}'):")
+            input(f"Credentials file (default = '{default_credentials_path}'):")
             or default_credentials_path
         )
 
