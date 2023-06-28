@@ -8,10 +8,7 @@ from googleapiclient.discovery import build
 from apiclient import http
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-credentials_path = os.path.join(
-    os.path.dirname(__file__),
-    "crocodile-333216-61f547fcafc2.json",
-)
+default_credentials_path = "./crocodile-333216-61f547fcafc2.json"
 
 
 def check_integrity(path: Path, md5=None) -> bool:
@@ -150,6 +147,16 @@ class GoogleDrive:
 
     @staticmethod
     def connect_to_drive(scopes=SCOPES):
+        credentials_path = Path(
+            input(f"Credentials file (default = 'f{default_credentials_path}'):")
+            or default_credentials_path
+        )
+
+        if not credentials_path.is_file():
+            raise FileNotFoundError(
+                f"Credentials file not found at {credentials_path}."
+            )
+
         credentials = service_account.Credentials.from_service_account_file(
             credentials_path
         )
