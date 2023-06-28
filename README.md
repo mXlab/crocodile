@@ -62,3 +62,38 @@ a sub-folder `img` where the samples are saved for each epochs.
 ```conda activate crocodile```
 4. To deactivate:
 ```conda deactivate```
+
+
+
+--------------------------
+# New version
+
+## Setting up on Beluga
+### On the login node:
+1. Clone repository: `git clone --recurse-submodules git@github.com:a3lab/crocodile.git`
+2. `cd crocodile`
+3. Loading python: `module load python`
+4. Create dir to store packages: `mkdir packages`
+5. Download packages: `pip download --no-deps -r requirements/downloads.txt -d packages`
+6. Create a virtualenv: `virtualenv --no-download .env`
+7. Activate environement: `source .env/bin/activate`
+8. Upgrade pip: `pip install --no-index --upgrade pip`
+9. Install all dependencies: `pip install --no-index -r requirements/beluga.txt`
+10. Install crocodile package: `pip install -e . --no-deps`
+
+
+
+### Once on a compute node:
+1. Create a virtualenv: `virtualenv --no-download .env`
+2. Activate environement: `source .env/bin/activate`
+3. Upgrade pip: `pip install --no-index --upgrade pip`
+4. Install all dependencies: `pip install --no-index -r requirements/beluga.txt`
+5. Install crocodile package: `pip install -e . --no-deps`
+
+## Running job on Beluga
+### Ask for an interactive Job
+`salloc --time=1:0:0 --mem-per-cpu=3G --ntasks=2`
+
+### Run training
+``
+

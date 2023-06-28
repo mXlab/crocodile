@@ -53,6 +53,11 @@ class Generator(ABC):
 
     @classmethod
     @abstractmethod
+    def prepare(cls, args: TrainParams = TrainParams()):
+        pass
+
+    @classmethod
+    @abstractmethod
     def train(cls, args: TrainParams = TrainParams()):
         pass
 

@@ -137,7 +137,7 @@ class LaurenceDataset(Dataset):
     def load_images(path: Path) -> List[Path]:
         return sorted(path.glob("*.png"))
 
-    def __getitem__(self, index: int) -> Tuple(torch.Tensor, torch.Tensor, int):
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
         img = Image.open(self.images[index])
 
         if self.transform is not None:
