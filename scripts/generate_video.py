@@ -49,7 +49,6 @@ def run(params: Params):
 
     encoder = Encoder.load(params.encoder_path)
     generator = load_from_path(encoder.options.generator_path, device=device)
-    params.dataset.resolution = generator.resolution
     encoder = encoder.to(device)
     encoder.eval()
 

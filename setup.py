@@ -25,5 +25,6 @@ setuptools.setup(
     install_requires=['simple_parsing', 'click', 'requests', 'tqdm', 'ninja', 'imageio-ffmpeg==0.4.3',
                       'google-api-python-client', 'google-auth-httplib2', 'google-auth-oauthlib', 'omegaconf',
                       'psutil', 'scipy', 'lmdb', 'scikit-image', 'ipdb']
-    # 'pyspng',
+    include_package_data=True,
+    package_data={"mypkg": ["*.json"]}
 )
