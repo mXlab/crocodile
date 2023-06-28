@@ -154,7 +154,7 @@ class GoogleDrive:
 
         if not credentials_path.is_file():
             raise FileNotFoundError(
-                f"Credentials file not found at {credentials_path}. Please request access to the file by sending an email to berard.hugo@gmail.com"
+                f"Credentials file not found at {credentials_path}. The file can be downloaded here: https://drive.google.com/file/d/1vB3lQVu7EVKSbSjctY3G4_DlkzjoHjY3/view?usp=drive_link. If you don't have access, please request access to the file by sending an email to berard.hugo@gmail.com"
             )
 
         credentials = service_account.Credentials.from_service_account_file(
