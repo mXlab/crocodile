@@ -11,8 +11,7 @@ class Prepare:
 
     def execute(self):
         """Execute the program."""
-        generator = load_generator(self.params.generator)
-        generator.prepare(self.params)
+        LaurenceDataset.download(params.dataset)
 
 @dataclass
 class Train:
