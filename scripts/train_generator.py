@@ -4,14 +4,16 @@ from crocodile.generator import TrainParams, load_generator
 from crocodile.executor import load_executor, ExecutorConfig
 from simple_parsing import ArgumentParser
 
+
 @dataclass
 class Prepare:
-
     params: TrainParams
 
     def execute(self):
         """Execute the program."""
-        LaurenceDataset.download(params.dataset)
+        generator = load_generator(self.params.generator)
+        generator.prepare(self.params)
+
 
 @dataclass
 class Train:

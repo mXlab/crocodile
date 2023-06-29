@@ -4,7 +4,7 @@ from enum import Enum
 from pathlib import Path
 from dataclasses import dataclass
 from crocodile.dataset import LaurenceDataset
-from simple_parsing.helpers import Serializable
+from simple_parsing import Serializable
 from typing import Optional
 from torch.nn import Module
 import torch
@@ -32,7 +32,7 @@ class TrainParams(Serializable):
 
 @encode.register
 def encode_generator_type(obj: GeneratorType) -> str:
-    """ We choose to encode a tensor as a list, for instance """
+    """We choose to encode a tensor as a list, for instance"""
     return obj.name
 
 
@@ -45,7 +45,13 @@ register_decoding_fn(Path, Path)
 
 
 class Generator(ABC):
-    def __init__(self, model: Optional[Module] = None, latent_dim: Optional[int] = None, resolution: Optional[int] = None, device=None):
+    def __init__(
+        self,
+        model: Optional[Module] = None,
+        latent_dim: Optional[int] = None,
+        resolution: Optional[int] = None,
+        device=None,
+    ):
         self.model = model
         self.device = device
         self.latent_dim = latent_dim
@@ -70,7 +76,11 @@ class Generator(ABC):
 
     @staticmethod
     @abstractmethod
-    def load(self, params: TrainParams = TrainParams(), epoch: Optional[int] = None, device=None):
+    def load(
+        params: TrainParams = TrainParams(),
+        epoch: Optional[int] = None,
+        device=None,
+    ):
         pass
 
     @abstractmethod
