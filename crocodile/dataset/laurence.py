@@ -40,21 +40,26 @@ class LaurenceDataset(Dataset):
 
     @dataclass
     class Params:
-        dataset_path: Path = Path("./data")
+        root: Path = Path("./data")
         resolution: int = 512
         biodata: Biodata.Params = Biodata.Params()
         token: Path = Path("./token.json")
 
+        @property
+        def dataset_path(self):
+            return self.root / "laurence"
+
+
     def __init__(self, args: Params = Params(), transform=None, target_transform=None):
         super().__init__()
 
-        self.path = args.dataset_path / "laurence"
+        self.path = args.dataset_path
         self.transform = transform
         self.target_transform = target_transform
         self.resolution = args.resolution
         self.token = args.token
 
-        self.download(self.path, self.token)
+        self.download(args)
         self.extract_video(self.path)
         self.process_images(self.path, args.resolution)
 
@@ -73,7 +78,8 @@ class LaurenceDataset(Dataset):
         return (self.path / str(self.resolution)).resolve()
 
     @classmethod
-    def download(cls, path: Path, token: Path):
+    def download(cls, args: Params = Params()):
+        path = args.dataset_path
         if cls.check_all_integrity(path):
             return
 
