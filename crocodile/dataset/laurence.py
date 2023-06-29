@@ -46,14 +46,21 @@ class LaurenceDataset(Dataset):
         token: Path = Path("./token.json")
 
         @property
-        def dataset_path(self):
+        def root_path(self):
             return self.root / "laurence"
+
+        @property
+        def dataset_path(self):
+            return self.root_path / str(self.resolution)
+
+        def get_dataset_path(self):
+            return self.dataset_path.resolve()
 
 
     def __init__(self, args: Params = Params(), transform=None, target_transform=None):
         super().__init__()
 
-        self.path = args.dataset_path
+        self.path = args.root_path
         self.transform = transform
         self.target_transform = target_transform
         self.resolution = args.resolution
@@ -74,12 +81,10 @@ class LaurenceDataset(Dataset):
         self.seq_length = self.biodata.seq_length
         self.seq_dim = self.biodata.dim
 
-    def get_path(self) -> Path:
-        return (self.path / str(self.resolution)).resolve()
 
     @classmethod
     def download(cls, args: Params = Params()):
-        path = args.dataset_path
+        path = args.root_path
         if cls.check_all_integrity(path):
             return
 

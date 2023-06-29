@@ -17,11 +17,20 @@ class FastGAN(Generator):
     def prepare(cls, params: TrainParams = TrainParams()):
         print("Loading dataset...")
         LaurenceDataset.download(params.dataset)
+        data_path = params.dataset.get_dataset_path()
+        cls.set_dir(params)
+        command = (
+            "python -m FastGAN.train --outdir %s --path=%s --batch_size %i --im_size %i --prepare_only"
+            % (params.log_dir, data_path, params.batch_size, params.dataset.resolution)
+        )
+        print("Running: %s" % command)
+        subprocess.run(command.split())
+
 
     @classmethod
     def train(cls, params: TrainParams = TrainParams()):
         dataset = LaurenceDataset(params.dataset)
-        data_path = dataset.get_path()
+        data_path = params.dataset.get_dataset_path()
         cls.set_dir(params)
         command = (
             "python -m FastGAN.train --outdir %s --path=%s --batch_size %i --im_size %i"

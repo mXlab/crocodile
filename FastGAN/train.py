@@ -16,7 +16,7 @@ from .operation import ImageFolder, InfiniteSamplerWrapper
 from .diffaug import DiffAugment
 policy = 'color,translation'
 from . import lpips
-percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True)
+percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=torch.cuda.is_available())
 
 
 #torch.backends.cudnn.benchmark = True
@@ -53,6 +53,7 @@ def train_d(net, data, label="real"):
 
 def train(args):
 
+    prepare_only = args.prepare_only
     data_root = args.path
     total_iterations = args.iter
     checkpoint = args.ckpt
@@ -71,7 +72,7 @@ def train(args):
     saved_model_folder, saved_image_folder = get_dir(args)
     
     device = torch.device("cpu")
-    if use_cuda:
+    if use_cuda and torch.cuda.is_available():
         device = torch.device("cuda:0")
 
     transform_list = [
@@ -129,6 +130,10 @@ def train(args):
     optimizerG = optim.Adam(netG.parameters(), lr=nlr, betas=(nbeta1, 0.999))
     optimizerD = optim.Adam(netD.parameters(), lr=nlr, betas=(nbeta1, 0.999))
     
+    if prepare_only:
+        return
+
+    
     for iteration in tqdm(range(current_iteration, total_iterations+1)):
         real_image = next(dataloader)
         real_image = real_image.to(device)
@@ -178,6 +183,7 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='region gan')
 
+    parser.add_argument('--prepare_only', action="store_true")
     parser.add_argument('--path', type=str, default='../lmdbs/art_landscape_1k', help='path of resource dataset, should be a folder that has one or many sub image folders inside')
     parser.add_argument('--cuda', type=int, default=0, help='index of gpu to use')
     parser.add_argument('--name', type=str, default='test1', help='experiment name')
