@@ -8,7 +8,7 @@ from googleapiclient.discovery import build
 from apiclient import http
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-default_credentials_path = "./crocodile-333216-61f547fcafc2.json"
+default_credentials_path = "./crocodile-credentials.json"
 
 
 def check_integrity(path: Path, md5=None) -> bool:

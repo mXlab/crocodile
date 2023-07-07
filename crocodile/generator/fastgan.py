@@ -15,23 +15,19 @@ class FastGANModelArgs:
 class FastGAN(Generator):
     @classmethod
     def prepare(cls, params: TrainParams = TrainParams()):
+        raise NotImplementedError()
         print("Loading dataset...")
         LaurenceDataset.download(params.dataset)
         data_path = params.dataset.get_dataset_path()
-        cls.set_dir(params)
-        command = (
-            "python -m FastGAN.train --outdir %s --path=%s --batch_size %i --im_size %i --prepare_only"
-            % (params.log_dir, data_path, params.batch_size, params.dataset.resolution)
-        )
         print("Running: %s" % command)
         subprocess.run(command.split())
 
     @classmethod
     def train(cls, params: TrainParams = TrainParams()):
+        raise NotImplementedError()
         dataset = LaurenceDataset(params.dataset)
         data_path = params.dataset.get_dataset_path()
         db_path = params.get_db_path()
-        cls.set_dir(params)
         command = f"python -m FastGAN.train --outdir {params.log_dir} --path {data_path} --batch_size {params.batch_size} --im_size {dataset.resolution} --db_path {db_path}"
         print("Running: %s" % command)
         subprocess.run(command.split())
