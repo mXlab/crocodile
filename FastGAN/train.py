@@ -1,202 +1,296 @@
+from dataclasses import dataclass
+import os
+from typing import Optional
+from simple_parsing import Serializable, parse
 import torch
-from torch import nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data.dataloader import DataLoader
+from torch.utils.data import random_split
 from torchvision import transforms
-from torchvision import utils as vutils
+from uuid import uuid4
+from pathlib import Path
+from ignite.engine import Engine, Events
+from ignite.handlers import EMAHandler, Checkpoint
+from ignite.contrib.handlers.tqdm_logger import ProgressBar
+from ignite.metrics import FID
 
-import argparse
 import random
-from tqdm import tqdm
 
-from .models import weights_init, Discriminator, Generator
-from .operation import copy_G_params, load_params, get_dir
-from .operation import ImageFolder, InfiniteSamplerWrapper
-from .diffaug import DiffAugment
-policy = 'color,translation'
-from . import lpips
-percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=torch.cuda.is_available())
+from crocodile.db import load_db
 
+from FastGAN.models import weights_init, Discriminator, Generator
+from FastGAN.operation import ImageFolder
+from FastGAN.diffaug import DiffAugment
 
-#torch.backends.cudnn.benchmark = True
+policy = "color,translation"
+from FastGAN import lpips
+
+# torch.backends.cudnn.benchmark = True
 
 
 def crop_image_by_part(image, part):
-    hw = image.shape[2]//2
-    if part==0:
-        return image[:,:,:hw,:hw]
-    if part==1:
-        return image[:,:,:hw,hw:]
-    if part==2:
-        return image[:,:,hw:,:hw]
-    if part==3:
-        return image[:,:,hw:,hw:]
+    hw = image.shape[2] // 2
+    if part == 0:
+        return image[:, :, :hw, :hw]
+    if part == 1:
+        return image[:, :, :hw, hw:]
+    if part == 2:
+        return image[:, :, hw:, :hw]
+    if part == 3:
+        return image[:, :, hw:, hw:]
 
-def train_d(net, data, label="real"):
-    """Train function of discriminator"""
-    if label=="real":
-        part = random.randint(0, 3)
-        pred, [rec_all, rec_small, rec_part] = net(data, label, part=part)
-        err = F.relu(  torch.rand_like(pred) * 0.2 + 0.8 -  pred).mean() + \
-            percept( rec_all, F.interpolate(data, rec_all.shape[2]) ).sum() +\
-            percept( rec_small, F.interpolate(data, rec_small.shape[2]) ).sum() +\
-            percept( rec_part, F.interpolate(crop_image_by_part(data, part), rec_part.shape[2]) ).sum()
-        err.backward()
-        return pred.mean().item(), rec_all, rec_small, rec_part
-    else:
-        pred = net(data, label)
-        err = F.relu( torch.rand_like(pred) * 0.2 + 0.8 + pred).mean()
-        err.backward()
-        return pred.mean().item()
-        
 
-def train(args):
+@dataclass
+class TrainerParams(Serializable):
+    db_path: str
+    log_dir: Path = Path("./logs")
+    data_root: Path = Path("./data/laurence/512")
+    name: str = "fastgan-default"
+    use_gpu: bool = True
+    ngf: int = 64
+    ndf: int = 64
+    nz: int = 256
+    im_size: int = 512
+    nlr: float = 0.0002
+    nbeta1: float = 0.5
+    nbeta2: float = 0.999
+    batch_size: int = 8
+    _dataloader_workers: Optional[int] = None
+    num_epochs: int = 1000
+    logging_interval: int = 100
+    saving_interval: int = 5000
+    checkpoint_interval: int = 1000
+    ema_momentum: float = 0.001
+    num_test_samples: int = 10000
+    prepare_only: bool = False
 
-    prepare_only = args.prepare_only
-    data_root = args.path
-    total_iterations = args.iter
-    checkpoint = args.ckpt
-    batch_size = args.batch_size
-    im_size = args.im_size
-    ndf = 64
-    ngf = args.ngf
-    nz = args.nz
-    nlr = 0.0002
-    nbeta1 = 0.5
-    use_cuda = True
-    multi_gpu = True
-    dataloader_workers = 8
-    current_iteration = 0
-    save_interval = 100
-    saved_model_folder, saved_image_folder = get_dir(args)
-    
-    device = torch.device("cpu")
-    if use_cuda and torch.cuda.is_available():
-        device = torch.device("cuda:0")
+    @property
+    def dataloader_workers(self):
+        if self._dataloader_workers is None:
+            cpu_count = os.cpu_count()
+            if cpu_count is None:
+                return 0
+            else:
+                return cpu_count
+        else:
+            return self._dataloader_workers
 
-    transform_list = [
-            transforms.Resize((int(im_size),int(im_size))),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-        ]
-    trans = transforms.Compose(transform_list)
-    
-    if 'lmdb' in data_root:
-        from operation import MultiResolutionDataset
-        dataset = MultiResolutionDataset(data_root, trans, 1024)
-    else:
-        dataset = ImageFolder(root=data_root, transform=trans)
 
-    dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
-                      sampler=InfiniteSamplerWrapper(dataset), num_workers=dataloader_workers, pin_memory=True))
-    '''
-    loader = MultiEpochsDataLoader(dataset, batch_size=batch_size, 
-                               shuffle=True, num_workers=dataloader_workers, 
-                               pin_memory=True)
-    dataloader = CudaDataLoader(loader, 'cuda')
-    '''
-    
-    
-    #from model_s import Generator, Discriminator
-    netG = Generator(ngf=ngf, nz=nz, im_size=im_size)
-    netG.apply(weights_init)
+class Trainer:
+    def __init__(self, params: TrainerParams):
+        self.params = params
 
-    netD = Discriminator(ndf=ndf, im_size=im_size)
-    netD.apply(weights_init)
+        if params.use_gpu and torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        else:
+            self.device = torch.device("cpu")
 
-    netG.to(device)
-    netD.to(device)
+        self.netG = Generator(ngf=params.ngf, nz=params.nz, im_size=params.im_size)
+        self.netG.apply(weights_init)
 
-    avg_param_G = copy_G_params(netG)
+        self.netD = Discriminator(ndf=params.ndf, im_size=params.im_size)
+        self.netD.apply(weights_init)
 
-    fixed_noise = torch.FloatTensor(8, nz).normal_(0, 1).to(device)
-    
-    if checkpoint != 'None':
-        ckpt = torch.load(checkpoint)
-        netG.load_state_dict(ckpt['g'])
-        netD.load_state_dict(ckpt['d'])
-        avg_param_G = ckpt['g_ema']
-        optimizerG.load_state_dict(ckpt['opt_g'])
-        optimizerD.load_state_dict(ckpt['opt_d'])
-        current_iteration = int(checkpoint.split('_')[-1].split('.')[0])
-        del ckpt
-        
-    if multi_gpu:
-        netG = nn.DataParallel(netG.to(device))
-        netD = nn.DataParallel(netD.to(device))
+        self.netG.to(self.device)
+        self.netD.to(self.device)
 
-    optimizerG = optim.Adam(netG.parameters(), lr=nlr, betas=(nbeta1, 0.999))
-    optimizerD = optim.Adam(netD.parameters(), lr=nlr, betas=(nbeta1, 0.999))
-    
-    if prepare_only:
-        return
+        self.optimizerG = optim.Adam(
+            self.netG.parameters(), lr=params.nlr, betas=(params.nbeta1, params.nbeta2)
+        )
+        self.optimizerD = optim.Adam(
+            self.netD.parameters(), lr=params.nlr, betas=(params.nbeta1, params.nbeta2)
+        )
 
-    
-    for iteration in tqdm(range(current_iteration, total_iterations+1)):
-        real_image = next(dataloader)
-        real_image = real_image.to(device)
+        self.engine = Engine(self.train_step)
+        self.ema_handler = EMAHandler(self.netG, momentum=params.ema_momentum)
+        self.ema_handler.attach(
+            self.engine, name="ema", event=Events.ITERATION_COMPLETED(every=1)
+        )
+
+        self.fid_metric = FID()
+        self.fid_metric_ema = FID()
+
+        self.percept = lpips.PerceptualLoss(
+            model="net-lin", net="vgg", use_gpu=torch.cuda.is_available()
+        )
+
+        if params.prepare_only:
+            exit(0)
+
+        exp_id = uuid4().hex
+        path = Path(params.log_dir) / exp_id
+        db = load_db(params.db_path)
+        self.experiment = db.create_experiment(params.name, exp_id, path, params)
+
+    def get_engine(self):
+        return self.engine
+
+    @property
+    def nz(self):
+        return self.params.nz
+
+    def train_step(self, engine, batch):
+        real_image = batch.to(self.device)
         current_batch_size = real_image.size(0)
-        noise = torch.Tensor(current_batch_size, nz).normal_(0, 1).to(device)
+        noise = torch.Tensor(current_batch_size, self.nz).normal_(0, 1).to(self.device)
 
-        fake_images = netG(noise)
+        fake_images = self.netG(noise)
 
         real_image = DiffAugment(real_image, policy=policy)
         fake_images = [DiffAugment(fake, policy=policy) for fake in fake_images]
-        
-        ## 2. train Discriminator
-        netD.zero_grad()
 
-        err_dr, rec_img_all, rec_img_small, rec_img_part = train_d(netD, real_image, label="real")
-        train_d(netD, [fi.detach() for fi in fake_images], label="fake")
-        optimizerD.step()
-        
+        ## 2. train Discriminator
+        self.netD.zero_grad()
+
+        err_dr, rec_img_all, rec_img_small, rec_img_part = self.train_d(
+            real_image, label="real"
+        )
+        self.train_d([fi.detach() for fi in fake_images], label="fake")
+        self.optimizerD.step()
+
         ## 3. train Generator
-        netG.zero_grad()
-        pred_g = netD(fake_images, "fake")
+        self.netG.zero_grad()
+        pred_g = self.netD(fake_images, "fake")
         err_g = -pred_g.mean()
 
         err_g.backward()
-        optimizerG.step()
+        self.optimizerG.step()
 
-        for p, avg_p in zip(netG.parameters(), avg_param_G):
-            avg_p.mul_(0.999).add_(0.001 * p.data)
+        return {
+            "err_dr": err_dr,
+            "err_g": err_g.item(),
+        }
 
-        if iteration % 100 == 0:
-            print("GAN: loss d: %.5f    loss g: %.5f"%(err_dr, -err_g.item()))
+    def train_d(self, data, label="real"):
+        """Train function of discriminator"""
+        if label == "real":
+            part = random.randint(0, 3)
+            pred, [rec_all, rec_small, rec_part] = self.netD(data, label, part=part)
+            err = (
+                F.relu(torch.rand_like(pred) * 0.2 + 0.8 - pred).mean()
+                + self.percept(rec_all, F.interpolate(data, rec_all.shape[2])).sum()
+                + self.percept(rec_small, F.interpolate(data, rec_small.shape[2])).sum()
+                + self.percept(
+                    rec_part,
+                    F.interpolate(crop_image_by_part(data, part), rec_part.shape[2]),
+                ).sum()
+            )
+            err.backward()
+            return pred.mean().item(), rec_all, rec_small, rec_part
+        else:
+            pred = self.netD(data, label)
+            err = F.relu(torch.rand_like(pred) * 0.2 + 0.8 + pred).mean()
+            err.backward()
+            return pred.mean().item()
 
-        if iteration % (save_interval*10) == 0:
-            backup_para = copy_G_params(netG)
-            load_params(netG, avg_param_G)
-            with torch.no_grad():
-                vutils.save_image(netG(fixed_noise)[0].add(1).mul(0.5), saved_image_folder+'/%d.jpg'%iteration, nrow=4)
-                vutils.save_image( torch.cat([
-                        F.interpolate(real_image, 128), 
-                        rec_img_all, rec_img_small,
-                        rec_img_part]).add(1).mul(0.5), saved_image_folder+'/rec_%d.jpg'%iteration )
-            load_params(netG, backup_para)
+    def evaluate(self, test_loader):
+        self.fid_metric.reset()
+        self.fid_metric_ema.reset()
+        with torch.no_grad():
+            for batch in test_loader:
+                real_image = batch.to(self.device)
+                noise = (
+                    torch.Tensor(len(real_image), self.nz).normal_(0, 1).to(self.device)
+                )
 
-        if iteration % (save_interval*50) == 0 or iteration == total_iterations:
-            torch.save({'g':netG.state_dict() ,'g_ema':avg_param_G,'d':netD.state_dict(), 'args': args}, saved_model_folder+'/%.6d.pth'%iteration)
+                fake_images = self.netG(noise)[0]
+                fake_images_ema = self.ema_handler.model(noise)[0]
+
+                self.fid_metric.update((fake_images, real_image))
+                self.fid_metric_ema.update((fake_images_ema, real_image))
+
+        return self.fid_metric.compute(), self.fid_metric_ema.compute()
+
+    def save(self, test_loader):
+        fid, fid_ema = self.evaluate(test_loader)
+        print(
+            f"Epoch[{self.engine.state.epoch}], Iter[{self.engine.state.iteration}], fid: {fid}, fid_ema: {fid_ema}"
+        )
+        self.experiment.save_model(
+            name="default",
+            model_type="fastgan",
+            model=self.netG,
+            iteration=self.engine.state.iteration,
+            fid=fid,
+        )
+        self.experiment.save_model(
+            name="ema",
+            model_type="fastgan",
+            model=self.ema_handler.model,
+            iteration=self.engine.state.iteration,
+            fid=fid_ema,
+        )
+
+    def get_checkpointer(self):
+        checkpointer = Checkpoint(
+            to_save={
+                "G": self.netG,
+                "G_ema": self.ema_handler.model,
+                "G_opt": self.optimizerG,
+                "D_opt": self.optimizerD,
+                "engine": self.engine,
+            },
+            save_handler=self.experiment.get_root_dir() / "checkpoint",
+            n_saved=1,
+        )
+        return checkpointer
+
+    def start(self, train_loader, num_epochs: int):
+        self.experiment.start()
+        self.engine.run(train_loader, max_epochs=num_epochs)
+
+    def end(self):
+        self.experiment.end()
+
+
+def run(config: TrainerParams):
+    transform_list = [
+        transforms.Resize((int(config.im_size), int(config.im_size))),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+    ]
+    trans = transforms.Compose(transform_list)
+    dataset = ImageFolder(root=config.data_root, transform=trans)
+    testset, _ = random_split(
+        dataset, [config.num_test_samples, len(dataset) - config.num_test_samples]
+    )
+    train_loader = DataLoader(
+        dataset,
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=config.dataloader_workers,
+    )
+    test_loader = DataLoader(
+        testset, batch_size=config.batch_size, num_workers=config.dataloader_workers
+    )
+
+    trainer = Trainer(config)
+    engine = trainer.get_engine()
+
+    @engine.on(Events.ITERATION_COMPLETED(every=config.logging_interval))
+    def log(engine: Engine):
+        print(
+            f"Epoch[{engine.state.epoch}], Iter[{engine.state.iteration}], Loss D: {engine.state.output['err_dr']:.5f}, Loss G: {engine.state.output['err_g']:.5f}"  # TODO: fix type error
+        )
+
+    checkpointer = trainer.get_checkpointer()
+    engine.add_event_handler(
+        Events.ITERATION_COMPLETED(every=config.checkpoint_interval), checkpointer
+    )
+
+    @engine.on(Events.ITERATION_COMPLETED(every=config.saving_interval))
+    def save(engine: Engine):
+        trainer.save(test_loader)
+
+    ProgressBar().attach(engine)
+
+    print("Start training...")
+    trainer.start(train_loader, config.num_epochs)
+    trainer.end()
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='region gan')
-
-    parser.add_argument('--prepare_only', action="store_true")
-    parser.add_argument('--path', type=str, default='../lmdbs/art_landscape_1k', help='path of resource dataset, should be a folder that has one or many sub image folders inside')
-    parser.add_argument('--cuda', type=int, default=0, help='index of gpu to use')
-    parser.add_argument('--name', type=str, default='test1', help='experiment name')
-    parser.add_argument('--iter', type=int, default=50000, help='number of iterations')
-    parser.add_argument('--start_iter', type=int, default=0, help='the iteration to start training')
-    parser.add_argument('--batch_size', type=int, default=8, help='mini batch number of images')
-    parser.add_argument('--im_size', type=int, default=1024, help='image resolution')
-    parser.add_argument('--ckpt', type=str, default='None', help='checkpoint weight path if have one')
-    parser.add_argument('--outdir', type=str)
-    parser.add_argument('--nz', type=int, default=256)
-    parser.add_argument('--ngf', type=int, default=64)
-
-    args = parser.parse_args()
-    print(args)
-
-    train(args)
+    args = parse(TrainerParams)
+    run(args)

@@ -214,4 +214,6 @@ data/
 .idea/
 packages/
 requirements/local.txt
-crocodile-333216-61f547fcafc2.json
+crocodile-credentials.json
+*.db
+logs/

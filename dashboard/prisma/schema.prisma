@@ -1,0 +1,14 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model experiments {
+  id            Int                   @id @default(autoincrement())
+  experiment_id String
+  name          String
+  created_at    DateTime
+  path          String
+  status        String
+  updated_at    DateTime?
+}
