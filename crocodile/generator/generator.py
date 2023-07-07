@@ -16,18 +16,26 @@ class GeneratorType(Enum):
     STYLEFORMER = "styleformer"
     FASTGAN = "fastgan"
 
+    @classmethod
+    def values(cls):
+        return [e.value for e in cls]
+
 
 @dataclass
 class TrainParams(Serializable):
     output_dir: Path = Path("./results")
     generator: GeneratorType = GeneratorType.FASTGAN
     batch_size: int = 64
-    exp_name: str = "test_1"
+    exp_name: str = "default"
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
+    db_path: Path = Path("./crocodile.db")
 
     def __post_init__(self):
         self.log_dir = self.output_dir / self.exp_name
         self.params_file = self.log_dir / "params.yaml"
+
+    def get_db_path(self):
+        return self.db_path.resolve()
 
 
 @encode.register
