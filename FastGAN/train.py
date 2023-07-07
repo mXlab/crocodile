@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 import os
-from typing import Optional
-from simple_parsing import Serializable, parse
+from typing import Optional, Union
+from simple_parsing import Serializable, ArgumentParser
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data import random_split
+from torch.utils.data import random_split, Dataset
 from torchvision import transforms
 from uuid import uuid4
 from pathlib import Path
@@ -18,6 +18,7 @@ from ignite.metrics import FID
 import random
 
 from crocodile.db import load_db
+from crocodile.dataset import LaurenceDataset
 
 from FastGAN.models import weights_init, Discriminator, Generator
 from FastGAN.operation import ImageFolder
@@ -45,7 +46,6 @@ def crop_image_by_part(image, part):
 class TrainerParams(Serializable):
     db_path: str
     log_dir: Path = Path("./logs")
-    data_root: Path = Path("./data/laurence/512")
     name: str = "fastgan-default"
     use_gpu: bool = True
     ngf: int = 64
@@ -63,7 +63,7 @@ class TrainerParams(Serializable):
     checkpoint_interval: int = 1000
     ema_momentum: float = 0.001
     num_test_samples: int = 10000
-    prepare_only: bool = False
+    dataset: LaurenceDataset.Params = LaurenceDataset.Params()
 
     @property
     def dataloader_workers(self):
@@ -81,10 +81,36 @@ class Trainer:
     def __init__(self, params: TrainerParams):
         self.params = params
 
+        self.prepare(params)
+
         if params.use_gpu and torch.cuda.is_available():
             self.device = torch.device("cuda")
         else:
             self.device = torch.device("cpu")
+
+        transform_list = [
+            transforms.Resize((int(params.im_size), int(params.im_size))),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ]
+        trans = transforms.Compose(transform_list)
+
+        LaurenceDataset.prepare(params.dataset.root_path, params.dataset.resolution)
+        dataset = ImageFolder(root=params.dataset.dataset_path, transform=trans)
+
+        testset, _ = random_split(
+            dataset, [params.num_test_samples, len(dataset) - params.num_test_samples]
+        )
+        self.train_loader = DataLoader(
+            dataset,
+            batch_size=params.batch_size,
+            shuffle=False,
+            num_workers=params.dataloader_workers,
+        )
+        test_loader = DataLoader(
+            testset, batch_size=params.batch_size, num_workers=params.dataloader_workers
+        )
 
         self.netG = Generator(ngf=params.ngf, nz=params.nz, im_size=params.im_size)
         self.netG.apply(weights_init)
@@ -111,20 +137,27 @@ class Trainer:
         self.fid_metric = FID()
         self.fid_metric_ema = FID()
 
-        self.percept = lpips.PerceptualLoss(
-            model="net-lin", net="vgg", use_gpu=torch.cuda.is_available()
-        )
-
-        if params.prepare_only:
-            exit(0)
-
         exp_id = uuid4().hex
         path = Path(params.log_dir) / exp_id
         db = load_db(params.db_path)
         self.experiment = db.create_experiment(params.name, exp_id, path, params)
 
-    def get_engine(self):
-        return self.engine
+        @self.engine.on(Events.ITERATION_COMPLETED(every=params.logging_interval))
+        def log(engine: Engine):
+            print(
+                f"Epoch[{engine.state.epoch}], Iter[{engine.state.iteration}], Loss D: {engine.state.output['err_dr']:.5f}, Loss G: {engine.state.output['err_g']:.5f}"  # TODO: fix type error
+            )
+
+        checkpointer = self.get_checkpointer()
+        self.engine.add_event_handler(
+            Events.ITERATION_COMPLETED(every=params.checkpoint_interval), checkpointer
+        )
+
+        @self.engine.on(Events.ITERATION_COMPLETED(every=params.saving_interval))
+        def save(engine: Engine):
+            self.save(test_loader)
+
+        ProgressBar().attach(self.engine)
 
     @property
     def nz(self):
@@ -236,61 +269,69 @@ class Trainer:
         )
         return checkpointer
 
-    def start(self, train_loader, num_epochs: int):
+    def start(self, num_epochs: int):
         self.experiment.start()
-        self.engine.run(train_loader, max_epochs=num_epochs)
+        self.engine.run(self.train_loader, max_epochs=num_epochs)
 
     def end(self):
         self.experiment.end()
 
-
-def run(config: TrainerParams):
-    transform_list = [
-        transforms.Resize((int(config.im_size), int(config.im_size))),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-    ]
-    trans = transforms.Compose(transform_list)
-    dataset = ImageFolder(root=config.data_root, transform=trans)
-    testset, _ = random_split(
-        dataset, [config.num_test_samples, len(dataset) - config.num_test_samples]
-    )
-    train_loader = DataLoader(
-        dataset,
-        batch_size=config.batch_size,
-        shuffle=False,
-        num_workers=config.dataloader_workers,
-    )
-    test_loader = DataLoader(
-        testset, batch_size=config.batch_size, num_workers=config.dataloader_workers
-    )
-
-    trainer = Trainer(config)
-    engine = trainer.get_engine()
-
-    @engine.on(Events.ITERATION_COMPLETED(every=config.logging_interval))
-    def log(engine: Engine):
-        print(
-            f"Epoch[{engine.state.epoch}], Iter[{engine.state.iteration}], Loss D: {engine.state.output['err_dr']:.5f}, Loss G: {engine.state.output['err_g']:.5f}"  # TODO: fix type error
+    @classmethod
+    def prepare(cls, config: TrainerParams):
+        LaurenceDataset.download(config.dataset.root_path)
+        cls.percept = lpips.PerceptualLoss(
+            model="net-lin", net="vgg", use_gpu=torch.cuda.is_available()
         )
+        FID()
 
-    checkpointer = trainer.get_checkpointer()
-    engine.add_event_handler(
-        Events.ITERATION_COMPLETED(every=config.checkpoint_interval), checkpointer
-    )
+    @staticmethod
+    def run(config: TrainerParams):
+        trainer = Trainer(config)
+        print("Start training...")
+        trainer.start(config.num_epochs)
+        trainer.end()
 
-    @engine.on(Events.ITERATION_COMPLETED(every=config.saving_interval))
-    def save(engine: Engine):
-        trainer.save(test_loader)
 
-    ProgressBar().attach(engine)
+class EmptyDataset(Dataset):
+    def __len__(self):
+        return 0
 
-    print("Start training...")
-    trainer.start(train_loader, config.num_epochs)
-    trainer.end()
+    def __getitem__(self, idx: int):
+        raise IndexError("EmptyDataset has no items")
+
+
+@dataclass
+class Prepare:
+    params: TrainerParams
+
+    def execute(self):
+        """Execute the program."""
+        Trainer.prepare(self.params)
+
+
+@dataclass
+class Train:
+    params: TrainerParams
+
+    def execute(self):
+        """Execute the program."""
+        Trainer.run(self.params)
+
+
+@dataclass
+class Program:
+    """Some top-level command"""
+
+    command: Union[Train, Prepare]
+
+    def execute(self):
+        """Execute the program."""
+        return self.command.execute()
 
 
 if __name__ == "__main__":
-    args = parse(TrainerParams)
-    run(args)
+    parser = ArgumentParser()
+    parser.add_arguments(Program, dest="prog")
+    args = parser.parse_args()
+    prog: Program = args.prog
+    prog.execute()

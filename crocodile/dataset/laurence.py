@@ -11,6 +11,7 @@ from .biodata import Biodata
 import torch
 from typing import List, Tuple
 
+
 @dataclass
 class Config:
     video_file: str = MISSING
@@ -26,6 +27,7 @@ class Config:
     crop_width: int = MISSING
     crop_height: int = MISSING
     usecols: List[int] = MISSING
+
 
 class LaurenceDataset(Dataset):
     FILES = [
@@ -53,10 +55,6 @@ class LaurenceDataset(Dataset):
         def dataset_path(self):
             return self.root_path / str(self.resolution)
 
-        def get_dataset_path(self):
-            return self.dataset_path.resolve()
-
-
     def __init__(self, args: Params = Params(), transform=None, target_transform=None):
         super().__init__()
 
@@ -66,9 +64,7 @@ class LaurenceDataset(Dataset):
         self.resolution = args.resolution
         self.token = args.token
 
-        self.download(args)
-        self.extract_video(self.path)
-        self.process_images(self.path, args.resolution)
+        self.prepare(args.root_path, args.resolution)
 
         self.config = self.load_config(self.path)
 
@@ -81,20 +77,24 @@ class LaurenceDataset(Dataset):
         self.seq_length = self.biodata.seq_length
         self.seq_dim = self.biodata.dim
 
-
     @classmethod
-    def download(cls, args: Params = Params()):
-        path = args.root_path
-        if cls.check_all_integrity(path):
+    def download(cls, root: Path):
+        if cls.check_all_integrity(root):
             return
 
-        path.mkdir(exist_ok=True)
+        root.mkdir(exist_ok=True)
 
         drive = GoogleDrive.connect_to_drive()
         print("Connected to drive.")
 
         for file_id, filename, md5 in cls.FILES:
-            drive.download_file(file_id, path / filename, md5)
+            drive.download_file(file_id, root / filename, md5)
+
+    @classmethod
+    def prepare(cls, root: Path, resolution: int):
+        cls.download(root)
+        cls.extract_video(root)
+        cls.process_images(root, resolution)
 
     @classmethod
     def check_all_integrity(cls, path: Path) -> bool:

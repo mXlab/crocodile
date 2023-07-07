@@ -25,7 +25,6 @@ class GeneratorType(Enum):
 class TrainParams(Serializable):
     output_dir: Path = Path("./results")
     generator: GeneratorType = GeneratorType.FASTGAN
-    batch_size: int = 64
     exp_name: str = "default"
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     db_path: Path = Path("./crocodile.db")
