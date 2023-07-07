@@ -2,7 +2,6 @@ from pathlib import Path
 from peewee import (
     Model,
     CharField,
-    DateField,
     SqliteDatabase,
     Field,
     ForeignKeyField,
@@ -48,6 +47,16 @@ class Status(Enum):
     FINISHED = "finished"
 
 
+class DateTimeField(Field):
+    field_type = "datetime"
+
+    def db_value(self, value: datetime):
+        return value.strftime("%Y-%m-%dT%H:%M:%S-00:00")
+
+    def python_value(self, value: str):
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S-00:00")
+
+
 class StatusField(Field):
     field_type = "status"
 
@@ -61,27 +70,27 @@ class StatusField(Field):
 class ExperimentTable(BaseModel):
     experiment_id = UUIDField()
     name = CharField()
-    created_at = DateField()
+    created_at = DateTimeField()
     path = CharField()
     status = StatusField(default=Status.PENDING)
-    updated_at = DateField(null=True)
+    updated_at = DateTimeField(null=True)
 
     class Meta:
-        table_name = "experiments"
+        table_name = "experiment"
 
 
 class ModelTable(BaseModel):
     name = CharField()
     type = GeneratorField()
-    created_at = DateField()
-    uploaded_at = DateField(null=True)
+    created_at = DateTimeField()
+    uploaded_at = DateTimeField(null=True)
     path = CharField()
     experiment = ForeignKeyField(ExperimentTable, backref="models")
     iteration = IntegerField()
     fid = FloatField(null=True)
 
     class Meta:
-        table_name = "models"
+        table_name = "model"
 
 
 class Experiment:

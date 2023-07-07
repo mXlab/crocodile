@@ -1,5 +1,18 @@
+import { PrismaClient, Model } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { ModelTable, RefreshButton } from "./components";
+
+const prisma = new PrismaClient();
+
+export const revalidate = 1;
+
 export default async function Home() {
-  const files = await fetch("/api/files", { next: { revalidate: 1 } });
-  console.log(files);
-  return <div>Hello World !</div>;
+  const models = await prisma.model.findMany();
+  return (
+    <div>
+      <h1>Hello World !</h1>
+      <RefreshButton />
+      <ModelTable models={models} />
+    </div>
+  );
 }
