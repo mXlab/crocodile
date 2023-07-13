@@ -10,7 +10,7 @@ export default async function Home() {
   const models = await prisma.model.findMany();
   return (
     <div>
-      <h1>Hello World !</h1>
+      <h1>Dashboard</h1>
       <RefreshButton />
       <ModelTable models={models} />
     </div>
