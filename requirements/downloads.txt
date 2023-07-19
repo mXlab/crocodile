@@ -1,2 +1,8 @@
 simple_parsing
 lmdb
+lightning
+mlflow
+alembic
+google-cloud-core
+google-cloud-storage
+google-resumable-media

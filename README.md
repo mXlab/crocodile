@@ -76,20 +76,14 @@ You first need to extract the frame from the videos by running:
 
 ## Setting up on Beluga
 
-### On the login node:
+### Setting up on the login node:
 
 1. Clone repository: `git clone --recurse-submodules git@github.com:a3lab/crocodile.git`
 2. `cd crocodile`
-3. Loading python: `module load python`
-4. Create dir to store packages: `mkdir packages`
-5. Download packages: `pip download --no-deps -r requirements/downloads.txt -d packages`
-6. Create a virtualenv: `virtualenv --no-download .env`
-7. Activate environement: `source .env/bin/activate`
-8. Upgrade pip: `pip install --no-index --upgrade pip`
-9. Install all dependencies: `pip install --no-index -r requirements/beluga.txt`
-10. Install crocodile package: `pip install -e . --no-deps`
+3. Run: `sh ./setup.sh`
 
-### Once on a compute node:
+### Training a model:
+
 
 1. Create a virtualenv: `virtualenv --no-download .env`
 2. Activate environement: `source .env/bin/activate`
@@ -103,6 +97,6 @@ You first need to extract the frame from the videos by running:
 
 `salloc --time=1:0:0 --mem-per-cpu=3G --ntasks=2`
 
-### Run training
+# MlFLow
 
 ``
