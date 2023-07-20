@@ -32,10 +32,11 @@ To train a model run the following commands:
 
 ## Example on how to use a Model:
 ```python
+import torch
 from crocodile.trainer import load_generator
 from FastGAN import FastGANConfig
 config = FastGANConfig()
 generator = load_generator(config)
-noise = torch.tensor(1, generator.latent_dim)
-img = generator.generate()
+noise = torch.zeros(1, generator.latent_dim).normal_()
+img = generator.generate(noise)
 ```
