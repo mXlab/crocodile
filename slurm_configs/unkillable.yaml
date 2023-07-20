@@ -1,8 +1,0 @@
-comment: ''
-log_folder: ~/logs
-partition: unkillable
-nodes: 1
-gpus_per_node: 1
-cpus_per_task: 4
-time_in_min: 2880
-mem_by_gpu: 16

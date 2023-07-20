@@ -1,11 +1,13 @@
 import os
 from typing import Optional
 from dataclasses import dataclass
+import subprocess
 from simple_parsing import Serializable, subgroups
 
+import torch
 from torch.utils.data import DataLoader, random_split
-import lightning.pytorch as pl
-from lightning.pytorch.loggers import MLFlowLogger
+import pytorch_lightning as pl
+from pytorch_lightning.loggers import MLFlowLogger
 
 from FastGAN import FastGAN, FastGANConfig
 
@@ -16,7 +18,8 @@ from .generator import GeneratorConfig
 @dataclass
 class TrainerConfig(Serializable):
     experiment_name: str = "crocodile-default"
-    tracking_uri: str = "http://localhost:5000"
+    host: str = "http://localhost"
+    port: int = 5000
     max_epochs: int = 100
     batch_size: int = 32
     num_valid_samples: int = 1000
@@ -50,6 +53,7 @@ def load_generator(config: GeneratorConfig):
 
 class Trainer:
     def __init__(self, config: TrainerConfig) -> None:
+        self.config = config
         self.generator = load_generator(config.generator)
         dataset = LaurenceDataset(config.dataset)
 
@@ -70,19 +74,35 @@ class Trainer:
             num_workers=config.dataloader_workers,
         )
 
-        mlf_logger = MLFlowLogger(
-            experiment_name=config.experiment_name,
-            tracking_uri=config.tracking_uri,
-            log_model="all",
-        )
+        self.mlflow_server_host = os.environ["HOSTNAME"]
 
-        accelerator = "gpu" if config.use_gpu else "cpu"
-        self.trainer = pl.Trainer(
-            logger=mlf_logger, max_epochs=config.max_epochs, accelerator=accelerator
+    def connect_to_mlflow_server(self):
+        subprocess.run(
+            f"ssh -N -f -L {self.config.port}:localhost:{self.config.port} {self.mlflow_server_host}",
+            shell=True,
+            check=True,
         )
 
     def train(self):
-        self.trainer.fit(
+        if self.mlflow_server_host != os.environ["HOSTNAME"]:
+            self.connect_to_mlflow_server()
+
+        mlf_logger = MLFlowLogger(
+            experiment_name=self.config.experiment_name,
+            tracking_uri=f"{self.config.host}:{self.config.port}",
+            log_model="all",
+        )
+
+        accelerator = (
+            "gpu" if self.config.use_gpu and torch.cuda.is_available() else "cpu"
+        )
+        trainer = pl.Trainer(
+            logger=mlf_logger,
+            max_epochs=self.config.max_epochs,
+            accelerator=accelerator,
+        )
+
+        trainer.fit(
             model=self.generator,
             train_dataloaders=self.train_loader,
             val_dataloaders=self.valid_loader,

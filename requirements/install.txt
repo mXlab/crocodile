@@ -1,3 +1,11 @@
+mlflow
 torch
-torchmetrics
 submitit
+pytorch_lightning
+scikit-image
+torchvision
+google-auth
+google-api-python-client
+omegaconf
+
+

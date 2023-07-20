@@ -74,29 +74,19 @@ You first need to extract the frame from the videos by running:
 
 # New version
 
-## Setting up on Beluga
+## Installation
+Run the following command to install the package:
+```bash
+sh scripts/install.sh
+```
 
-### Setting up on the login node:
+## Starting the mlflow server:
+To start the mlflow server run the following commands:
+1. `screen -S mlflow_server`  or `screen -r mlflow_server` if the screen is already created
+2. `sh scripts/start_mlflow_server.sh`
 
-1. Clone repository: `git clone --recurse-submodules git@github.com:a3lab/crocodile.git`
-2. `cd crocodile`
-3. Run: `sh ./setup.sh`
-
-### Training a model:
-
-
-1. Create a virtualenv: `virtualenv --no-download .env`
-2. Activate environement: `source .env/bin/activate`
-3. Upgrade pip: `pip install --no-index --upgrade pip`
-4. Install all dependencies: `pip install --no-index -r requirements/beluga.txt`
-5. Install crocodile package: `pip install -e . --no-deps`
-
-## Running job on Beluga
-
-### Ask for an interactive Job
-
-`salloc --time=1:0:0 --mem-per-cpu=3G --ntasks=2`
-
-# MlFLow
-
-``
+## Training a model:
+To train a model run the following command:
+```bash
+python crocodile/train.py
+```

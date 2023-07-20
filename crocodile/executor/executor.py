@@ -4,21 +4,25 @@ from typing import Callable, Any
 
 
 @dataclass
-class BaseExecutorConfig:
+class ExecutorConfig:
     pass
 
 
 class Executor(ABC):
+    __name__: str
+
     @abstractmethod
     def __call__(self, func: Callable[[Any], None], *args, **kwargs):
         pass
 
 
 @dataclass
-class LocalExecutorConfig(BaseExecutorConfig):
+class LocalExecutorConfig(ExecutorConfig):
     pass
 
 
 class LocalExecutor(Executor):
+    __name__ = "local"
+
     def __call__(self, func: Callable[[Any], None], *args, **kwargs):
         return func(*args, **kwargs)
