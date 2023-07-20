@@ -22,7 +22,7 @@ class SlurmConfig(ExecutorConfig):
     nodes: Optional[int] = None
     cpus_per_task: Optional[int] = None
     slurm_array_parallelism: Optional[int] = None
-    mem_gb: Optional[int] = None
+    mem_gb: Optional[int] = 16
     account: Optional[str] = "def-sofian"
 
     def __post_init__(self):

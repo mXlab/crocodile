@@ -69,6 +69,10 @@ class FastGAN(pl.LightningModule):
         self.fid = KernelInceptionDistance(subsets=3, subset_size=100)
         self.fid_ema = KernelInceptionDistance(subsets=3, subset_size=100)
 
+    @property
+    def latent_dim(self):
+        return self.config.nz
+
     def configure_optimizers(self):
         optimizerG = optim.Adam(
             self.netG.parameters(),
@@ -87,7 +91,7 @@ class FastGAN(pl.LightningModule):
         real_image = batch.to(self.device)
         current_batch_size = real_image.size(0)
         noise = (
-            torch.Tensor(current_batch_size, self.config.nz)
+            torch.Tensor(current_batch_size, self.latent_dim)
             .normal_(0, 1)
             .to(self.device)
         )
@@ -125,7 +129,7 @@ class FastGAN(pl.LightningModule):
         # this is the test loop
         real_image = batch.to(self.device)
         noise = (
-            torch.Tensor(len(real_image), self.config.nz).normal_(0, 1).to(self.device)
+            torch.Tensor(len(real_image), self.latent_dim).normal_(0, 1).to(self.device)
         )
 
         fake_images = self.netG(noise)[0]
