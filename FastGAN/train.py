@@ -4,7 +4,7 @@ import random
 import torch
 import torch.nn.functional as F
 from torch import optim
-import lightning.pytorch as pl
+import pytorch_lightning as pl
 from torchmetrics.image.kid import KernelInceptionDistance
 
 from crocodile.generator import GeneratorConfig
@@ -28,13 +28,13 @@ def crop_image_by_part(image, part):
 
 @dataclass
 class FastGANConfig(GeneratorConfig):
-    ngf: int
-    ndf: int
-    nz: int
-    nlr: float
-    nbeta1: float
-    nbeta2: float
-    ema_momentum: float
+    ngf: int = 64
+    ndf: int = 64
+    nz: int = 256
+    nlr: float = 0.0002
+    nbeta1: float = 0.5
+    nbeta2: float = 0.999
+    ema_momentum: float = 0.001
     im_size: int = 512
     policy: str = "color,translation"
 
@@ -53,7 +53,9 @@ class FastGAN(pl.LightningModule):
         self.netD = Discriminator(ndf=config.ndf, im_size=config.im_size)
         self.netD.apply(weights_init)
 
-        self.percept = lpips.PerceptualLoss(model="net-lin", net="vgg")
+        self.percept = lpips.PerceptualLoss(
+            model="net-lin", net="vgg", use_gpu=torch.cuda.is_available()
+        )
 
         ema_avg = (
             lambda averaged_model_parameter, model_parameter, num_averaged: (
@@ -80,11 +82,15 @@ class FastGAN(pl.LightningModule):
         )
         return optimizerG, optimizerD
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: torch.Tensor, batch_idx: int):
         optimizerG, optimizerD = self.optimizers()  # Todo: Fix error
-        real_image = batch
+        real_image = batch.to(self.device)
         current_batch_size = real_image.size(0)
-        noise = torch.Tensor(current_batch_size, self.nz).normal_(0, 1)
+        noise = (
+            torch.Tensor(current_batch_size, self.config.nz)
+            .normal_(0, 1)
+            .to(self.device)
+        )
 
         fake_images = self.netG(noise)
 
@@ -115,10 +121,12 @@ class FastGAN(pl.LightningModule):
         self.log("err_g", err_g, on_step=True, on_epoch=False)
         self.log("err_d", err_dr, on_step=True, on_epoch=False)
 
-    def valid_step(self, batch, batch_idx):
+    def valid_step(self, batch: torch.Tensor, batch_idx: int):
         # this is the test loop
-        real_image = batch
-        noise = torch.Tensor(len(real_image), self.nz).normal_(0, 1).to(self.device)
+        real_image = batch.to(self.device)
+        noise = (
+            torch.Tensor(len(real_image), self.config.nz).normal_(0, 1).to(self.device)
+        )
 
         fake_images = self.netG(noise)[0]
 
@@ -159,3 +167,7 @@ class FastGAN(pl.LightningModule):
             err = F.relu(torch.rand_like(pred) * 0.2 + 0.8 + pred).mean()
             err.backward()
             return pred.mean().item()
+
+    def generate(self, z: torch.Tensor):
+        z = z.to(self.device)
+        return self.netG(z)[0]

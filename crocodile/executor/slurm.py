@@ -1,6 +1,7 @@
-from .executor import BaseExecutorConfig, Executor
+from .executor import ExecutorConfig, Executor
 from dataclasses import dataclass
 from typing import Optional, Callable, Any
+from pathlib import Path
 
 try:
     import submitit
@@ -11,8 +12,8 @@ except ImportError:
 
 
 @dataclass
-class SlurmConfig(BaseExecutorConfig):
-    log_folder: str = "./"
+class SlurmConfig(ExecutorConfig):
+    log_folder: Path = Path("./logs")
     gpus_per_node: Optional[int] = None
     partition: Optional[str] = None
     comment: Optional[str] = None
@@ -24,8 +25,13 @@ class SlurmConfig(BaseExecutorConfig):
     mem_gb: Optional[int] = None
     account: Optional[str] = "def-sofian"
 
+    def __post_init__(self):
+        self.log_folder.mkdir(parents=True, exist_ok=True)
+
 
 class SlurmExecutor(Executor):
+    __name__ = "slurm"
+
     def __init__(self, config: SlurmConfig = SlurmConfig()):
         self.executor = submitit.AutoExecutor(folder=config.log_folder)
 

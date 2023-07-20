@@ -217,3 +217,4 @@ requirements/local.txt
 crocodile-credentials.json
 *.db
 logs/
+crocodile.sqlite
