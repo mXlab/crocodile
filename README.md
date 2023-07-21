@@ -33,7 +33,7 @@ To train a model run the following commands:
 ## Example on how to use a Model:
 ```python
 import torch
-from crocodile.trainer import load_generator
+from crocodile import load_generator
 from FastGAN import FastGANConfig
 config = FastGANConfig()
 generator = load_generator(config)

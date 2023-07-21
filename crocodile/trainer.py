@@ -43,7 +43,7 @@ class TrainerConfig(Serializable):
             return self._dataloader_workers
 
 
-def load_generator(config: GeneratorConfig):
+def load_gan(config: GeneratorConfig):
     match config:
         case FastGANConfig():
             return FastGAN(config)
@@ -54,7 +54,7 @@ def load_generator(config: GeneratorConfig):
 class Trainer:
     def __init__(self, config: TrainerConfig) -> None:
         self.config = config
-        self.generator = load_generator(config.generator)
+        self.generator = load_gan(config.generator)
         dataset = LaurenceDataset(config.dataset)
 
         validset, _ = random_split(
@@ -84,9 +84,11 @@ class Trainer:
         )
 
     def train(self):
+        print("Forwarding port...")
         if self.mlflow_server_host != os.environ["HOSTNAME"]:
             self.connect_to_mlflow_server()
 
+        print("Loading MLFlow...")
         mlf_logger = MLFlowLogger(
             experiment_name=self.config.experiment_name,
             tracking_uri=f"{self.config.host}:{self.config.port}",
@@ -96,12 +98,17 @@ class Trainer:
         accelerator = (
             "gpu" if self.config.use_gpu and torch.cuda.is_available() else "cpu"
         )
+
+        print("Initializing Trainer...")
         trainer = pl.Trainer(
             logger=mlf_logger,
             max_epochs=self.config.max_epochs,
             accelerator=accelerator,
         )
 
+        self.generator.save_hyperparameters()
+
+        print("Starting training...")
         trainer.fit(
             model=self.generator,
             train_dataloaders=self.train_loader,
