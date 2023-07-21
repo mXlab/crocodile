@@ -10,7 +10,11 @@ from torchmetrics.image.kid import KernelInceptionDistance
 from crocodile.generator import GeneratorConfig
 
 from . import lpips
-from .models import weights_init, Discriminator, Generator
+from .models import (
+    weights_init,
+    Discriminator as FastGANDiscriminator,
+    FastGANGenerator,
+)
 from .diffaug import DiffAugment
 
 
@@ -42,15 +46,14 @@ class FastGANConfig(GeneratorConfig):
 class FastGAN(pl.LightningModule):
     def __init__(self, config: FastGANConfig) -> None:
         super().__init__()
-        self.save_hyperparameters()
 
         self.automatic_optimization = False
         self.config = config
 
-        self.netG = Generator(ngf=config.ngf, nz=config.nz, im_size=config.im_size)
+        self.netG = self.load_generator(config)
         self.netG.apply(weights_init)
 
-        self.netD = Discriminator(ndf=config.ndf, im_size=config.im_size)
+        self.netD = FastGANDiscriminator(ndf=config.ndf, im_size=config.im_size)
         self.netD.apply(weights_init)
 
         self.percept = lpips.PerceptualLoss(
@@ -125,7 +128,7 @@ class FastGAN(pl.LightningModule):
         self.log("err_g", err_g, on_step=True, on_epoch=False)
         self.log("err_d", err_dr, on_step=True, on_epoch=False)
 
-    def valid_step(self, batch: torch.Tensor, batch_idx: int):
+    def validation_step(self, batch: torch.Tensor, batch_idx: int):
         # this is the test loop
         real_image = batch.to(self.device)
         noise = (
@@ -172,6 +175,7 @@ class FastGAN(pl.LightningModule):
             err.backward()
             return pred.mean().item()
 
-    def generate(self, z: torch.Tensor):
-        z = z.to(self.device)
-        return self.netG(z)[0]
+    @staticmethod
+    def load_generator(config: FastGANConfig):
+        netG = FastGANGenerator(ngf=config.ngf, nz=config.nz, im_size=config.im_size)
+        return netG
