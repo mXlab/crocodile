@@ -218,3 +218,6 @@ crocodile-credentials.json
 *.db
 logs/
 crocodile.sqlite
+mlruns/
+lightning_logs/
+```

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-module load gcc arrow python
+module load gcc arrow postgresql python
 source .env/bin/activate
 export GOOGLE_APPLICATION_CREDENTIALS="crocodile-credentials.json"
 
@@ -14,7 +14,7 @@ do
 done
 
 mlflow server \
-  --backend-store-uri sqlite:///crocodile.sqlite \
+  --backend-store-uri postgresql://postgres:crocodile@34.28.119.2/postgres \
   --artifacts-destination gs://crocodile-333216.appspot.com/models \
   --host 0.0.0.0 \
   --port $port

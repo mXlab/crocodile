@@ -1,13 +1,15 @@
 import os
 from typing import Optional
+from pathlib import Path
 from dataclasses import dataclass
 import subprocess
 from simple_parsing import Serializable, subgroups
+import mlflow
 
 import torch
 from torch.utils.data import DataLoader, random_split
+from torchvision import transforms
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import MLFlowLogger
 
 from FastGAN import FastGAN, FastGANConfig
 
@@ -32,13 +34,14 @@ class TrainerConfig(Serializable):
     _dataloader_workers: Optional[int] = None
 
     @property
-    def dataloader_workers(self):
+    def dataloader_workers(self) -> int:
         if self._dataloader_workers is None:
-            cpu_count = os.cpu_count()
-            if cpu_count is None:
-                return 0
+            if os.environ["SLURM_CPUS_ON_NODE"] is not None:
+                return int(os.environ["SLURM_CPUS_ON_NODE"])
+            elif os.cpu_count() is not None:
+                return os.cpu_count()  # TODO: fix error
             else:
-                return cpu_count
+                return 0
         else:
             return self._dataloader_workers
 
@@ -55,45 +58,43 @@ class Trainer:
     def __init__(self, config: TrainerConfig) -> None:
         self.config = config
         self.generator = load_gan(config.generator)
-        dataset = LaurenceDataset(config.dataset)
+        transform = transforms.ToTensor()
+        dataset = LaurenceDataset(config.dataset, transform=transform)
 
         validset, _ = random_split(
             dataset, [config.num_valid_samples, len(dataset) - config.num_valid_samples]
         )
+
+        print(f"Using {config.dataloader_workers} for dataloading...")
 
         self.train_loader = DataLoader(
             dataset,
             batch_size=config.batch_size,
             shuffle=False,
             num_workers=config.dataloader_workers,
+            drop_last=True,
         )
 
         self.valid_loader = DataLoader(
             validset,
             batch_size=config.batch_size,
             num_workers=config.dataloader_workers,
+            drop_last=True,
         )
 
         self.mlflow_server_host = os.environ["HOSTNAME"]
 
     def connect_to_mlflow_server(self):
         subprocess.run(
-            f"ssh -N -f -L {self.config.port}:localhost:{self.config.port} {self.mlflow_server_host}",
+            f"ssh -N -f -L {self.config.port}:{self.mlflow_server_host}:{self.config.port} {self.mlflow_server_host}",
             shell=True,
             check=True,
         )
 
     def train(self):
-        print("Forwarding port...")
         if self.mlflow_server_host != os.environ["HOSTNAME"]:
+            print(f"Forwarding port {self.config.port} to {self.mlflow_server_host}...")
             self.connect_to_mlflow_server()
-
-        print("Loading MLFlow...")
-        mlf_logger = MLFlowLogger(
-            experiment_name=self.config.experiment_name,
-            tracking_uri=f"{self.config.host}:{self.config.port}",
-            log_model="all",
-        )
 
         accelerator = (
             "gpu" if self.config.use_gpu and torch.cuda.is_available() else "cpu"
@@ -101,16 +102,17 @@ class Trainer:
 
         print("Initializing Trainer...")
         trainer = pl.Trainer(
-            logger=mlf_logger,
             max_epochs=self.config.max_epochs,
             accelerator=accelerator,
         )
 
-        self.generator.save_hyperparameters()
-
         print("Starting training...")
-        trainer.fit(
-            model=self.generator,
-            train_dataloaders=self.train_loader,
-            val_dataloaders=self.valid_loader,
-        )
+        mlflow.set_tracking_uri(f"{self.config.host}:{self.config.port}")
+        mlflow.set_experiment(self.config.experiment_name)
+        mlflow.pytorch.autolog()
+        with mlflow.start_run() as run:
+            trainer.fit(
+                model=self.generator,
+                train_dataloaders=self.train_loader,
+                val_dataloaders=self.valid_loader,
+            )
