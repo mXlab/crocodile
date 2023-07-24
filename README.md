@@ -50,4 +50,5 @@ img = generator.generate(noise)
 
 ## Deploying MLFlow server on Google Cloud
 
-1. `gcloud run deploy --project crocodile-333216 --add-cloudsql-instances=crocodile-mlflow --memory 1G`
+1. `gcloud run deploy --project crocodile-333216 --add-cloudsql-instances=crocodile-mlflow --memory 1Gi`
+2. Connect to : https://crocodile-gqhfy6c73a-uc.a.run.app/
