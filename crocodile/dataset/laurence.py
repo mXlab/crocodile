@@ -9,7 +9,7 @@ from crocodile.utils.drive import GoogleDrive, check_integrity
 from omegaconf import OmegaConf, MISSING
 from .biodata import Biodata
 import torch
-from typing import List, Tuple
+from typing import List, Dict, Any
 
 
 @dataclass
@@ -44,8 +44,9 @@ class LaurenceDataset(Dataset):
     class Params:
         root: Path = Path("./data")
         resolution: int = 512
-        biodata: Biodata.Params = Biodata.Params()
         token: Path = Path("./token.json")
+        load_biodata: bool = False
+        biodata: Biodata.Params = Biodata.Params()
 
         @property
         def root_path(self):
@@ -69,13 +70,14 @@ class LaurenceDataset(Dataset):
         self.config = self.load_config(self.path)
 
         self.images = self.load_images(self.path / str(args.resolution))
-        self.biodata = Biodata(
-            self.path / self.config.sensor_file,
-            self.config.sampling_rate,
-            params=args.biodata,
-        )
-        self.seq_length = self.biodata.seq_length
-        self.seq_dim = self.biodata.dim
+
+        self.biodata = None
+        if args.load_biodata:
+            self.biodata = Biodata(
+                self.path / self.config.sensor_file,
+                self.config.sampling_rate,
+                params=args.biodata,
+            )
 
     @classmethod
     def download(cls, root: Path):
@@ -168,11 +170,14 @@ class LaurenceDataset(Dataset):
     def load_images(path: Path) -> List[Path]:
         return sorted(path.glob("*.png"))
 
-    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
+    def __getitem__(self, index: int) -> Dict[str, Any]:
         img = Image.open(self.images[index])
 
         if self.transform is not None:
             img = self.transform(img)
+
+        if self.biodata is None:
+            return {"image": img, "index": index}
 
         biodata_index = (
             int(
@@ -188,7 +193,7 @@ class LaurenceDataset(Dataset):
         if self.target_transform is not None:
             biodata = self.target_transform(biodata)
 
-        return img, biodata, index
+        return {"image": img, "biodata": biodata, "index": index}
 
     def convert_index(self, index: int) -> int:
         return int(
@@ -199,4 +204,7 @@ class LaurenceDataset(Dataset):
         )
 
     def __len__(self) -> int:
-        return min(len(self.images), self.convert_index(len(self.biodata)))
+        if self.biodata is not None:
+            return min(len(self.images), self.convert_index(len(self.biodata)))
+        else:
+            return len(self.images)

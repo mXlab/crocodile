@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 import random
+from typing import List
 
 import torch
 import torch.nn.functional as F
 from torch import optim
 import pytorch_lightning as pl
-from torchmetrics.image.kid import KernelInceptionDistance
+from torchmetrics.image.fid import FrechetInceptionDistance
 
 from crocodile.generator import GeneratorConfig
 
@@ -69,8 +70,8 @@ class FastGAN(pl.LightningModule):
         )
         self.emaG = torch.optim.swa_utils.AveragedModel(self.netG, avg_fn=ema_avg)
 
-        self.fid = KernelInceptionDistance(subsets=3, subset_size=100)
-        self.fid_ema = KernelInceptionDistance(subsets=3, subset_size=100)
+        self.fid = FrechetInceptionDistance()
+        self.fid_ema = FrechetInceptionDistance()
 
     @property
     def latent_dim(self):
@@ -89,9 +90,9 @@ class FastGAN(pl.LightningModule):
         )
         return optimizerG, optimizerD
 
-    def training_step(self, batch: torch.Tensor, batch_idx: int):
+    def training_step(self, batch, batch_idx: int):
         optimizerG, optimizerD = self.optimizers()  # Todo: Fix error
-        real_image = batch.to(self.device)
+        real_image = batch["image"].to(self.device)
         current_batch_size = real_image.size(0)
         noise = (
             torch.Tensor(current_batch_size, self.latent_dim)
@@ -128,21 +129,21 @@ class FastGAN(pl.LightningModule):
         self.log("err_g", err_g, on_step=True, on_epoch=False)
         self.log("err_d", err_dr, on_step=True, on_epoch=False)
 
-    def validation_step(self, batch: torch.Tensor, batch_idx: int):
+    def validation_step(self, batch, batch_idx: int):
         # this is the test loop
-        real_image = batch.to(self.device)
+        real_image = batch["image"].to(self.device).to(torch.uint8)
         noise = (
             torch.Tensor(len(real_image), self.latent_dim).normal_(0, 1).to(self.device)
         )
 
-        fake_images = self.netG(noise)[0]
+        fake_images = self.netG(noise)[0].to(torch.uint8)
 
-        self.fid(fake_images, real=False)
-        self.fid(real_image, real=True)
+        self.fid.update(fake_images, real=False)
+        self.fid.update(real_image, real=True)
 
-        fake_images = self.emaG(noise)[0]
-        self.fid_ema(fake_images, real=False)
-        self.fid_ema(real_image, real=True)
+        fake_images = self.emaG(noise)[0].to(torch.uint8)
+        self.fid_ema.update(fake_images, real=False)
+        self.fid_ema.update(real_image, real=True)
 
     def on_valid_epoch_end(self) -> None:
         mean, std = self.fid.compute()

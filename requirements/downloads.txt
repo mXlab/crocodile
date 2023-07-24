@@ -2,3 +2,4 @@ simple_parsing
 docstring_parser
 torchmetrics
 torch-fidelity
+google-cloud-storage
