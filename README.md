@@ -14,23 +14,30 @@ In addition to the Teensyduino add-on to program the Teensy 3.2 microcontroller 
 - [Teensyduino](https://www.pjrc.com/teensy/teensyduino.html)
 
 ## Installation
+
 Run the following command to install the package:
+
 ```bash
 sh scripts/install.sh
 ```
 
 ## Starting the mlflow server:
+
 To start the mlflow server run the following commands:
-1. `screen -S mlflow_server`  or `screen -r mlflow_server` if the screen is already created
+
+1. `screen -S mlflow_server` or `screen -r mlflow_server` if the screen is already created
 2. `sh scripts/start_mlflow_server.sh`
 
 ## Training a model:
+
 To train a model run the following commands:
+
 1. `module load gcc arrow python`
 2. `source .env/bin/activate`
 3. `python scripts/train.py`
 
 ## Example on how to use a Model:
+
 ```python
 import torch
 from crocodile import load_generator
@@ -40,3 +47,7 @@ generator = load_generator(config)
 noise = torch.zeros(1, generator.latent_dim).normal_()
 img = generator.generate(noise)
 ```
+
+## Deploying MLFlow server on Google Cloud
+
+1. `gcloud run deploy --project crocodile-333216 --add-cloudsql-instances=crocodile-mlflow --memory 1G`
