@@ -1,31 +1,35 @@
-from .executor import ExecutorConfig, Executor
 from dataclasses import dataclass
 from typing import Optional, Callable, Any
 from pathlib import Path
+import os
 
-try:
-    import submitit
-except ImportError:
-    print(
-        "Couldn't import submitit. Install it if you plan on running this code on the cluster."
-    )
+import submitit
+
+from .executor import ExecutorConfig, Executor
 
 
 @dataclass
 class SlurmConfig(ExecutorConfig):
-    log_folder: Path = Path("./logs")
+    log_folder: Optional[Path] = None
     gpus_per_node: Optional[int] = None
     partition: Optional[str] = None
     comment: Optional[str] = None
     gpu_type: Optional[str] = None
     time_in_min: Optional[int] = None
     nodes: Optional[int] = None
-    cpus_per_task: Optional[int] = None
+    cpus_per_task: Optional[int] = 4
     slurm_array_parallelism: Optional[int] = None
-    mem_gb: Optional[int] = 16
+    mem_gb: Optional[int] = 8
     account: Optional[str] = "def-sofian"
 
     def __post_init__(self):
+        if self.log_folder is None:
+            scratch_dir = os.environ.get("SCRATCH")
+            if scratch_dir is not None:
+                self.log_folder = Path(scratch_dir) / "logs"
+            else:
+                self.log_folder = Path(".") / "logs"
+            
         self.log_folder.mkdir(parents=True, exist_ok=True)
 
 
@@ -33,6 +37,8 @@ class SlurmExecutor(Executor):
     __name__ = "slurm"
 
     def __init__(self, config: SlurmConfig = SlurmConfig()):
+        if config.log_folder is None:
+            raise ValueError("Log folder for slurm executor not defined.")
         self.executor = submitit.AutoExecutor(folder=config.log_folder)
 
         self.executor.update_parameters(
