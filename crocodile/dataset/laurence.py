@@ -57,7 +57,7 @@ class LaurenceDataset(Dataset):
         self.config = self.load_config(self.path)
 
         self.images = self.load_images(self.path / str(args.resolution))
-        self.biodata = Biodata(self.path / self.config.sensor_file, self.config.sampling_rate, args.biodata)
+        self.biodata = Biodata(self.path / self.config.sensor_file, self.config.sampling_rate, params=args.biodata)
         self.seq_length = self.biodata.seq_length
         self.seq_dim = self.biodata.dim
 
@@ -137,7 +137,7 @@ class LaurenceDataset(Dataset):
     def load_images(path: Path) -> List[Path]:
         return sorted(path.glob("*.png"))
 
-    def __getitem__(self, index: int) -> Tuple(torch.Tensor, torch.Tensor, int):
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
         img = Image.open(self.images[index])
 
         if self.transform is not None:
