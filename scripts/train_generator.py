@@ -1,14 +1,30 @@
+from dataclasses import dataclass
+from simple_parsing import parse, subgroups
+
 from crocodile.generator import TrainParams, load_generator
-from crocodile.executor import load_executor, ExecutorConfig
-from simple_parsing import ArgumentParser
+from crocodile.executor import (
+    load_executor,
+    ExecutorConfig,
+    LocalExecutorConfig,
+    SlurmConfig,
+)
+
+
+@dataclass
+class TrainConfig:
+    executor: ExecutorConfig = subgroups(
+        {
+            "local": LocalExecutorConfig(),
+            "slurm": SlurmConfig(_default_log_dir="crocodile/logs"),
+        },
+        default="local",
+    )
+    trainer: TrainParams = TrainParams()
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_arguments(ExecutorConfig, dest="executor")
-    parser.add_arguments(TrainParams, dest="train")
-    args = parser.parse_args()
+    config = parse(TrainConfig)
 
-    executor = load_executor(args.executor)
-    generator = load_generator(args.train.generator)
-    executor(generator.train, args.train)
+    executor = load_executor(config.executor)
+    generator = load_generator(config.trainer.generator)
+    executor(generator.train, config.trainer)

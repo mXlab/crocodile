@@ -212,3 +212,5 @@ tmp/
 results/
 data/
 .idea/
+packages/
+*.sqlite

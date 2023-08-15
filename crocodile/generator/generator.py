@@ -21,7 +21,7 @@ class GeneratorType(Enum):
 class TrainParams(Serializable):
     output_dir: Path = Path("./results")
     generator: GeneratorType = GeneratorType.STYLEFORMER
-    batch_size: int = 64
+    batch_size: int = 16
     exp_name: str = "test_1"
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
 
@@ -60,7 +60,7 @@ class Generator(ABC):
     def set_dir(params: TrainParams = TrainParams()):
         if params.log_dir.is_dir():
             shutil.rmtree(params.log_dir)
-        params.log_dir.mkdir(exist_ok=True)
+        params.log_dir.mkdir(exist_ok=True, parents=True)
         params.save(params.params_file)
 
     @staticmethod

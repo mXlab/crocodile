@@ -18,7 +18,7 @@ class Styleformer(Generator):
 
         cls.set_dir(params)
         gpus = torch.cuda.device_count()
-        command = "python -m Styleformer.train --outdir=%s --data=%s --gpus=%i --num_layers=1,2,1,1 --g_dict=1024,256,64,64 --linformer=1" % (
+        command = "python -m Styleformer.train --outdir=%s --data=%s --gpus=%i --num_layers=1,2,1,1,1,1,1 --g_dict=1024,256,64,64,64,64 --linformer=1" % (
             params.log_dir, data_path, gpus)
         print("Running: %s" % command)
         subprocess.run(command.split())
