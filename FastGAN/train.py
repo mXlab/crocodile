@@ -6,7 +6,7 @@ from simple_parsing import parse
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.utils.data.dataloader import DataLoader
+from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision import utils as vutils
 from torchvision.transforms.functional import to_pil_image
@@ -18,6 +18,7 @@ from crocodile.optimizer import AdamConfig, load_optimizer
 from crocodile.trainer.base import TrainConfig, Trainer
 from crocodile.utils import flatten_dict
 from crocodile.dataset import LaurenceDataset
+from torchmetrics.image.fid import FrechetInceptionDistance
 
 
 from FastGAN import lpips
@@ -86,6 +87,8 @@ class FastGANTrainConfig(TrainConfig):
     dataloader_workers: int = 8
     img_save_interval: int = 1000
     model_save_interval: int = 5000
+    eval_save_interval: int = 1000
+    num_valid_samples: int = 1000
     num_test_samples: int = 8
     ema_beta: float = 0.001
     policy: str = "color,translation"
@@ -111,6 +114,10 @@ class FastGANTrainer(Trainer):
         trans = transforms.Compose(transform_list)
 
         dataset = ImageFolder(root=data_root, transform=trans)
+        self.validset, _ = random_split(
+            dataset,
+            [config.num_valid_samples, len(dataset) - config.num_valid_samples],
+        )
 
         self.dataloader = iter(
             DataLoader(
@@ -121,6 +128,13 @@ class FastGANTrainer(Trainer):
                 num_workers=config.dataloader_workers,
                 pin_memory=True,
             )
+        )
+
+        self.testloader = DataLoader(
+            dataset,
+            batch_size=config.batch_size,
+            shuffle=False,
+            num_workers=config.dataloader_workers,
         )
 
         # from model_s import Generator, Discriminator
@@ -134,6 +148,22 @@ class FastGANTrainer(Trainer):
         self.optimizerD = load_optimizer(self.netD.parameters(), config.optimizer_D)
 
         self.percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=True)
+
+        self.fid = FrechetInceptionDistance(normalize=True)
+
+    def compute_fid(self, netG: Generator, device: torch.device):
+        """Compute FID score."""
+        self.fid.reset()
+        with torch.no_grad():
+            for real_image in self.testloader:
+                real_image = real_image.to(device)
+                current_batch_size = real_image.size(0)
+                noise = netG.noise(current_batch_size).to(device)
+                fake_images = netG.generate(noise)[0]
+
+                self.fid.update(fake_images, real=False)
+                self.fid.update(netG._unormalize(real_image), real=True)
+        return self.fid.compute()
 
     def train(self):
         mlflow.set_tracking_uri(self.config.remote_server_uri)
@@ -211,11 +241,21 @@ class FastGANTrainer(Trainer):
                 if iteration % 100 == 0:
                     print("GAN: loss d: %.5f    loss g: %.5f" % (err_dr, -err_g.item()))
 
+                if iteration % self.config.eval_save_interval == 0:
+                    fid = self.compute_fid(self.netG, device)
+                    mlflow.log_metric("fid", fid, step=iteration)
+
+                    backup_para = copy_G_params(self.netG)
+                    load_params(self.netG, avg_param_G)
+                    fid = self.compute_fid(self.netG, device)
+                    mlflow.log_metric("fid-ema", fid, step=iteration)
+                    load_params(self.netG, backup_para)
+
                 if iteration % self.config.img_save_interval == 0:
                     with torch.no_grad():
                         img = to_pil_image(
                             vutils.make_grid(
-                                self.netG(fixed_noise)[0].add(1).mul(0.5),
+                                self.netG.generate(fixed_noise).add(1).mul(0.5),
                                 nrow=4,
                             )
                         )
@@ -226,7 +266,7 @@ class FastGANTrainer(Trainer):
                     with torch.no_grad():
                         img = to_pil_image(
                             vutils.make_grid(
-                                self.netG(fixed_noise)[0].add(1).mul(0.5),
+                                self.netG.generate(fixed_noise).add(1).mul(0.5),
                                 nrow=4,
                             )
                         )

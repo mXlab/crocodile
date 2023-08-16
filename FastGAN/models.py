@@ -211,11 +211,15 @@ class FastGANGenerator(nn.Module, Generator):
         if im_size > 512:
             self.feat_1024 = UpBlock(nfc[512], nfc[1024])
 
+    def _unormalize(self, image: torch.Tensor):
+        """Unormalize image"""
+        return image.add(1).mul(0.5)
+
     def noise(self, n: int):
         return torch.FloatTensor(n, self.config.nz).normal_(0, 1)
 
     def generate(self, noise: torch.Tensor) -> torch.Tensor:
-        return self.forward(noise)[0]
+        return self._unormalize(self.forward(noise)[0])
 
     def set_noise_mode(self, mode):
         for layer in self.modules():
