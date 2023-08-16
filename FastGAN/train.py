@@ -1,7 +1,6 @@
 """FastGAN train module."""
 from dataclasses import dataclass, asdict
 import random
-from pathlib import Path
 from typing import Optional
 from simple_parsing import parse
 import torch
@@ -10,25 +9,28 @@ import torch.nn.functional as F
 from torch.utils.data.dataloader import DataLoader
 from torchvision import transforms
 from torchvision import utils as vutils
+from torchvision.transforms.functional import to_pil_image
 from tqdm import tqdm
 import mlflow
+from mlflow.models import infer_signature
 
 from crocodile.optimizer import AdamConfig, load_optimizer
 from crocodile.trainer.base import TrainConfig, Trainer
 from crocodile.utils import flatten_dict
+from crocodile.dataset import LaurenceDataset
 
 
-from . import lpips
-from .models import (
+from FastGAN import lpips
+from FastGAN.models import (
     weights_init,
     Discriminator,
-    Generator,
+    FastGANGenerator as Generator,
     GeneratorConfig,
     DiscriminatorConfig,
 )
-from .operation import copy_G_params, load_params, get_dir
-from .operation import ImageFolder, InfiniteSamplerWrapper
-from .diffaug import DiffAugment
+from FastGAN.operation import copy_G_params, load_params
+from FastGAN.operation import ImageFolder, InfiniteSamplerWrapper
+from FastGAN.diffaug import DiffAugment
 
 # torch.backends.cudnn.benchmark = True
 
@@ -73,7 +75,6 @@ def train_d(net: nn.Module, data: torch.Tensor, label: str = "real"):
 class FastGANTrainConfig(TrainConfig):
     """FastGAN train config class."""
 
-    data_root: Path = Path("../lmdbs/art_landscape_1k")
     total_iterations: int = 50000
     checkpoint: Optional[str] = None
     batch_size: int = 8
@@ -98,6 +99,9 @@ class FastGANTrainer(Trainer):
     def __init__(self, config: FastGANTrainConfig):
         self.config = config
 
+        dataset = LaurenceDataset(config.dataset)
+        data_root = dataset.get_path()
+
         transform_list = [
             transforms.Resize((int(config.im_size), int(config.im_size))),
             transforms.RandomHorizontalFlip(),
@@ -106,7 +110,7 @@ class FastGANTrainer(Trainer):
         ]
         trans = transforms.Compose(transform_list)
 
-        dataset = ImageFolder(root=config.data_root, transform=trans)
+        dataset = ImageFolder(root=data_root, transform=trans)
 
         self.dataloader = iter(
             DataLoader(
@@ -133,11 +137,10 @@ class FastGANTrainer(Trainer):
 
     def train(self):
         mlflow.set_tracking_uri(self.config.remote_server_uri)
-        mlflow.set_experiment(experiment_name)
+        mlflow.set_experiment(self.config.experiment_name)
         with mlflow.start_run():
             params = flatten_dict(asdict(self.config))
-            print(params)
-            exit()
+            mlflow.log_params(params)
 
             device = (
                 torch.device("cuda")
@@ -151,6 +154,10 @@ class FastGANTrainer(Trainer):
             avg_param_G = copy_G_params(self.netG)
             fixed_noise = self.netG.noise(self.config.num_test_samples).to(device)
 
+            signature = infer_signature(
+                fixed_noise.cpu().numpy(), self.netG(fixed_noise).detach().cpu().numpy()
+            )
+
             current_iteration = 0
             if self.config.checkpoint is not None:
                 ckpt = torch.load(self.config.checkpoint)
@@ -163,8 +170,6 @@ class FastGANTrainer(Trainer):
                     self.config.checkpoint.split("_")[-1].split(".")[0]
                 )
                 del ckpt
-
-            saved_model_folder, saved_image_folder = get_dir(config)
 
             for iteration in tqdm(
                 range(current_iteration, self.config.total_iterations + 1)
@@ -207,28 +212,41 @@ class FastGANTrainer(Trainer):
                     print("GAN: loss d: %.5f    loss g: %.5f" % (err_dr, -err_g.item()))
 
                 if iteration % self.config.img_save_interval == 0:
+                    with torch.no_grad():
+                        img = to_pil_image(
+                            vutils.make_grid(
+                                self.netG(fixed_noise)[0].add(1).mul(0.5),
+                                nrow=4,
+                            )
+                        )
+                        mlflow.log_image(img, f"images/iteration={iteration}.jpg")
+
                     backup_para = copy_G_params(self.netG)
                     load_params(self.netG, avg_param_G)
                     with torch.no_grad():
-                        vutils.save_image(
-                            self.netG(fixed_noise)[0].add(1).mul(0.5),
-                            saved_image_folder + "/%d.jpg" % iteration,
-                            nrow=4,
+                        img = to_pil_image(
+                            vutils.make_grid(
+                                self.netG(fixed_noise)[0].add(1).mul(0.5),
+                                nrow=4,
+                            )
                         )
+                        mlflow.log_image(img, f"images-ema/iteration={iteration}.jpg")
                     load_params(self.netG, backup_para)
 
                 if (
                     iteration % self.config.model_save_interval == 0
                     or iteration == self.config.total_iterations
                 ):
-                    torch.save(
-                        {
-                            "g": self.netG.state_dict(),
-                            "g_ema": avg_param_G,
-                            "d": self.netD.state_dict(),
-                            "config": self.config,
-                        },
-                        saved_model_folder + "/%.6d.pth" % iteration,
+                    backup_para = copy_G_params(self.netG)
+                    load_params(self.netG, avg_param_G)
+                    mlflow.pytorch.log_model(
+                        self.netG,
+                        f"models-ema/iteration={iteration}",
+                        signature=signature,
+                    )
+                    load_params(self.netG, backup_para)
+                    mlflow.pytorch.log_model(
+                        self.netG, f"models/iteration={iteration}", signature=signature
                     )
 
 
