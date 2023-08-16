@@ -5,6 +5,8 @@ from torch.nn.utils import spectral_norm
 import torch.nn.functional as F
 from enum import Enum
 
+from crocodile.generator import Generator
+
 seq = nn.Sequential
 
 
@@ -165,9 +167,9 @@ class GeneratorConfig:
     nz: int = 100
 
 
-class Generator(nn.Module):
+class FastGANGenerator(Generator, nn.Module):
     def __init__(self, nc=3, im_size=1024, config: GeneratorConfig = GeneratorConfig()):
-        super(Generator, self).__init__()
+        super().__init__()
         self.config = config
 
         nfc_multi = {
@@ -211,6 +213,9 @@ class Generator(nn.Module):
 
     def noise(self, n: int):
         return torch.FloatTensor(n, self.config.nz).normal_(0, 1)
+
+    def generate(self, noise: torch.Tensor) -> torch.Tensor:
+        return self.forward(noise)[0]
 
     def set_noise_mode(self, mode):
         for layer in self.modules():
@@ -293,12 +298,16 @@ class DownBlockComp(nn.Module):
     def forward(self, feat):
         return (self.main(feat) + self.direct(feat)) / 2
 
+
 @dataclass
 class DiscriminatorConfig:
     ndf: int = 64
 
+
 class Discriminator(nn.Module):
-    def __init__(self, nc=3, im_size=512, config: DiscriminatorConfig = DiscriminatorConfig()):
+    def __init__(
+        self, nc=3, im_size=512, config: DiscriminatorConfig = DiscriminatorConfig()
+    ):
         super(Discriminator, self).__init__()
         self.ndf = config.ndf
         self.im_size = im_size
