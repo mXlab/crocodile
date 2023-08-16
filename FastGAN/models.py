@@ -167,7 +167,7 @@ class GeneratorConfig:
     nz: int = 100
 
 
-class FastGANGenerator(Generator, nn.Module):
+class FastGANGenerator(nn.Module, Generator):
     def __init__(self, nc=3, im_size=1024, config: GeneratorConfig = GeneratorConfig()):
         super().__init__()
         self.config = config
