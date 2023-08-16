@@ -147,7 +147,7 @@ class FastGANTrainer(Trainer):
         self.optimizerG = load_optimizer(self.netG.parameters(), config.optimizer_G)
         self.optimizerD = load_optimizer(self.netD.parameters(), config.optimizer_D)
 
-        self.percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=True)
+        self.percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=False)
 
         self.fid = FrechetInceptionDistance(normalize=True)
 
@@ -166,41 +166,42 @@ class FastGANTrainer(Trainer):
         return self.fid.compute()
 
     def train(self):
+        device = (
+            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        )
+
+        self.percept = lpips.PerceptualLoss(
+            model="net-lin", net="vgg", use_gpu=torch.cuda.is_available()
+        )
+
+        self.netG.to(device)
+        self.netD.to(device)
+
+        avg_param_G = copy_G_params(self.netG)
+        fixed_noise = self.netG.noise(self.config.num_test_samples).to(device)
+
+        signature = infer_signature(
+            fixed_noise.cpu().numpy(), self.netG(fixed_noise).detach().cpu().numpy()
+        )
+
+        current_iteration = 0
+        if self.config.checkpoint is not None:
+            ckpt = torch.load(self.config.checkpoint)
+            self.netG.load_state_dict(ckpt["g"])
+            self.netD.load_state_dict(ckpt["d"])
+            avg_param_G = ckpt["g_ema"]
+            self.optimizerG.load_state_dict(ckpt["opt_g"])
+            self.optimizerD.load_state_dict(ckpt["opt_d"])
+            current_iteration = int(
+                self.config.checkpoint.split("_")[-1].split(".")[0]
+            )
+            del ckpt
+
         mlflow.set_tracking_uri(self.config.remote_server_uri)
         mlflow.set_experiment(self.config.experiment_name)
         with mlflow.start_run():
             params = flatten_dict(asdict(self.config))
             mlflow.log_params(params)
-
-            device = (
-                torch.device("cuda")
-                if torch.cuda.is_available()
-                else torch.device("cpu")
-            )
-
-            self.netG.to(device)
-            self.netD.to(device)
-
-            avg_param_G = copy_G_params(self.netG)
-            fixed_noise = self.netG.noise(self.config.num_test_samples).to(device)
-
-            signature = infer_signature(
-                fixed_noise.cpu().numpy(), self.netG(fixed_noise).detach().cpu().numpy()
-            )
-
-            current_iteration = 0
-            if self.config.checkpoint is not None:
-                ckpt = torch.load(self.config.checkpoint)
-                self.netG.load_state_dict(ckpt["g"])
-                self.netD.load_state_dict(ckpt["d"])
-                avg_param_G = ckpt["g_ema"]
-                self.optimizerG.load_state_dict(ckpt["opt_g"])
-                self.optimizerD.load_state_dict(ckpt["opt_d"])
-                current_iteration = int(
-                    self.config.checkpoint.split("_")[-1].split(".")[0]
-                )
-                del ckpt
-
             for iteration in tqdm(
                 range(current_iteration, self.config.total_iterations + 1)
             ):
