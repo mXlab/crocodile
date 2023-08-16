@@ -166,9 +166,9 @@ class FastGANTrainer(Trainer):
         return self.fid.compute()
 
     def train(self):
-        device = (
-            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        )
+        print("Loading device...")
++       device = "cuda" if torch.cuda.is_available() else "cpu"
++       print(f"Running on {device}")
 
         self.percept = lpips.PerceptualLoss(
             model="net-lin", net="vgg", use_gpu=torch.cuda.is_available()
