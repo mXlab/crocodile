@@ -89,7 +89,7 @@ class FastGANTrainConfig(TrainConfig):
     num_test_samples: int = 8
     ema_beta: float = 0.001
     policy: str = "color,translation"
-    remote_server_uri: str = "https://crocodile-gqhfy6c73a-uc.a.run.app/"
+    remote_server_uri: str = "https://crocodile-gqhfy6c73a-uc.a.run.app"
     experiment_name: str = "fastgan"
 
 
