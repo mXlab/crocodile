@@ -1,14 +1,14 @@
 from dataclasses import dataclass
-from crocodile import generator
-from simple_parsing.helpers import Serializable
-from simple_parsing.helpers.serialization import register_decoding_fn
 from pathlib import Path
 from typing import Optional
+
+from simple_parsing import Serializable, subgroups
+from simple_parsing.helpers.serialization import register_decoding_fn
+
 from crocodile.dataset import LaurenceDataset
-from crocodile.utils.optim import OptimizerArgs, OptimizerType
+from crocodile.optimizer import OptimizerConfig, SGDConfig, AdamConfig
 from crocodile.utils.loss import LossParams
 from crocodile.encoder import EncoderParams
-import os
 
 
 register_decoding_fn(Path, Path)
@@ -19,8 +19,11 @@ class ComputeLatentParams(Serializable):
     generator_path: Path
     epoch: Optional[int] = None
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
-    batch_size: int = 64
-    optimizer: OptimizerArgs = OptimizerArgs(momentum=0.9)
+    batch_size: int = 16
+    optimizer: OptimizerConfig = subgroups(
+        {"sgd": SGDConfig(lr=20, momentum=0.9), "adam": AdamConfig(lr=2e-2)},
+        default="sgd",
+    )
     loss: LossParams = LossParams()
     num_iter: int = 100
     log_dir: Path = Path("./results/latent")
@@ -31,11 +34,7 @@ class ComputeLatentParams(Serializable):
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
-        if self.optimizer.lr is None:
-            if self.optimizer.optimizer == OptimizerType.SGD:
-                self.optimizer.lr = 20
-            elif self.optimizer.optimizer == OptimizerType.ADAM:
-                self.optimizer.lr = 2e-2
+
 
 @dataclass
 class TrainEncoderLatentParams(Serializable):
@@ -43,7 +42,10 @@ class TrainEncoderLatentParams(Serializable):
     encoder: EncoderParams = EncoderParams()
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
     batch_size: int = 64
-    optimizer: OptimizerArgs = OptimizerArgs(momentum=0.9)
+    optimizer: OptimizerConfig = subgroups(
+        {"sgd": SGDConfig(lr=20, momentum=0.9), "adam": AdamConfig(lr=5e-4)},
+        default="sgd",
+    )
     loss: LossParams = LossParams()
     num_epochs: int = 100
     log_dir: Path = Path("./results/encoder_latent")
@@ -54,19 +56,19 @@ class TrainEncoderLatentParams(Serializable):
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
-        if self.optimizer.lr is None:
-            if self.optimizer.optimizer == OptimizerType.SGD:
-                self.optimizer.lr = 20
-            elif self.optimizer.optimizer == OptimizerType.ADAM:
-                self.optimizer.lr = 5e-4
+
 
 @dataclass
 class TrainEncoderParams(Serializable):
+    generator_path: Path
     latent_path: Optional[Path] = None
     encoder: EncoderParams = EncoderParams()
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()
-    batch_size: int = 64
-    optimizer: OptimizerArgs = OptimizerArgs(momentum=0.9)
+    batch_size: int = 16
+    optimizer: OptimizerConfig = subgroups(
+        {"sgd": SGDConfig(lr=20, momentum=0.9), "adam": AdamConfig(lr=2e-2)},
+        default="sgd",
+    )
     loss: LossParams = LossParams()
     num_epochs: int = 100
     log_dir: Path = Path("./results/encoder")
@@ -74,13 +76,9 @@ class TrainEncoderParams(Serializable):
     slurm_job_id: Optional[str] = None
     debug: bool = False
     num_test_samples: int = 8
-    latent_regularization: float = 10.
+    latent_regularization: float = 10.0
     decreasing_regularization: bool = False
+    num_workers: int = 4
 
     def __post_init__(self):
         self.save_dir = self.log_dir / self.name
-        if self.optimizer.lr is None:
-            if self.optimizer.optimizer == OptimizerType.SGD:
-                self.optimizer.lr = 20
-            elif self.optimizer.optimizer == OptimizerType.ADAM:
-                self.optimizer.lr = 2e-2

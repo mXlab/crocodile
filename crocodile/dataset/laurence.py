@@ -10,6 +10,7 @@ from .biodata import Biodata
 import torch
 from typing import List, Tuple
 
+
 @dataclass
 class Config:
     video_file: str = MISSING
@@ -26,12 +27,16 @@ class Config:
     crop_height: int = MISSING
     usecols: List[int] = MISSING
 
+
 class LaurenceDataset(Dataset):
     FILES = [
-        ('1bP5iSAIM2SRJCvi9Ul813RrZ6kV9og3D',
-         'videos/001.mov', '6df26e9bfb7825059b390b7bbf66a370'),
-        ('16XBEGwn6cTgX7S4WSIFyQVuiX9t7cCSJ', 'config.yaml', None),
-        ('1Fvc4gL-ccpsdBpNZUmrqvvswnyfVEumG', 'videos/001.csv', None),
+        (
+            "1bP5iSAIM2SRJCvi9Ul813RrZ6kV9og3D",
+            "videos/001.mov",
+            "6df26e9bfb7825059b390b7bbf66a370",
+        ),
+        ("16XBEGwn6cTgX7S4WSIFyQVuiX9t7cCSJ", "config.yaml", None),
+        ("1Fvc4gL-ccpsdBpNZUmrqvvswnyfVEumG", "videos/001.csv", None),
     ]
 
     @dataclass
@@ -57,7 +62,11 @@ class LaurenceDataset(Dataset):
         self.config = self.load_config(self.path)
 
         self.images = self.load_images(self.path / str(args.resolution))
-        self.biodata = Biodata(self.path / self.config.sensor_file, self.config.sampling_rate, params=args.biodata)
+        self.biodata = Biodata(
+            self.path / self.config.sensor_file,
+            self.config.sampling_rate,
+            params=args.biodata,
+        )
         self.seq_length = self.biodata.seq_length
         self.seq_dim = self.biodata.dim
 
@@ -78,10 +87,12 @@ class LaurenceDataset(Dataset):
 
     @classmethod
     def check_all_integrity(cls, path: Path) -> bool:
-        return all(check_integrity(path / filemame, md5) for _, filemame, md5 in cls.FILES)
+        return all(
+            check_integrity(path / filemame, md5) for _, filemame, md5 in cls.FILES
+        )
 
     @classmethod
-    def check_video_integrity(cls, path: Path, num_frames: int=None) -> bool:
+    def check_video_integrity(cls, path: Path, num_frames: int = None) -> bool:
         if not path.exists():
             return False
         if num_frames is None:
@@ -104,7 +115,8 @@ class LaurenceDataset(Dataset):
 
         path_to_raw.mkdir(exist_ok=True)
         command = "ffmpeg -i {} -f image2 {}".format(
-            path / config.video_file, path_to_raw / "frame_%07d.png")
+            path / config.video_file, path_to_raw / "frame_%07d.png"
+        )
         subprocess.run(command.split())
 
     @classmethod
@@ -121,8 +133,14 @@ class LaurenceDataset(Dataset):
         list_images = cls.load_images(path / "raw")
         for i, file in enumerate(tqdm(list_images)):
             img = Image.open(file)
-            img = img.crop(box=(config.crop_x, config.crop_y, config.crop_x +
-                           config.crop_width, config.crop_y + config.crop_height))
+            img = img.crop(
+                box=(
+                    config.crop_x,
+                    config.crop_y,
+                    config.crop_x + config.crop_width,
+                    config.crop_y + config.crop_height,
+                )
+            )
             img = img.resize((resolution, resolution), 3)
             img.save(path_img / ("%.7i.png" % i))
 
@@ -143,9 +161,13 @@ class LaurenceDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        biodata_index = int((index - self.config.start_video) / self.config.fps *
-                   self.config.sampling_rate + self.config.start_sensor) + self.biodata.window_size
-        biodata = torch.from_numpy(self.biodata[biodata_index]).transpose(0,1)
+        biodata_index = int(
+            (index - self.config.start_video)
+            / self.config.fps
+            * self.config.sampling_rate
+            + self.config.start_sensor
+        )
+        biodata = torch.from_numpy(self.biodata[biodata_index]).transpose(0, 1)
 
         if self.target_transform is not None:
             biodata = self.target_transform(biodata)
@@ -153,7 +175,12 @@ class LaurenceDataset(Dataset):
         return img, biodata, index
 
     def convert_index(self, index: int) -> int:
-        return int((index - self.config.start_sensor)/self.config.sampling_rate * self.config.fps + self.config.start_video)
+        return int(
+            (index - self.config.start_sensor)
+            / self.config.sampling_rate
+            * self.config.fps
+            + self.config.start_video
+        )
 
     def __len__(self) -> int:
         return min(len(self.images), self.convert_index(len(self.biodata)))

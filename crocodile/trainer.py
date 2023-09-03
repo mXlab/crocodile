@@ -1,12 +1,13 @@
 """Base trainer class."""
 from dataclasses import dataclass
 from typing import Protocol
+from simple_parsing import Serializable
 
-from crocodile.dataset import LaurenceDataset
+from .dataset import LaurenceDataset
 
 
 @dataclass
-class TrainConfig:
+class TrainConfig(Serializable):
     """Base trainer class."""
 
     dataset: LaurenceDataset.Params = LaurenceDataset.Params()

@@ -1,37 +1,38 @@
 """FastGAN train module."""
 from dataclasses import dataclass, asdict
 import random
-from typing import Optional
+import os
+from pathlib import Path
+from typing import Iterator, Literal, Optional
 from simple_parsing import parse
 import torch
-from torch import nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision import utils as vutils
 from torchvision.transforms.functional import to_pil_image
 from tqdm import tqdm
 import mlflow
-from mlflow.models import infer_signature
+
 
 from crocodile.optimizer import AdamConfig, load_optimizer
-from crocodile.trainer.base import TrainConfig, Trainer
+from crocodile.trainer import TrainConfig, Trainer
 from crocodile.utils import flatten_dict
 from crocodile.dataset import LaurenceDataset
 from torchmetrics.image.fid import FrechetInceptionDistance
 
 
-from FastGAN import lpips
-from FastGAN.models import (
+from . import lpips
+from .models import (
     weights_init,
     Discriminator,
     FastGANGenerator as Generator,
     GeneratorConfig,
     DiscriminatorConfig,
 )
-from FastGAN.operation import copy_G_params, load_params
-from FastGAN.operation import ImageFolder, InfiniteSamplerWrapper
-from FastGAN.diffaug import DiffAugment
+from .operation import copy_G_params, load_params
+from .operation import ImageFolder, InfiniteSamplerWrapper
+from .diffaug import DiffAugment
 
 # torch.backends.cudnn.benchmark = True
 
@@ -49,29 +50,6 @@ def crop_image_by_part(image: torch.Tensor, part: int):
         return image[:, :, hw:, hw:]
 
 
-def train_d(net: nn.Module, data: torch.Tensor, label: str = "real"):
-    """Train function of discriminator"""
-    if label == "real":
-        part = random.randint(0, 3)
-        pred, [rec_all, rec_small, rec_part] = net(data, label, part=part)
-        err = (
-            F.relu(torch.rand_like(pred) * 0.2 + 0.8 - pred).mean()
-            + percept(rec_all, F.interpolate(data, rec_all.shape[2])).sum()
-            + percept(rec_small, F.interpolate(data, rec_small.shape[2])).sum()
-            + percept(
-                rec_part,
-                F.interpolate(crop_image_by_part(data, part), rec_part.shape[2]),
-            ).sum()
-        )
-        err.backward()
-        return pred.mean().item(), rec_all, rec_small, rec_part
-    else:
-        pred = net(data, label)
-        err = F.relu(torch.rand_like(pred) * 0.2 + 0.8 + pred).mean()
-        err.backward()
-        return pred.mean().item()
-
-
 @dataclass
 class FastGANTrainConfig(TrainConfig):
     """FastGAN train config class."""
@@ -79,25 +57,31 @@ class FastGANTrainConfig(TrainConfig):
     total_iterations: int = 50000
     checkpoint: Optional[str] = None
     batch_size: int = 8
+    eval_batch_size: int = 16
     im_size: int = 1024
     generator: GeneratorConfig = GeneratorConfig()
     discriminator: DiscriminatorConfig = DiscriminatorConfig()
     optimizer_G: AdamConfig = AdamConfig(lr=0.0002, betas=(0.5, 0.999))
     optimizer_D: AdamConfig = AdamConfig(lr=0.0002, betas=(0.5, 0.999))
     dataloader_workers: int = 8
-    img_save_interval: int = 1000
+    img_save_interval: int = 5000
     model_save_interval: int = 5000
-    eval_save_interval: int = 1000
-    num_valid_samples: int = 1000
+    eval_save_interval: int = 5000
+    num_valid_samples: int = 2000
     num_test_samples: int = 8
     ema_beta: float = 0.001
     policy: str = "color,translation"
     remote_server_uri: str = "https://crocodile-gqhfy6c73a-uc.a.run.app"
     experiment_name: str = "fastgan"
+    log_dir: Optional[Path] = None
 
 
 class FastGANTrainer(Trainer):
     """FastGAN trainer class."""
+
+    device: Literal["cuda", "cpu"]
+    dataloader: Iterator
+    fid_loader: DataLoader
 
     def __init__(self, config: FastGANTrainConfig):
         self.config = config
@@ -113,29 +97,7 @@ class FastGANTrainer(Trainer):
         ]
         trans = transforms.Compose(transform_list)
 
-        dataset = ImageFolder(root=data_root, transform=trans)
-        self.validset, _ = random_split(
-            dataset,
-            [config.num_valid_samples, len(dataset) - config.num_valid_samples],
-        )
-
-        self.dataloader = iter(
-            DataLoader(
-                dataset,
-                batch_size=config.batch_size,
-                shuffle=False,
-                sampler=InfiniteSamplerWrapper(dataset),
-                num_workers=config.dataloader_workers,
-                pin_memory=True,
-            )
-        )
-
-        self.testloader = DataLoader(
-            dataset,
-            batch_size=config.batch_size,
-            shuffle=False,
-            num_workers=config.dataloader_workers,
-        )
+        self.dataset = ImageFolder(root=data_root, transform=trans)
 
         # from model_s import Generator, Discriminator
         self.netG = Generator(im_size=config.im_size, config=config.generator)
@@ -149,40 +111,85 @@ class FastGANTrainer(Trainer):
 
         self.percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=False)
 
-        self.fid = FrechetInceptionDistance(normalize=True)
+        self.fid = FrechetInceptionDistance(normalize=True, reset_real_features=False)
 
-    def compute_fid(self, netG: Generator, device: torch.device):
+    def init_fid(self):
+        with torch.no_grad():
+            for real_image in tqdm(self.fid_loader):
+                real_image = real_image.to(self.device)
+                self.fid.update(self.netG.unormalize(real_image), real=True)
+
+    def compute_fid(self, netG: Generator):
         """Compute FID score."""
         self.fid.reset()
         with torch.no_grad():
-            for real_image in self.testloader:
-                real_image = real_image.to(device)
-                current_batch_size = real_image.size(0)
-                noise = netG.noise(current_batch_size).to(device)
-                fake_images = netG.generate(noise)[0]
-
+            for _ in range(
+                self.config.num_valid_samples // self.config.eval_batch_size
+            ):
+                noise = netG.noise(self.config.eval_batch_size).to(self.device)
+                fake_images = netG.generate(noise)
                 self.fid.update(fake_images, real=False)
-                self.fid.update(netG._unormalize(real_image), real=True)
+
         return self.fid.compute()
+
+    def train_d(self, data, label: str = "real"):
+        """Train function of discriminator"""
+        if label == "real":
+            part = random.randint(0, 3)
+            pred, [rec_all, rec_small, rec_part] = self.netD(data, label, part=part)
+            err = (
+                F.relu(torch.rand_like(pred) * 0.2 + 0.8 - pred).mean()
+                + self.percept(rec_all, F.interpolate(data, rec_all.shape[2])).sum()
+                + self.percept(rec_small, F.interpolate(data, rec_small.shape[2])).sum()
+                + self.percept(
+                    rec_part,
+                    F.interpolate(crop_image_by_part(data, part), rec_part.shape[2]),
+                ).sum()
+            )
+            err.backward()
+            return pred.mean().item(), rec_all, rec_small, rec_part
+        else:
+            pred = self.netD(data, label)
+            err = F.relu(torch.rand_like(pred) * 0.2 + 0.8 + pred).mean()
+            err.backward()
+            return pred.mean().item()
 
     def train(self):
         print("Loading device...")
-+       device = "cuda" if torch.cuda.is_available() else "cpu"
-+       print(f"Running on {device}")
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"Running on {self.device}")
+
+        self.dataloader = iter(
+            DataLoader(
+                self.dataset,
+                batch_size=self.config.batch_size,
+                shuffle=False,
+                sampler=InfiniteSamplerWrapper(self.dataset),
+                num_workers=self.config.dataloader_workers,
+                pin_memory=True,
+            )
+        )
+
+        self.fid_loader = DataLoader(
+            self.dataset,
+            batch_size=self.config.eval_batch_size,
+            shuffle=False,
+            num_workers=self.config.dataloader_workers,
+        )
 
         self.percept = lpips.PerceptualLoss(
             model="net-lin", net="vgg", use_gpu=torch.cuda.is_available()
         )
 
-        self.netG.to(device)
-        self.netD.to(device)
+        self.netG.to(self.device)
+        self.netD.to(self.device)
 
         avg_param_G = copy_G_params(self.netG)
-        fixed_noise = self.netG.noise(self.config.num_test_samples).to(device)
+        fixed_noise = self.netG.noise(self.config.num_test_samples).to(self.device)
 
-        signature = infer_signature(
-            fixed_noise.cpu().numpy(), self.netG(fixed_noise).detach().cpu().numpy()
-        )
+        print("Initializing fid...")
+        self.fid.to(self.device)
+        self.init_fid()
 
         current_iteration = 0
         if self.config.checkpoint is not None:
@@ -192,25 +199,46 @@ class FastGANTrainer(Trainer):
             avg_param_G = ckpt["g_ema"]
             self.optimizerG.load_state_dict(ckpt["opt_g"])
             self.optimizerD.load_state_dict(ckpt["opt_d"])
-            current_iteration = int(
-                self.config.checkpoint.split("_")[-1].split(".")[0]
-            )
+            current_iteration = int(self.config.checkpoint.split("_")[-1].split(".")[0])
             del ckpt
 
         mlflow.set_tracking_uri(self.config.remote_server_uri)
         mlflow.set_experiment(self.config.experiment_name)
-        with mlflow.start_run():
+        with mlflow.start_run() as run:
+            log_dir = self.config.log_dir
+            if log_dir is None:
+                scratch_dir = os.environ.get("SCRATCH")
+                if scratch_dir is not None:
+                    log_dir = Path(scratch_dir) / "crocodile" / "logs"
+                else:
+                    log_dir = Path("./logs")
+
+            exp_dir = log_dir / str(run.info.run_id)
+            model_dir = exp_dir / "models"
+            model_ema_dir = exp_dir / "models-ema"
+            image_dir = exp_dir / "images"
+            image_ema_dir = exp_dir / "images-ema"
+
+            model_dir.mkdir(parents=True, exist_ok=True)
+            model_ema_dir.mkdir(parents=True, exist_ok=True)
+            image_dir.mkdir(parents=True, exist_ok=True)
+            image_ema_dir.mkdir(parents=True, exist_ok=True)
+
+            print(f"Saving experiment to {exp_dir}...")
             params = flatten_dict(asdict(self.config))
             mlflow.log_params(params)
+            self.config.save(exp_dir / "config.yaml")
+            fid = float("nan")
+            fid_ema = float("nan")
             for iteration in tqdm(
                 range(current_iteration, self.config.total_iterations + 1)
             ):
                 real_image = next(self.dataloader)
-                real_image = real_image.to(device)
+                real_image = real_image.to(self.device)
                 current_batch_size = real_image.size(0)
-                noise = self.netG.noise(current_batch_size).to(device)
+                noise = self.netG.noise(current_batch_size).to(self.device)
 
-                fake_images = self.netG(noise)
+                fake_images = self.netG.multires(noise)
 
                 real_image = DiffAugment(real_image, policy=self.config.policy)
                 fake_images = [
@@ -220,10 +248,10 @@ class FastGANTrainer(Trainer):
                 ## 2. train Discriminator
                 self.netD.zero_grad()
 
-                err_dr, rec_img_all, rec_img_small, rec_img_part = train_d(
-                    self.netD, real_image, label="real"
+                err_dr, rec_img_all, rec_img_small, rec_img_part = self.train_d(
+                    real_image, label="real"
                 )
-                train_d(self.netD, [fi.detach() for fi in fake_images], label="fake")
+                self.train_d([fi.detach() for fi in fake_images], label="fake")
                 self.optimizerD.step()
 
                 ## 3. train Generator
@@ -239,59 +267,69 @@ class FastGANTrainer(Trainer):
                         self.config.ema_beta * p.data
                     )
 
-                if iteration % 100 == 0:
-                    print("GAN: loss d: %.5f    loss g: %.5f" % (err_dr, -err_g.item()))
+                if (iteration + 1) % 100 == 0:
+                    print(
+                        f"GAN: loss d: {err_dr:.5f}, loss g: {-err_g.item():.5f}, fid: {fid:.2f}, fid_ema: {fid_ema:.2f}"
+                    )
 
-                if iteration % self.config.eval_save_interval == 0:
-                    fid = self.compute_fid(self.netG, device)
-                    mlflow.log_metric("fid", fid, step=iteration)
+                if (iteration + 1) % self.config.eval_save_interval == 0:
+                    fid = self.compute_fid(self.netG)
+                    mlflow.log_metric("fid", fid.item(), step=iteration)
 
                     backup_para = copy_G_params(self.netG)
                     load_params(self.netG, avg_param_G)
-                    fid = self.compute_fid(self.netG, device)
-                    mlflow.log_metric("fid-ema", fid, step=iteration)
+                    fid_ema = self.compute_fid(self.netG)
+                    mlflow.log_metric("fid-ema", fid_ema.item(), step=iteration)
                     load_params(self.netG, backup_para)
 
-                if iteration % self.config.img_save_interval == 0:
+                if (iteration + 1) % self.config.img_save_interval == 0:
                     with torch.no_grad():
                         img = to_pil_image(
                             vutils.make_grid(
-                                self.netG.generate(fixed_noise).add(1).mul(0.5),
+                                self.netG.generate(fixed_noise),
                                 nrow=4,
                             )
                         )
                         mlflow.log_image(img, f"images/iteration={iteration}.jpg")
+                        img.save(image_dir / f"{iteration}.jpg")
 
                     backup_para = copy_G_params(self.netG)
                     load_params(self.netG, avg_param_G)
                     with torch.no_grad():
                         img = to_pil_image(
                             vutils.make_grid(
-                                self.netG.generate(fixed_noise).add(1).mul(0.5),
+                                self.netG.generate(fixed_noise),
                                 nrow=4,
                             )
                         )
                         mlflow.log_image(img, f"images-ema/iteration={iteration}.jpg")
+                        img.save(image_ema_dir / f"{iteration}.jpg")
                     load_params(self.netG, backup_para)
 
                 if (
                     iteration % self.config.model_save_interval == 0
                     or iteration == self.config.total_iterations
                 ):
+                    torch.save(
+                        {"g": self.netG.state_dict(), "config": self.config},
+                        model_dir / f"{iteration}.pth",
+                    )
                     backup_para = copy_G_params(self.netG)
                     load_params(self.netG, avg_param_G)
-                    mlflow.pytorch.log_model(
-                        self.netG,
-                        f"models-ema/iteration={iteration}",
-                        signature=signature,
+                    torch.save(
+                        {"g": self.netG.state_dict(), "config": self.config},
+                        model_ema_dir / f"{iteration}.pth",
                     )
                     load_params(self.netG, backup_para)
-                    mlflow.pytorch.log_model(
-                        self.netG, f"models/iteration={iteration}", signature=signature
-                    )
+
+    @staticmethod
+    def load_generator(config: FastGANTrainConfig, params):
+        generator = Generator(im_size=config.im_size, config=config.generator)
+        generator.load_state_dict(params)
+        return generator
 
 
 if __name__ == "__main__":
-    config = parse(FastGANTrainConfig)
-    trainer = FastGANTrainer(config)
+    train_config = parse(FastGANTrainConfig)
+    trainer = FastGANTrainer(train_config)
     trainer.train()

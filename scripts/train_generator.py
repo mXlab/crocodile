@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from simple_parsing import parse, subgroups
 
-from crocodile.trainer import TrainConfig, trainer_subgroups, load_trainer
+from crocodile.trainer import TrainConfig
+from crocodile.loader import trainer_subgroups, load_trainer
 from crocodile.executor import (
     load_executor,
     ExecutorConfig,

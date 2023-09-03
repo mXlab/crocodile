@@ -1,0 +1,4 @@
+simple_parsing
+docstring_parser
+lmdb
+torch-fidelity

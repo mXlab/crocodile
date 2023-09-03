@@ -83,6 +83,8 @@ def load_regnet(num_channels: int, seq_length: int, output_dim: int, options: Re
         return regnet_y_16gf(num_channels=num_channels, num_classes=output_dim)
     elif options.regnet == RegNetType.Y_32GF:
         return regnet_y_32gf(num_channels=num_channels, num_classes=output_dim)
+    else:
+        raise NotImplementedError("RegNetType not supported.")
 
 
 class SimpleStemIN(ConvNormActivation):
