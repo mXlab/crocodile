@@ -36,15 +36,14 @@ To train a model run the following commands:
 2. `source .env/bin/activate`
 3. `python scripts/train.py`
 
-## Example on how to use a Model:
+## Example on how to load a Model:
+Models are available at: https://drive.google.com/drive/folders/1OjW0I-9Ht8ql98YiRBb4Tum0l_B3I67a?usp=sharing
 
 ```python
 import torch
-from crocodile import load_generator
-from FastGAN import FastGANConfig
-config = FastGANConfig()
-generator = load_generator(config)
-noise = torch.zeros(1, generator.latent_dim).normal_()
+from crocodile.loader import load_from_path
+generator = load_from_path(path)
+noise = generator.noise(num_samples)
 img = generator.generate(noise)
 ```
 
