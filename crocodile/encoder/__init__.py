@@ -1,18 +1,21 @@
 from enum import Enum
 from re import I
 from typing import Optional
+from pathlib import Path
+from dataclasses import dataclass
 
-from crocodile import generator
+from simple_parsing import Serializable
+from simple_parsing.helpers.serialization import encode, register_decoding_fn
+import torch
+import torch.nn as nn
+
+
 from .efficientnet import EfficientNetOptions, load_efficientnet
 from .regnet import RegNetOptions, load_regnet
 from .mlp import MLPParams, load_mlp
 from .vgg import VGGOptions, load_vgg
-from dataclasses import dataclass
-from simple_parsing.helpers import Serializable
-from simple_parsing.helpers.serialization import encode, register_decoding_fn
-import torch
-import torch.nn as nn
-from pathlib import Path
+
+
 
 class EncoderType(Enum):
     MLP = "mlp"
@@ -23,7 +26,6 @@ class EncoderType(Enum):
 
 @dataclass
 class EncoderParams(Serializable):
-    generator_path: Optional[Path] = None
     epoch: Optional[int] = None
     encoder: EncoderType = EncoderType.MLP
     mlp_options: MLPParams = MLPParams()
@@ -47,7 +49,9 @@ class Encoder(nn.Module):
         elif options.encoder == EncoderType.REGNET:
             self.network = load_regnet(num_channels, seq_length, output_dim, options.regnet_options)
         elif options.encoder == EncoderType.EFFICIENTNET:
-            self.network = load_efficientnet(num_channels, seq_length, output_dim, options.regnet_options)
+            self.network = load_efficientnet(num_channels, seq_length, output_dim, options.efficientnet_options)
+        else:
+            raise NotImplementedError("Encoder type not supported.")
 
     def forward(self, x):
         return self.network(x)

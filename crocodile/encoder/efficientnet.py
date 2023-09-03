@@ -60,6 +60,8 @@ def load_efficientnet(num_channels: int, seq_length: int, output_dim: int, optio
         return efficientnet_b6(num_channels=num_channels, num_classes=output_dim)
     elif options.efficientnet == EfficientNetType.B7:
         return efficientnet_b7(num_channels=num_channels, num_classes=output_dim)
+    else:
+        raise NotImplementedError("Efficientnet type not supported.")
 
 
 class MBConvConfig:

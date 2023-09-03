@@ -211,15 +211,20 @@ class FastGANGenerator(nn.Module, Generator):
         if im_size > 512:
             self.feat_1024 = UpBlock(nfc[512], nfc[1024])
 
-    def _unormalize(self, image: torch.Tensor):
+    @property
+    def num_latent(self):
+        return self.config.nz
+    
+
+    def unormalize(self, image: torch.Tensor):
         """Unormalize image"""
         return image.add(1).mul(0.5)
 
     def noise(self, n: int):
-        return torch.FloatTensor(n, self.config.nz).normal_(0, 1)
+        return torch.FloatTensor(n, self.num_latent).normal_(0, 1)
 
     def generate(self, noise: torch.Tensor) -> torch.Tensor:
-        return self._unormalize(self.forward(noise)[0])
+        return self.unormalize(self.forward(noise))
 
     def set_noise_mode(self, mode):
         for layer in self.modules():
@@ -238,7 +243,7 @@ class FastGANGenerator(nn.Module, Generator):
             layer = self.get_submodule(name)
             layer.set_noise(noise)
 
-    def forward(self, input):
+    def _preforward(self, input):
         feat_4 = self.init(input)
         feat_8 = self.feat_8(feat_4)
         feat_16 = self.feat_16(feat_8)
@@ -259,10 +264,21 @@ class FastGANGenerator(nn.Module, Generator):
 
         feat_1024 = self.feat_1024(feat_512)
 
-        im_128 = torch.tanh(self.to_128(feat_128))
-        im_1024 = torch.tanh(self.to_big(feat_1024))
+        return feat_1024, feat_128
+        
 
+    def forward(self, input):
+        feat_1024, _ = self._preforward(input)
+        im_1024 = torch.tanh(self.to_big(feat_1024))
+        return im_1024
+
+    def multires(self, input):
+        feat_1024, feat_128 = self._preforward(input)
+        im_1024 = torch.tanh(self.to_big(feat_1024))
+        im_128 = torch.tanh(self.to_128(feat_128))
         return [im_1024, im_128]
+
+
 
 
 class DownBlock(nn.Module):

@@ -1,0 +1,13 @@
+mlflow
+torch
+submitit
+torchvision
+torchmetrics
+tqdm
+numpy
+google-auth
+cachetools
+google-api-python-client
+omegaconf
+scikit-image
+ndg-httpsclient
