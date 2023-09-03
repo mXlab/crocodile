@@ -39,12 +39,21 @@ To train a model run the following commands:
 ## Example on how to load a Model:
 Models are available at: https://drive.google.com/drive/folders/1OjW0I-9Ht8ql98YiRBb4Tum0l_B3I67a?usp=sharing
 
+### Loading a generator:
 ```python
 import torch
 from crocodile.loader import load_from_path
 generator = load_from_path(path)
 noise = generator.noise(num_samples)
 img = generator.generate(noise)
+```
+
+### Loading an encoder:
+```python
+import torch
+from crocodile.encoder import Encoder
+encoder = Encoder.load(path)
+latent = encoder(biodata)
 ```
 
 ## Deploying MLFlow server on Google Cloud
