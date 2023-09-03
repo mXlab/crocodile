@@ -188,7 +188,6 @@ class FastGANGenerator(nn.Module, Generator):
             nfc[k] = int(v * config.ngf)
 
         self.im_size = im_size
-        self.nz = nz
 
         self.init = InitLayer(config.nz, channel=nfc[4])
 
@@ -215,7 +214,6 @@ class FastGANGenerator(nn.Module, Generator):
     @property
     def num_latent(self):
         return self.config.nz
-    
 
     def unormalize(self, image: torch.Tensor):
         """Unormalize image"""
@@ -266,7 +264,6 @@ class FastGANGenerator(nn.Module, Generator):
         feat_1024 = self.feat_1024(feat_512)
 
         return feat_1024, feat_128
-        
 
     def forward(self, input):
         feat_1024, _ = self._preforward(input)
@@ -278,8 +275,6 @@ class FastGANGenerator(nn.Module, Generator):
         im_1024 = torch.tanh(self.to_big(feat_1024))
         im_128 = torch.tanh(self.to_128(feat_128))
         return [im_1024, im_128]
-
-
 
 
 class DownBlock(nn.Module):

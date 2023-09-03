@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Tuple, List
 from torch.utils.data import Dataset
 from PIL import Image
 from tqdm import tqdm
@@ -9,8 +9,6 @@ from crocodile.utils.drive import GoogleDrive, check_integrity
 from omegaconf import OmegaConf, MISSING
 from .biodata import Biodata
 import torch
-from typing import List, Dict, Any
-
 
 
 @dataclass
@@ -193,7 +191,7 @@ class LaurenceDataset(Dataset):
         if self.target_transform is not None:
             biodata = self.target_transform(biodata)
 
-        return {"image": img, "biodata": biodata, "index": index}
+        return img, biodata, index
 
     def convert_index(self, index: int) -> int:
         return int(

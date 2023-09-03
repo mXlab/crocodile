@@ -18,7 +18,7 @@ register_decoding_fn(Path, Path)
 class ComputeLatentParams(Serializable):
     generator_path: Path
     epoch: Optional[int] = None
-    dataset: LaurenceDataset.Params = LaurenceDataset.Params()
+    dataset: LaurenceDataset.Params = LaurenceDataset.Params(load_biodata=True)
     batch_size: int = 16
     optimizer: OptimizerConfig = subgroups(
         {"sgd": SGDConfig(lr=20, momentum=0.9), "adam": AdamConfig(lr=2e-2)},
@@ -63,7 +63,7 @@ class TrainEncoderParams(Serializable):
     generator_path: Path
     latent_path: Optional[Path] = None
     encoder: EncoderParams = EncoderParams()
-    dataset: LaurenceDataset.Params = LaurenceDataset.Params()
+    dataset: LaurenceDataset.Params = LaurenceDataset.Params(load_biodata=True)
     batch_size: int = 16
     optimizer: OptimizerConfig = subgroups(
         {"sgd": SGDConfig(lr=20, momentum=0.9), "adam": AdamConfig(lr=2e-2)},
