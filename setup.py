@@ -22,4 +22,5 @@ setuptools.setup(
     ],
     packages=["Styleformer", "FastGAN", "crocodile"],
     python_requires=">=3.6",
+    # 'pyspng',
 )

@@ -1,15 +1,14 @@
-from .executor import ExecutorConfig, LocalExecutor, LocalExecutorConfig
+from .executor import Executor, LocalExecutor, LocalExecutorConfig, ExecutorConfig
 from .slurm import SlurmExecutor, SlurmConfig
 
+executor_subgroups = {"local": LocalExecutorConfig, "slurm": SlurmConfig}
 
-executor_subgroups = {"local": LocalExecutorConfig(), "slurm": SlurmConfig()}
 
-
-def load_executor(config: ExecutorConfig):
+def load_executor(config: ExecutorConfig) -> Executor:
     match config:
         case LocalExecutorConfig():
             return LocalExecutor()
         case SlurmConfig():
             return SlurmExecutor(config)
         case _:
-            raise ValueError("Please choose a valid executor.")
+            raise ValueError("Executor not supported.")

@@ -193,7 +193,7 @@ class FullyConnectedLayer(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.weight = torch.nn.Parameter(torch.randn([out_features, in_features]) / lr_multiplier)
-        self.bias = torch.nn.Parameter(torch.full([out_features], np.float32(bias_init))) if bias else None
+        self.bias = torch.nn.Parameter(torch.full([out_features], bias_init).float()) if bias else None
         self.weight_gain = lr_multiplier / np.sqrt(in_features)
         self.bias_gain = lr_multiplier
 
@@ -549,6 +549,7 @@ class SynthesisNetwork(nn.Module):
         self.num_block = num_layers
         self.block_resolutions = [2 ** i for i in range(3, self.img_resolution_log2 + 1)]
         assert len(self.block_resolutions) == len(self.num_block)
+        
         channels_dict = dict(zip(*[self.block_resolutions, G_dict]))
         fp16_resolution = max(2 ** (self.img_resolution_log2 + 1 - num_fp16_res), 8)
         

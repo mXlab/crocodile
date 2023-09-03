@@ -12,6 +12,7 @@ import torch
 from typing import List, Dict, Any
 
 
+
 @dataclass
 class Config:
     video_file: str = MISSING
@@ -70,6 +71,13 @@ class LaurenceDataset(Dataset):
         self.config = self.load_config(self.path)
 
         self.images = self.load_images(self.path / str(args.resolution))
+        self.biodata = Biodata(
+            self.path / self.config.sensor_file,
+            self.config.sampling_rate,
+            params=args.biodata,
+        )
+        self.seq_length = self.biodata.seq_length
+        self.seq_dim = self.biodata.dim
 
         self.biodata = None
         if args.load_biodata:
@@ -105,9 +113,7 @@ class LaurenceDataset(Dataset):
         )
 
     @classmethod
-    def check_video_integrity(
-        cls, path: Path, num_frames: Optional[int] = None
-    ) -> bool:
+    def check_video_integrity(cls, path: Path, num_frames: int = None) -> bool:
         if not path.exists():
             return False
         if num_frames is None:
@@ -170,23 +176,17 @@ class LaurenceDataset(Dataset):
     def load_images(path: Path) -> List[Path]:
         return sorted(path.glob("*.png"))
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
         img = Image.open(self.images[index])
 
         if self.transform is not None:
             img = self.transform(img)
 
-        if self.biodata is None:
-            return {"image": img, "index": index}
-
-        biodata_index = (
-            int(
-                (index - self.config.start_video)
-                / self.config.fps
-                * self.config.sampling_rate
-                + self.config.start_sensor
-            )
-            + self.biodata.window_size
+        biodata_index = int(
+            (index - self.config.start_video)
+            / self.config.fps
+            * self.config.sampling_rate
+            + self.config.start_sensor
         )
         biodata = torch.from_numpy(self.biodata[biodata_index]).transpose(0, 1)
 

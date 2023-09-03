@@ -1,5 +1,4 @@
 simple_parsing
 docstring_parser
-torchmetrics
+lmdb
 torch-fidelity
-google-cloud-storage

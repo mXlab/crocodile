@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Callable, Any
 
 
 @dataclass
 class ExecutorConfig:
-    pass
+    ...
 
 
 class Executor(ABC):
@@ -18,7 +19,7 @@ class Executor(ABC):
 
 @dataclass
 class LocalExecutorConfig(ExecutorConfig):
-    pass
+    ...
 
 
 class LocalExecutor(Executor):

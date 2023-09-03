@@ -1,19 +1,15 @@
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
-from torch import nn
+"""Generator class""" ""
+from typing import Protocol
+import torch
 
 
-@dataclass
-class GeneratorConfig:
-    pass
+class Generator(Protocol):
+    """Generator class"""
 
-
-class Generator(ABC, nn.Module):
-    @property
-    @abstractmethod
-    def latent_dim(self):
+    def generate(self, noise: torch.Tensor) -> torch.Tensor:
+        """Generate images from noise"""
         ...
 
-    @abstractmethod
-    def generate(self):
+    def noise(self, n: int) -> torch.Tensor:
+        """Generate noise"""
         ...

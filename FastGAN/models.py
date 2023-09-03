@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn.utils import spectral_norm
@@ -160,9 +161,16 @@ def UpBlockComp(in_planes, out_planes):
     return block
 
 
-class FastGANGenerator(Generator):
-    def __init__(self, ngf=64, nz=100, nc=3, im_size=1024):
+@dataclass
+class GeneratorConfig:
+    ngf: int = 64
+    nz: int = 100
+
+
+class FastGANGenerator(nn.Module, Generator):
+    def __init__(self, nc=3, im_size=1024, config: GeneratorConfig = GeneratorConfig()):
         super().__init__()
+        self.config = config
 
         nfc_multi = {
             4: 16,
@@ -177,12 +185,12 @@ class FastGANGenerator(Generator):
         }
         nfc = {}
         for k, v in nfc_multi.items():
-            nfc[k] = int(v * ngf)
+            nfc[k] = int(v * config.ngf)
 
         self.im_size = im_size
         self.nz = nz
 
-        self.init = InitLayer(nz, channel=nfc[4])
+        self.init = InitLayer(config.nz, channel=nfc[4])
 
         self.feat_8 = UpBlockComp(nfc[4], nfc[8])
         self.feat_16 = UpBlock(nfc[8], nfc[16])
@@ -205,11 +213,19 @@ class FastGANGenerator(Generator):
             self.feat_1024 = UpBlock(nfc[512], nfc[1024])
 
     @property
-    def latent_dim(self):
-        return self.nz
+    def num_latent(self):
+        return self.config.nz
     
-    def generate(self, noise: torch.Tensor):
-        return self.forward(noise)[0]
+
+    def unormalize(self, image: torch.Tensor):
+        """Unormalize image"""
+        return image.add(1).mul(0.5)
+
+    def noise(self, n: int):
+        return torch.FloatTensor(n, self.num_latent).normal_(0, 1)
+
+    def generate(self, noise: torch.Tensor) -> torch.Tensor:
+        return self.unormalize(self.forward(noise))
 
     def set_noise_mode(self, mode):
         for layer in self.modules():
@@ -228,7 +244,7 @@ class FastGANGenerator(Generator):
             layer = self.get_submodule(name)
             layer.set_noise(noise)
 
-    def forward(self, input):
+    def _preforward(self, input):
         feat_4 = self.init(input)
         feat_8 = self.feat_8(feat_4)
         feat_16 = self.feat_16(feat_8)
@@ -249,10 +265,21 @@ class FastGANGenerator(Generator):
 
         feat_1024 = self.feat_1024(feat_512)
 
-        im_128 = torch.tanh(self.to_128(feat_128))
-        im_1024 = torch.tanh(self.to_big(feat_1024))
+        return feat_1024, feat_128
+        
 
+    def forward(self, input):
+        feat_1024, _ = self._preforward(input)
+        im_1024 = torch.tanh(self.to_big(feat_1024))
+        return im_1024
+
+    def multires(self, input):
+        feat_1024, feat_128 = self._preforward(input)
+        im_1024 = torch.tanh(self.to_big(feat_1024))
+        im_128 = torch.tanh(self.to_128(feat_128))
         return [im_1024, im_128]
+
+
 
 
 class DownBlock(nn.Module):
@@ -293,10 +320,17 @@ class DownBlockComp(nn.Module):
         return (self.main(feat) + self.direct(feat)) / 2
 
 
+@dataclass
+class DiscriminatorConfig:
+    ndf: int = 64
+
+
 class Discriminator(nn.Module):
-    def __init__(self, ndf=64, nc=3, im_size=512):
+    def __init__(
+        self, nc=3, im_size=512, config: DiscriminatorConfig = DiscriminatorConfig()
+    ):
         super(Discriminator, self).__init__()
-        self.ndf = ndf
+        self.ndf = config.ndf
         self.im_size = im_size
 
         nfc_multi = {
@@ -312,7 +346,7 @@ class Discriminator(nn.Module):
         }
         nfc = {}
         for k, v in nfc_multi.items():
-            nfc[k] = int(v * ndf)
+            nfc[k] = int(v * config.ndf)
 
         if im_size == 1024:
             self.down_from_big = nn.Sequential(
