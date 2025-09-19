@@ -17,13 +17,22 @@ module.exports = {
         var {address, args, host, port} = data
 
         // split
-        if (address === '/wek/output') {
+        if (address === '/wek/eigens') {
             for (let i=0; i<args.length; i++) {
 	            receive("/SET", "matrix_eigens/" + i, args[i], {clientId: clients[0]})
             }
 
             return // bypass original message
         }
+
+        else if (address === '/wek/emotions') {
+            for (let i=0; i<args.length; i++) {
+	            receive("/SET", "matrix_emotions/" + i, args[i], {clientId: clients[0]})
+            }
+
+            return // bypass original message
+        }
+
 
         return {address, args, host, port}
 

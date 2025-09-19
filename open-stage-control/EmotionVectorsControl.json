@@ -49,7 +49,7 @@
         "top": 30,
         "left": 40,
         "lock": false,
-        "id": "matrix_sliders",
+        "id": "matrix_emotions",
         "visible": true,
         "interaction": true,
         "comments": "",
@@ -95,7 +95,7 @@
         "ignoreDefaults": false,
         "bypass": false,
         "onCreate": "VAR{\"emotion_vectors\"};\nsetVar(this, \"emotion_vectors\", IMPORT{\"emotion_vectors.json\"});\nVAR{\"emotions\"};\nsetVar(this, \"emotions\", [\"happiness\", \"sadness\", \"guilt\", \"arousal\", \"fear\"]);",
-        "onValue": "function vectorMatrixMultiply(vector, matrix) {\n  const rows = matrix.length;        // number of rows in matrix\n  const cols = matrix[0].length;     // number of columns in matrix\n  const result = new Array(cols).fill(0);\n\n  for (let j = 0; j < cols; j++) {       // for each column\n    for (let i = 0; i < rows; i++) {     // sum over rows\n      result[j] += vector[i] * matrix[i][j];\n    }\n  }\n  return result;\n}\n\nfunction vectorMagnitude(vector) {\n  let sum = 0;\n  for (let i = 0; i < vector.length; i++)\n    sum += vector[i];\n  return sum;\n}\n\nfunction vectorNormalize(vector) {\n  let mag = vectorMagnitude(vector);\n  if (mag > 0) {\n    for (let i = 0; i < vector.length; i++)\n      vector[i] /= mag;\n  }\n  return vector;\n}\n\nlet vec = getVar(this, \"emotion_vectors\");\nlet v = vectorMatrixMultiply(vectorNormalize(value), getVar(this, \"emotion_vectors\"));\n// console.log(v);\nfor (let i = 0; i < v.length; i++)\n  send(\"/al/in/\"+i, v[i]);",
+        "onValue": "function vectorMatrixMultiply(vector, matrix) {\n  const rows = matrix.length;        // number of rows in matrix\n  const cols = matrix[0].length;     // number of columns in matrix\n  const result = new Array(cols).fill(0);\n\n  for (let j = 0; j < cols; j++) {       // for each column\n    for (let i = 0; i < rows; i++) {     // sum over rows\n      result[j] += vector[i] * matrix[i][j];\n    }\n  }\n  return result;\n}\n\nfunction vectorMagnitude(vector) {\n  let sum = 0;\n  for (let i = 0; i < vector.length; i++)\n    sum += vector[i];\n  return sum;\n}\n\nfunction vectorNormalize(vector) {\n  let mag = vectorMagnitude(vector);\n  if (mag > 0) {\n    for (let i = 0; i < vector.length; i++)\n      vector[i] /= mag;\n  }\n  return vector;\n}\n\nlet vec = getVar(this, \"emotion_vectors\");\nlet v = vectorMatrixMultiply(vectorNormalize(value), getVar(this, \"emotion_vectors\"));\nfor (let i = 0; i < v.length; i++) {\n  set(\"matrix_eigens/\"+i,  v[i]);\n}",
         "onTouch": "",
         "widgets": [],
         "tabs": []
