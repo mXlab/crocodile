@@ -1,9 +1,11 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import argparse
 import json
-import os
 import torch
-import models
-from dataset import CrocodileDataset
+from lib import models
+from lib.dataset import CrocodileDataset
 import torchvision
 import subprocess
 import shutil
