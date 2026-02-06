@@ -1,19 +1,21 @@
-from dataset import CrocodileDataset, SequenceSampler
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from lib.dataset import CrocodileDataset, SequenceSampler
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import torchvision
 from torch import optim
-import utils
+from lib import utils
 import torch
 from torch import autograd
-import os
 import argparse
 import time
 import json
-import models
+from lib import models
 from tensorboardX import SummaryWriter
 import numpy as np
-import logger
+from lib import logger
 
 BIODATA_DEFAULT = "LaurenceHBS-Nov919mins1000Hz-Heart+GSR-2channels.csv"
 SAMPLING_RATE_DEFAULT = 1000
@@ -74,7 +76,7 @@ class Preprocessing:
         self.normalization = normalization
 
     def __call__(self, signal):
-        import biodata
+        from lib import biodata
         from scipy.signal import find_peaks
         from biosppy.signals.tools import get_heart_rate, smoother
 
