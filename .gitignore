@@ -1,3 +1,30 @@
+# ============================================================================
+# CROCODILE PROJECT - .gitignore
+# ============================================================================
+
+# ============================================================================
+# BIODATA PIPELINE - Project-specific
+# ============================================================================
+
+# Data files (large, regeneratable)
+biodata_pipeline/data/raw/
+biodata_pipeline/data/processed/
+biodata_pipeline/data/features/
+biodata_pipeline/data/metadata/
+
+# Trained models (large binary files)
+biodata_pipeline/models/
+
+# Generated reports (keep README.md files)
+biodata_pipeline/reports/**/*.png
+biodata_pipeline/reports/**/*.pdf
+biodata_pipeline/reports/**/*.html
+!biodata_pipeline/reports/**/README.md
+
+# ============================================================================
+# PYTHON
+# ============================================================================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -25,8 +52,6 @@ wheels/
 MANIFEST
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
@@ -102,22 +127,32 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# Data file formats
+# ============================================================================
+# DATA FILE FORMATS
+# ============================================================================
+
 *.hdf5
 *.hd5
 
-# OS generated files
+# ============================================================================
+# OS GENERATED FILES
+# ============================================================================
+
+# macOS
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
+
+# Windows
 ehthumbs.db
 Thumbs.db
 
-# Packages
-# it's better to unpack these files and commit the raw source
-# git has its own built in compression methods
+# ============================================================================
+# PACKAGES / ARCHIVES
+# ============================================================================
+
 *.7z
 *.dmg
 *.gz
@@ -126,6 +161,10 @@ Thumbs.db
 *.rar
 *.tar
 *.zip
+
+# ============================================================================
+# MEDIA FILES (Images, Video, Audio)
+# ============================================================================
 
 # JPEG
 *.jpg
@@ -191,7 +230,7 @@ Thumbs.db
 *.3dm
 *.max
 
-# Media
+# Video formats
 *.3g2
 *.3gp
 *.asf
@@ -206,9 +245,27 @@ Thumbs.db
 *.vob
 *.wmv
 
-# Other
+# ============================================================================
+# IDEs
+# ============================================================================
+
+.idea/
+
+# ============================================================================
+# OTHER
+# ============================================================================
+
 trash/
 tmp/
 results/
 data/
-.idea/
+
+# ============================================================================
+# CREDENTIALS & SECRETS (CRITICAL)
+# ============================================================================
+
+credentials.*
+secrets.*
+api_keys.*
+*.pem
+*.key
