@@ -11,32 +11,32 @@ You first need to extract the frame from the videos by running:
 
 ## Training a unconditional GAN:
 
-`python train.py -r RESOLUTION --output-path OUTPUT_PATH --path-to-dataset DATASET_PATH`
+`python training_gan/train.py -r RESOLUTION --output-path OUTPUT_PATH --path-to-dataset DATASET_PATH`
 
 - OUTPUT_PATH: This is the path where you want to save the results. It will create
 a sub-folder `img` where the samples are saved for each epochs.
 - DATASET_PATH: This is the link where you want to save the dataset.
 - RESOLUTION: This is the resolution at which you want to generate images.
-- There is a bunch of other options you can play with. To see a list of all options just run `python train.py --help`
+- There is a bunch of other options you can play with. To see a list of all options just run `python training_gan/train.py --help`
 
 ## Training a GAN conditioned on the labels:
 
-`python train_conditional.py OUTPUT_PATH -r RESOLUTION --path-to-dataset DATASET_PATH`
+`python training_gan/train_conditional.py OUTPUT_PATH -r RESOLUTION --path-to-dataset DATASET_PATH`
 
 - Same option as command above
 
 ## Training a GAN conditioned on the biodata:
 
-`python train_with_biodata.py OUTPUT_PATH -r RESOLUTION --path-to-dataset DATASET_PATH --path-to-biodata PATH_TO_BIODATA`
+`python training_gan/train_with_biodata.py OUTPUT_PATH -r RESOLUTION --path-to-dataset DATASET_PATH --path-to-biodata PATH_TO_BIODATA`
 
 - PATH_TO_BIODATA: This the path to the csv file containing the biodata, if not specified automatically look for the file "LaurenceHBS-Nov919mins1000Hz-Heart+GSR-2channels.csv" in the folder DATASET_PATH.
 
 ## Setting up the environment
 
 1. [Install Anaconda](https://docs.anaconda.com/anaconda/install/)
-2. Create conda environment:  
+2. Create conda environment:
 ```conda create -f conda/crocodile.yml```
-3. To activate:  
+3. To activate:
 ```conda activate crocodile```
 4. To deactivate:
 ```conda deactivate```
