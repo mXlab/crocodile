@@ -1,9 +1,11 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import submitit
-from train import run, get_config
+from training_gan.train import run, get_config
 import copy
 import numpy as np
 import time
-import os
 
 args = get_config()
 args.slurm = True
