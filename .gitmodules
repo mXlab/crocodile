@@ -1,0 +1,13 @@
+[submodule "BioDataFeatureExtract/libraries/EpoxyDuino"]
+	path = BioDataFeatureExtract/libraries/EpoxyDuino
+	url = https://github.com/sofian/EpoxyDuino
+[submodule "BioDataFeatureExtract/libraries/Plaquette"]
+	path = BioDataFeatureExtract/libraries/Plaquette
+	url = https://github.com/SofaPirate/Plaquette.git
+[submodule "BioDataFeatureExtract/libraries/BioData"]
+	path = BioDataFeatureExtract/libraries/BioData
+	url = https://github.com/eringee/BioData/
+	branch = Summer_2024_Respiration
+[submodule "BioDataFeatureExtract/libraries/CSV Parser"]
+	path = BioDataFeatureExtract/libraries/CSV Parser
+	url = https://github.com/michalmonday/CSV-Parser-for-Arduino
