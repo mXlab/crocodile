@@ -370,7 +370,108 @@ class EmotionFeatureExtractor:
             features['resp_amplitude_trend_full'] = self._compute_linear_slope(amp_window)
         else:
             features['resp_amplitude_trend_full'] = 0
-        
+
+        # ================================================================
+        # Enhanced respiratory features (rate of change, CV, phase)
+        # Based on BioData library + Luana Belinsky MX2403FR research
+        # Uses adaptive MinMax normalization for robust breath detection
+        # ================================================================
+
+        n_breaths_for_change = 5
+        min_breath_distance = int(1.5 * self.sr)
+
+        # Adaptive normalization for breath detection (BioData MinMax approach)
+        resp_normalized = self._adaptive_minmax_normalize(resp_raw)
+
+        # Detect breaths on normalized signal
+        enh_peaks, _ = find_peaks(resp_normalized, distance=min_breath_distance, height=0.5)
+        enh_troughs, _ = find_peaks(-resp_normalized, distance=min_breath_distance, height=-0.5)
+
+        # Per-breath amplitudes: peak-to-trough for each breath cycle
+        breath_amplitudes = []
+        for i in range(len(enh_peaks) - 1):
+            troughs_between = enh_troughs[(enh_troughs > enh_peaks[i]) & (enh_troughs < enh_peaks[i + 1])]
+            if len(troughs_between) > 0:
+                amp = resp_normalized[enh_peaks[i]] - resp_normalized[troughs_between[0]]
+                breath_amplitudes.append(abs(amp))
+        breath_amplitudes = np.array(breath_amplitudes) if breath_amplitudes else np.array([])
+
+        # Breath intervals and per-breath RPM
+        if len(enh_peaks) > 1:
+            breath_intervals_s = np.diff(enh_peaks) / self.sr
+            breath_rpms = 60.0 / breath_intervals_s
+        else:
+            breath_intervals_s = np.array([])
+            breath_rpms = np.array([])
+
+        # --- Amplitude rate of change (units/min over last N breaths) ---
+        if len(breath_amplitudes) >= 2:
+            n = min(n_breaths_for_change, len(breath_amplitudes))
+            amp_delta = breath_amplitudes[-1] - breath_amplitudes[-n]
+            n_ivl = min(n - 1, len(breath_intervals_s))
+            time_span_s = np.sum(breath_intervals_s[-n_ivl:]) if n_ivl > 0 else 0
+            features['resp_amplitude_rate_of_change'] = self._safe_divide(amp_delta, time_span_s) * 60
+        else:
+            features['resp_amplitude_rate_of_change'] = 0.0
+
+        # --- Amplitude coefficient of variation (%) ---
+        if len(breath_amplitudes) > 1:
+            features['resp_amplitude_coefficient_of_variation'] = \
+                self._safe_divide(np.std(breath_amplitudes), np.mean(breath_amplitudes)) * 100
+        else:
+            features['resp_amplitude_coefficient_of_variation'] = 0.0
+
+        # --- Amplitude level indicator (0-1, current breath vs distribution) ---
+        if len(breath_amplitudes) > 1 and np.std(breath_amplitudes) > 0:
+            z = (breath_amplitudes[-1] - np.mean(breath_amplitudes)) / np.std(breath_amplitudes)
+            features['resp_amplitude_level_indicator'] = float(np.clip((z + 1) / 2, 0, 1))
+        else:
+            features['resp_amplitude_level_indicator'] = 0.5
+
+        # --- RPM rate of change (RPM/min over last N breaths) ---
+        if len(breath_rpms) >= 2:
+            n = min(n_breaths_for_change, len(breath_rpms))
+            rpm_delta = breath_rpms[-1] - breath_rpms[-n]
+            n_ivl = min(n - 1, len(breath_intervals_s))
+            time_span_s = np.sum(breath_intervals_s[-n_ivl:]) if n_ivl > 0 else 0
+            features['resp_rpm_rate_of_change'] = self._safe_divide(rpm_delta, time_span_s) * 60
+        else:
+            features['resp_rpm_rate_of_change'] = 0.0
+
+        # --- RPM coefficient of variation (%) ---
+        if len(breath_rpms) > 1:
+            features['resp_rpm_coefficient_of_variation'] = \
+                self._safe_divide(np.std(breath_rpms), np.mean(breath_rpms)) * 100
+        else:
+            features['resp_rpm_coefficient_of_variation'] = 0.0
+
+        # --- RPM level indicator (0-1, current RPM vs distribution) ---
+        if len(breath_rpms) > 1 and np.std(breath_rpms) > 0:
+            z = (breath_rpms[-1] - np.mean(breath_rpms)) / np.std(breath_rpms)
+            features['resp_rpm_level_indicator'] = float(np.clip((z + 1) / 2, 0, 1))
+        else:
+            features['resp_rpm_level_indicator'] = 0.5
+
+        # --- Phase features: exhale ratio + current phase ---
+        # Between trough→peak = exhaling, peak→trough = inhaling
+        if len(enh_peaks) > 0 and len(enh_troughs) > 0:
+            events = [(p, 'peak') for p in enh_peaks] + [(t, 'trough') for t in enh_troughs]
+            events.sort(key=lambda x: x[0])
+            exhale_samples = 0
+            inhale_samples = 0
+            for i in range(len(events) - 1):
+                seg_len = events[i + 1][0] - events[i][0]
+                if events[i][1] == 'trough':
+                    exhale_samples += seg_len
+                else:
+                    inhale_samples += seg_len
+            total_phase = exhale_samples + inhale_samples
+            features['resp_exhale_ratio'] = self._safe_divide(exhale_samples, total_phase, default=0.5)
+            features['resp_currently_exhaling'] = float(events[-1][1] == 'trough')
+        else:
+            features['resp_exhale_ratio'] = 0.5
+            features['resp_currently_exhaling'] = 0.0
+
         return features
     
     def _compute_multimodal_features(self, features):
@@ -502,6 +603,34 @@ class EmotionFeatureExtractor:
         gasps = amplitude_diff > threshold
         return np.any(gasps)
     
+    def _adaptive_minmax_normalize(self, signal):
+        """
+        Adaptive MinMax normalization from BioData library (MinMax.h).
+        Min/Max bounds adapt slowly to track signal drift.
+        Output is in [0, 1].
+        """
+        adaptation_rate = 0.05
+        adapt_factor = adaptation_rate ** 2
+
+        normalized = np.zeros(len(signal), dtype=float)
+        current_min = float(signal[0])
+        current_max = float(signal[0])
+
+        for i in range(len(signal)):
+            value = float(signal[i])
+            if value > current_max:
+                current_max = value
+            if value < current_min:
+                current_min = value
+            current_min += (value - current_min) * adapt_factor
+            current_max += (value - current_max) * adapt_factor
+            if current_max == current_min:
+                normalized[i] = 0.5
+            else:
+                normalized[i] = (value - current_min) / (current_max - current_min)
+
+        return normalized
+
     def _safe_normalize(self, value, scale=100.0):
         return np.clip(self._safe_divide(value, scale), 0, 1)
     
