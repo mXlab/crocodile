@@ -175,7 +175,12 @@ class EmotionFeatureExtractor:
         peaks_pos, _ = find_peaks(ppg_filtered, distance=int(0.4*self.sr), prominence=0.1)
         peaks_neg, _ = find_peaks(-ppg_filtered, distance=int(0.4*self.sr), prominence=0.1)
         
-        peaks = peaks_pos if len(peaks_pos) > len(peaks_neg) else peaks_neg
+        if len(peaks_pos) >= len(peaks_neg):
+            peaks = peaks_pos
+            ppg_troughs = peaks_neg
+        else:
+            peaks = peaks_neg
+            ppg_troughs = peaks_pos
         
         # Compute heart rate
         if len(peaks) > 1:
@@ -249,9 +254,76 @@ class EmotionFeatureExtractor:
             features['hrv_pnn50'] = 0
             features['hrv_cv'] = 0
             features['hr_trend_full'] = 0
-        
+
+        # ================================================================
+        # Enhanced cardiac features (PPG amplitude dynamics, BPM dynamics)
+        # Parallel to enhanced respiratory features
+        # ================================================================
+
+        n_beats_for_change = 5
+
+        # Per-beat amplitudes: peak-to-trough on filtered PPG signal
+        beat_amplitudes = []
+        for i in range(len(peaks) - 1):
+            troughs_between = ppg_troughs[
+                (ppg_troughs > peaks[i]) & (ppg_troughs < peaks[i + 1])
+            ]
+            if len(troughs_between) > 0:
+                amp = ppg_filtered[peaks[i]] - ppg_filtered[troughs_between[0]]
+                beat_amplitudes.append(abs(amp))
+        beat_amplitudes = np.array(beat_amplitudes) if beat_amplitudes else np.array([])
+
+        # Beat intervals in seconds
+        if len(peaks) > 1:
+            beat_intervals_s = np.diff(peaks) / self.sr
+            beat_bpms = 60.0 / beat_intervals_s
+        else:
+            beat_intervals_s = np.array([])
+            beat_bpms = np.array([])
+
+        # --- PPG amplitude rate of change (units/min over last N beats) ---
+        if len(beat_amplitudes) >= 2:
+            n = min(n_beats_for_change, len(beat_amplitudes))
+            amp_delta = beat_amplitudes[-1] - beat_amplitudes[-n]
+            n_ivl = min(n - 1, len(beat_intervals_s))
+            time_span_s = np.sum(beat_intervals_s[-n_ivl:]) if n_ivl > 0 else 0
+            features['ppg_amplitude_rate_of_change'] = self._safe_divide(amp_delta, time_span_s) * 60
+        else:
+            features['ppg_amplitude_rate_of_change'] = 0.0
+
+        # --- PPG amplitude coefficient of variation (%) ---
+        if len(beat_amplitudes) > 1:
+            features['ppg_amplitude_coefficient_of_variation'] = \
+                self._safe_divide(np.std(beat_amplitudes), np.mean(beat_amplitudes)) * 100
+        else:
+            features['ppg_amplitude_coefficient_of_variation'] = 0.0
+
+        # --- PPG amplitude level indicator (0-1, current beat vs distribution) ---
+        if len(beat_amplitudes) > 1 and np.std(beat_amplitudes) > 0:
+            z = (beat_amplitudes[-1] - np.mean(beat_amplitudes)) / np.std(beat_amplitudes)
+            features['ppg_amplitude_level_indicator'] = float(np.clip((z + 1) / 2, 0, 1))
+        else:
+            features['ppg_amplitude_level_indicator'] = 0.5
+
+        # --- BPM rate of change (BPM/min over last N beats) ---
+        if len(beat_bpms) >= 2:
+            n = min(n_beats_for_change, len(beat_bpms))
+            bpm_delta = beat_bpms[-1] - beat_bpms[-n]
+            n_ivl = min(n - 1, len(beat_intervals_s))
+            time_span_s = np.sum(beat_intervals_s[-n_ivl:]) if n_ivl > 0 else 0
+            features['bpm_rate_of_change'] = self._safe_divide(bpm_delta, time_span_s) * 60
+        else:
+            features['bpm_rate_of_change'] = 0.0
+
+        # --- BPM coefficient of variation (%) ---
+        if len(beat_bpms) > 1:
+            features['bpm_coefficient_of_variation'] = \
+                self._safe_divide(np.std(beat_bpms), np.mean(beat_bpms)) * 100
+        else:
+            features['bpm_coefficient_of_variation'] = 0.0
+
         return features
-    
+
     def _extract_respiratory_features(self, resp_raw, window_size_s):
         """Extract respiratory features"""
         
