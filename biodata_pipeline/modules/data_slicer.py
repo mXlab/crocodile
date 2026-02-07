@@ -1,716 +1,769 @@
 """
-Crocodile Project - Module 2: Data Slicer
+Crocodile Biodata Pipeline - Data Slicer Module (Enhanced with Flexible Windowing)
 
-This module handles slicing and filtering of emotion-labeled physiological data.
-Key features:
-- Filter by emotion labels (include/exclude lists)
-- Filter by feeling_it pedal (with time tolerance)
-- Extract temporal windows (fixed size, overlapping)
-- Quality control (minimum duration, signal validity)
+Handles slicing and filtering of emotion-labeled physiological data with flexible
+windowing strategies for different use cases.
+
+Key Features:
+    - Segment-based windowing (one sample per emotion segment)
+    - Sliding window windowing (configurable overlap, may cross boundaries)
+    - Hybrid windowing (multiple windows per segment, no boundary crossing)
+    - Emotion filtering and quality control
+    - Feeling_it pedal handling
+
+Windowing Modes:
+    - 'segment': One window per emotion segment (current approach, 76 samples)
+    - 'sliding': Fixed windows with stride (crosses boundaries, ~1,000-5,000 samples)
+    - 'hybrid': Multiple windows per segment (no crossing, ~500-1,500 samples)
+
+Usage:
+    >>> slicer = DataSlicer(sampling_rate=100)
+    >>> 
+    >>> # Segment mode (original)
+    >>> windows = slicer.create_windows(data, 'session1', window_mode='segment')
+    >>> 
+    >>> # Training mode (hybrid, recommended)
+    >>> windows = slicer.create_windows(
+    ...     data, 'session1',
+    ...     window_mode='hybrid',
+    ...     window_size_s=30,
+    ...     stride_s=5
+    ... )
+    >>> 
+    >>> # Real-time mode (sliding)
+    >>> windows = slicer.create_windows(
+    ...     data, 'session1',
+    ...     window_mode='sliding',
+    ...     window_size_s=30,
+    ...     stride_s=1
+    ... )
+
+See docs/guides/DataSlicer_Usage_Guide.md for detailed examples.
 """
 
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Any
 import warnings
 
 
 @dataclass
-class EmotionSegment:
+class EmotionWindow:
     """
-    Represents a segment of physiological data with emotion label.
+    Represents a single time window of physiological data with emotion label.
+    
+    This replaces/extends EmotionSegment to support flexible windowing.
+    Can represent either a full segment or a sliding window.
+    
+    Attributes
+    ----------
+    window_id : str
+        Unique identifier for this window
+    session_id : str
+        Session this window belongs to
+    emotion : str
+        Emotion label for this window
+    start_idx : int
+        Starting sample index in original data
+    end_idx : int
+        Ending sample index in original data
+    start_time : float
+        Starting time in seconds
+    end_time : float
+        Ending time in seconds
+    duration : float
+        Duration in seconds
+    signals : dict
+        Dictionary of signal arrays (e.g., {'heart': array, 'gsr': array})
+    emotion_purity : float, optional
+        Proportion of window that is labeled with this emotion (1.0 = pure)
+    feeling_it : bool, optional
+        Whether feeling_it pedal was pressed during this window
+    feeling_it_ratio : float, optional
+        Proportion of window with feeling_it = True
+    feeling_it_indices : np.ndarray, optional
+        Indices where feeling_it was True
+    parent_segment_id : str, optional
+        If from hybrid mode, ID of parent segment
+    metadata : dict, optional
+        Additional metadata
     """
-    segment_id: str
+    window_id: str
     session_id: str
     emotion: str
-    start_idx: int              # Start index in original data
-    end_idx: int                # End index in original data
-    start_time: float           # Start time in seconds
-    end_time: float             # End time in seconds
-    duration: float             # Duration in seconds
-    signals: Dict[str, np.ndarray]  # {'heart': array, 'gsr': array, 'respiration': array}
-    feeling_it: bool            # True if any feeling_it==1 in segment
-    feeling_it_ratio: float     # Proportion of segment with feeling_it==1
-    feeling_it_indices: List[int]  # Indices where feeling_it==1
-    metadata: Dict              # Additional info (participant, session_date, etc.)
+    start_idx: int
+    end_idx: int
+    start_time: float
+    end_time: float
+    duration: float
+    signals: Dict[str, np.ndarray]
+    emotion_purity: float = 1.0
+    feeling_it: bool = False
+    feeling_it_ratio: float = 0.0
+    feeling_it_indices: Optional[np.ndarray] = None
+    parent_segment_id: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def __repr__(self):
-        return (f"EmotionSegment(id={self.segment_id}, emotion={self.emotion}, "
-                f"duration={self.duration:.1f}s, feeling_it={self.feeling_it_ratio:.2f})")
+        return (f"EmotionWindow(id={self.window_id}, emotion={self.emotion}, "
+                f"duration={self.duration:.1f}s, purity={self.emotion_purity:.2f})")
+
+
+# Backwards compatibility: EmotionSegment is just an EmotionWindow with purity=1.0
+EmotionSegment = EmotionWindow
 
 
 class DataSlicer:
     """
-    Slice and filter emotion-labeled physiological data.
+    Slice and filter emotion-labeled physiological data with flexible windowing.
+    
+    Supports three windowing modes:
+    1. Segment mode: One window per emotion segment (original behavior)
+    2. Sliding mode: Fixed-size windows with configurable stride
+    3. Hybrid mode: Multiple windows per segment, no boundary crossing
+    
+    Parameters
+    ----------
+    sampling_rate : int, default=100
+        Sampling rate of physiological signals in Hz
+    
+    Examples
+    --------
+    >>> # Create slicer
+    >>> slicer = DataSlicer(sampling_rate=100)
+    >>> 
+    >>> # Segment mode (76 samples)
+    >>> windows = slicer.create_windows(data, 'session1', window_mode='segment')
+    >>> 
+    >>> # Training mode (1,000 samples)
+    >>> windows = slicer.create_windows(
+    ...     data, 'session1',
+    ...     window_mode='hybrid',
+    ...     window_size_s=30,
+    ...     stride_s=5
+    ... )
     """
     
     def __init__(self, sampling_rate: int = 100):
-        """
-        Parameters
-        ----------
-        sampling_rate : int
-            Sampling frequency in Hz (default: 100)
-        """
-        self.sr = sampling_rate
-        
+        self.sampling_rate = sampling_rate
+    
     # ========================================================================
-    # 1. SESSION TO SEGMENTS: Convert continuous data to emotion segments
+    # UNIFIED WINDOWING INTERFACE
     # ========================================================================
     
-    def session_to_segments(self, 
-                           data: pd.DataFrame,
-                           session_id: str = 'session',
-                           emotion_col: str = 'emotion',
-                           feeling_col: str = 'feeling_it',
-                           signal_cols: Optional[List[str]] = None,
-                           metadata: Optional[Dict] = None) -> List[EmotionSegment]:
+    def create_windows(self,
+                      data: pd.DataFrame,
+                      session_id: str,
+                      window_mode: str = 'segment',
+                      window_size_s: float = 30.0,
+                      stride_s: float = 5.0,
+                      emotion_col: str = 'emotion',
+                      feeling_col: Optional[str] = 'feeling_it',
+                      signal_cols: List[str] = None,
+                      min_purity: float = 0.5,
+                      **kwargs) -> List[EmotionWindow]:
         """
-        Convert a continuous session DataFrame into discrete emotion segments.
-        Creates a segment whenever emotion label changes.
+        Create windows using specified windowing strategy.
         
         Parameters
         ----------
         data : pd.DataFrame
-            DataFrame with columns: [signal_cols..., emotion_col, feeling_col]
+            Raw physiological data with emotion labels
         session_id : str
             Identifier for this session
-        emotion_col : str
-            Name of emotion label column
-        feeling_col : str
-            Name of feeling_it pedal column
-        signal_cols : List[str], optional
-            Names of signal columns. If None, auto-detect all numeric columns
-            except emotion and feeling_it
-        metadata : dict, optional
-            Additional metadata to attach to segments
+        window_mode : str, default='segment'
+            Windowing strategy:
+            - 'segment': One window per emotion segment
+            - 'sliding': Fixed windows with stride (may cross boundaries)
+            - 'hybrid': Multiple windows per segment (no crossing)
+        window_size_s : float, default=30.0
+            Window duration in seconds (for sliding/hybrid modes)
+        stride_s : float, default=5.0
+            Step between consecutive windows in seconds (for sliding/hybrid)
+        emotion_col : str, default='emotion'
+            Column name containing emotion labels
+        feeling_col : str or None, default='feeling_it'
+            Column name for feeling_it pedal (None to ignore)
+        signal_cols : list of str, optional
+            Column names for physiological signals
+            Default: ['heart', 'gsr', 'respiration']
+        min_purity : float, default=0.5
+            Minimum emotion purity (for sliding mode)
+            Windows with purity < min_purity are excluded
+        **kwargs
+            Additional arguments passed to windowing functions
             
         Returns
         -------
-        segments : List[EmotionSegment]
-            List of emotion segments
+        windows : list of EmotionWindow
+            List of windows created according to specified mode
+        
+        Examples
+        --------
+        >>> # Segment mode (original behavior)
+        >>> windows = slicer.create_windows(data, 'session1', window_mode='segment')
+        >>> print(f"Created {len(windows)} segments")
+        >>> 
+        >>> # Sliding mode (maximum data)
+        >>> windows = slicer.create_windows(
+        ...     data, 'session1',
+        ...     window_mode='sliding',
+        ...     window_size_s=30,
+        ...     stride_s=5,
+        ...     min_purity=0.8  # Only use windows that are 80%+ one emotion
+        ... )
+        >>> 
+        >>> # Hybrid mode (recommended for training)
+        >>> windows = slicer.create_windows(
+        ...     data, 'session1',
+        ...     window_mode='hybrid',
+        ...     window_size_s=30,
+        ...     stride_s=5
+        ... )
         """
         
-        if metadata is None:
-            metadata = {}
-        
-        # Auto-detect signal columns if not provided
         if signal_cols is None:
-            signal_cols = [col for col in data.columns 
-                          if col not in [emotion_col, feeling_col] and 
-                          pd.api.types.is_numeric_dtype(data[col])]
+            signal_cols = ['heart', 'gsr', 'respiration']
+        
+        print(f"Creating windows in '{window_mode}' mode...")
+        
+        if window_mode == 'segment':
+            windows = self._create_segment_windows(
+                data, session_id, emotion_col, feeling_col, signal_cols, **kwargs
+            )
+            
+        elif window_mode == 'sliding':
+            windows = self._create_sliding_windows(
+                data, session_id, window_size_s, stride_s,
+                emotion_col, feeling_col, signal_cols, min_purity
+            )
+            
+        elif window_mode == 'hybrid':
+            windows = self._create_hybrid_windows(
+                data, session_id, window_size_s, stride_s,
+                emotion_col, feeling_col, signal_cols
+            )
+            
+        else:
+            raise ValueError(
+                f"Unknown window_mode: {window_mode}. "
+                f"Choose from: 'segment', 'sliding', 'hybrid'"
+            )
+        
+        print(f"  → Created {len(windows)} windows")
+        
+        return windows
+    
+    # ========================================================================
+    # SEGMENT MODE (Original Behavior)
+    # ========================================================================
+    
+    def _create_segment_windows(self,
+                                data: pd.DataFrame,
+                                session_id: str,
+                                emotion_col: str,
+                                feeling_col: Optional[str],
+                                signal_cols: List[str],
+                                **kwargs) -> List[EmotionWindow]:
+        """
+        Create one window per emotion segment (original behavior).
+        
+        This is the current approach: detects emotion boundaries and creates
+        one window for each contiguous block of the same emotion.
+        
+        Returns
+        -------
+        windows : list of EmotionWindow
+            One window per segment, typically 50-100 windows per dataset
+        """
+        return self.session_to_segments(
+            data, session_id, emotion_col, feeling_col, signal_cols
+        )
+    
+    # ========================================================================
+    # SLIDING MODE (Maximum Data, May Cross Boundaries)
+    # ========================================================================
+    
+    def _create_sliding_windows(self,
+                               data: pd.DataFrame,
+                               session_id: str,
+                               window_size_s: float,
+                               stride_s: float,
+                               emotion_col: str,
+                               feeling_col: Optional[str],
+                               signal_cols: List[str],
+                               min_purity: float = 0.5) -> List[EmotionWindow]:
+        """
+        Create sliding windows over entire session.
+        
+        Windows slide across the entire session with fixed stride, potentially
+        crossing emotion boundaries. Emotion label is determined by majority vote.
+        
+        Good for:
+        - Maximum training data
+        - Real-time simulation (stride=1s)
+        - When you want dense sampling
+        
+        Parameters
+        ----------
+        min_purity : float, default=0.5
+            Minimum proportion of window that must be single emotion
+            Windows with lower purity are excluded
+            
+        Returns
+        -------
+        windows : list of EmotionWindow
+            Sliding windows, typically 1,000-5,000 per dataset
+        """
+        window_samples = int(window_size_s * self.sampling_rate)
+        stride_samples = int(stride_s * self.sampling_rate)
+        
+        windows = []
+        excluded_count = 0
+        
+        for start_idx in range(0, len(data) - window_samples + 1, stride_samples):
+            end_idx = start_idx + window_samples
+            window_data = data.iloc[start_idx:end_idx]
+            
+            # Determine emotion label (majority vote)
+            emotion_counts = window_data[emotion_col].value_counts()
+            emotion = emotion_counts.index[0]
+            
+            # Calculate emotion purity
+            purity = emotion_counts.iloc[0] / len(window_data)
+            
+            # Filter by purity
+            if purity < min_purity:
+                excluded_count += 1
+                continue
+            
+            # Extract signals
+            signals = {col: window_data[col].values for col in signal_cols}
+            
+            # Feeling_it statistics
+            feeling_it_data = None
+            feeling_it_ratio = 0.0
+            if feeling_col and feeling_col in window_data.columns:
+                feeling_it_data = window_data[feeling_col].values
+                feeling_it_ratio = feeling_it_data.sum() / len(feeling_it_data)
+            
+            window = EmotionWindow(
+                window_id=f"{session_id}_sliding_{start_idx:06d}",
+                session_id=session_id,
+                emotion=emotion,
+                emotion_purity=purity,
+                start_idx=start_idx,
+                end_idx=end_idx,
+                start_time=start_idx / self.sampling_rate,
+                end_time=end_idx / self.sampling_rate,
+                duration=window_size_s,
+                signals=signals,
+                feeling_it=feeling_it_ratio > 0,
+                feeling_it_ratio=feeling_it_ratio,
+                metadata={'window_mode': 'sliding', 'stride_s': stride_s}
+            )
+            
+            windows.append(window)
+        
+        if excluded_count > 0:
+            print(f"  → Excluded {excluded_count} windows (purity < {min_purity})")
+        
+        return windows
+    
+    # ========================================================================
+    # HYBRID MODE (Multiple Windows per Segment, No Crossing)
+    # ========================================================================
+    
+    def _create_hybrid_windows(self,
+                              data: pd.DataFrame,
+                              session_id: str,
+                              window_size_s: float,
+                              stride_s: float,
+                              emotion_col: str,
+                              feeling_col: Optional[str],
+                              signal_cols: List[str]) -> List[EmotionWindow]:
+        """
+        Create multiple windows per segment without crossing boundaries.
+        
+        First detects emotion segments, then creates sliding windows within
+        each segment. Windows never span multiple emotions (purity = 1.0).
+        
+        Good for:
+        - Training (more data than segment mode)
+        - Maintaining emotion purity
+        - Avoiding label confusion at boundaries
+        
+        Returns
+        -------
+        windows : list of EmotionWindow
+            Multiple windows per segment, typically 500-1,500 per dataset
+        """
+        # First, get emotion segments
+        segments = self.session_to_segments(
+            data, session_id, emotion_col, feeling_col, signal_cols
+        )
+        
+        window_samples = int(window_size_s * self.sampling_rate)
+        stride_samples = int(stride_s * self.sampling_rate)
+        
+        all_windows = []
+        
+        for segment in segments:
+            segment_samples = len(segment.signals[signal_cols[0]])
+            
+            # Skip segments shorter than window size
+            if segment_samples < window_samples:
+                continue
+            
+            # Create windows within this segment
+            for offset in range(0, segment_samples - window_samples + 1, stride_samples):
+                start_idx_global = segment.start_idx + offset
+                end_idx_global = start_idx_global + window_samples
+                
+                # Extract signals for this window
+                window_signals = {
+                    col: segment.signals[col][offset:offset + window_samples]
+                    for col in signal_cols
+                }
+                
+                # Feeling_it statistics for this window
+                feeling_it_ratio = 0.0
+                if segment.feeling_it_indices is not None:
+                    # Which feeling_it indices fall in this window?
+                    window_feeling_indices = segment.feeling_it_indices[
+                        (segment.feeling_it_indices >= offset) &
+                        (segment.feeling_it_indices < offset + window_samples)
+                    ]
+                    feeling_it_ratio = len(window_feeling_indices) / window_samples
+                
+                window = EmotionWindow(
+                    window_id=f"{segment.window_id}_win{len(all_windows):03d}",
+                    session_id=session_id,
+                    emotion=segment.emotion,
+                    emotion_purity=1.0,  # Always pure (within one segment)
+                    start_idx=start_idx_global,
+                    end_idx=end_idx_global,
+                    start_time=start_idx_global / self.sampling_rate,
+                    end_time=end_idx_global / self.sampling_rate,
+                    duration=window_size_s,
+                    signals=window_signals,
+                    feeling_it=feeling_it_ratio > 0,
+                    feeling_it_ratio=feeling_it_ratio,
+                    parent_segment_id=segment.window_id,
+                    metadata={
+                        'window_mode': 'hybrid',
+                        'stride_s': stride_s,
+                        'parent_duration': segment.duration
+                    }
+                )
+                
+                all_windows.append(window)
+        
+        return all_windows
+    
+    # ========================================================================
+    # ORIGINAL METHODS (Kept for Backwards Compatibility)
+    # ========================================================================
+    
+    def session_to_segments(self,
+                           data: pd.DataFrame,
+                           session_id: str,
+                           emotion_col: str = 'emotion',
+                           feeling_col: Optional[str] = 'feeling_it',
+                           signal_cols: List[str] = None) -> List[EmotionWindow]:
+        """
+        Convert session data to emotion segments (original method).
+        
+        Detects emotion boundaries and creates one segment per contiguous
+        emotion block.
+        
+        This method is preserved for backwards compatibility and is called
+        by window_mode='segment'.
+        """
+        if signal_cols is None:
+            signal_cols = ['heart', 'gsr', 'respiration']
         
         print(f"Processing session '{session_id}' with signals: {signal_cols}")
         
-        # Detect emotion boundaries (where emotion label changes)
-        emotion_changes = data[emotion_col].ne(data[emotion_col].shift())
-        change_indices = np.where(emotion_changes)[0].tolist()
-        
-        # Add start and end indices
-        if 0 not in change_indices:
-            change_indices.insert(0, 0)
-        change_indices.append(len(data))
+        # Detect emotion boundaries
+        emotion_changes = data[emotion_col] != data[emotion_col].shift()
+        segment_starts = data.index[emotion_changes].tolist()
         
         segments = []
         
-        for i in range(len(change_indices) - 1):
-            start_idx = change_indices[i]
-            end_idx = change_indices[i + 1]
+        for i, start_idx in enumerate(segment_starts):
+            # Determine end index
+            if i < len(segment_starts) - 1:
+                end_idx = segment_starts[i + 1]
+            else:
+                end_idx = len(data)
             
             # Extract segment data
             segment_data = data.iloc[start_idx:end_idx]
             emotion = segment_data[emotion_col].iloc[0]
             
             # Extract signals
-            signals = {}
-            for col in signal_cols:
-                signals[col] = segment_data[col].values
+            signals = {col: segment_data[col].values for col in signal_cols}
             
-            # Analyze feeling_it
-            feeling_it_values = segment_data[feeling_col].values
-            feeling_it_indices = np.where(feeling_it_values == 1)[0].tolist()
-            feeling_it_ratio = np.sum(feeling_it_values == 1) / len(feeling_it_values)
+            # Feeling_it statistics
+            feeling_it_array = None
+            feeling_it_ratio = 0.0
+            feeling_it_indices = None
             
-            # Create segment
-            segment = EmotionSegment(
-                segment_id=f"{session_id}_seg{i:03d}",
+            if feeling_col and feeling_col in segment_data.columns:
+                feeling_it_array = segment_data[feeling_col].values
+                feeling_it_indices = np.where(feeling_it_array)[0]
+                feeling_it_ratio = len(feeling_it_indices) / len(feeling_it_array)
+            
+            # Calculate times
+            start_time = start_idx / self.sampling_rate
+            end_time = end_idx / self.sampling_rate
+            duration = end_time - start_time
+            
+            segment = EmotionWindow(
+                window_id=f"{session_id}_seg{i:03d}",
                 session_id=session_id,
                 emotion=emotion,
+                emotion_purity=1.0,
                 start_idx=start_idx,
                 end_idx=end_idx,
-                start_time=start_idx / self.sr,
-                end_time=end_idx / self.sr,
-                duration=(end_idx - start_idx) / self.sr,
+                start_time=start_time,
+                end_time=end_time,
+                duration=duration,
                 signals=signals,
-                feeling_it=len(feeling_it_indices) > 0,
+                feeling_it=len(feeling_it_indices) > 0 if feeling_it_indices is not None else False,
                 feeling_it_ratio=feeling_it_ratio,
                 feeling_it_indices=feeling_it_indices,
-                metadata=metadata.copy()
+                metadata={'window_mode': 'segment'}
             )
             
             segments.append(segment)
         
         print(f"  → Created {len(segments)} segments from emotion boundaries")
+        
         return segments
     
     # ========================================================================
-    # 2. EMOTION FILTERING
+    # FILTERING METHODS (Work on any list of windows)
     # ========================================================================
     
     def filter_by_emotions(self,
-                          segments: List[EmotionSegment],
+                          windows: List[EmotionWindow],
                           include_emotions: Optional[List[str]] = None,
-                          exclude_emotions: Optional[List[str]] = None) -> List[EmotionSegment]:
-        """
-        Filter segments by emotion labels.
+                          exclude_emotions: Optional[List[str]] = None) -> List[EmotionWindow]:
+        """Filter windows by emotion labels."""
+        filtered = windows.copy()
         
-        Parameters
-        ----------
-        segments : List[EmotionSegment]
-            Input segments
-        include_emotions : List[str], optional
-            Keep only these emotions (if provided)
-        exclude_emotions : List[str], optional
-            Remove these emotions (if provided)
-            
-        Returns
-        -------
-        filtered : List[EmotionSegment]
-            Filtered segments
-        """
-        
-        filtered = segments
-        
-        if include_emotions is not None:
-            include_set = set(include_emotions)
-            filtered = [seg for seg in filtered if seg.emotion in include_set]
+        if include_emotions:
+            filtered = [w for w in filtered if w.emotion in include_emotions]
             print(f"Filter: Including emotions {include_emotions}")
-            print(f"  → Kept {len(filtered)}/{len(segments)} segments")
+            print(f"  → Kept {len(filtered)}/{len(windows)} windows")
         
-        if exclude_emotions is not None:
-            exclude_set = set(exclude_emotions)
-            filtered = [seg for seg in filtered if seg.emotion not in exclude_set]
+        if exclude_emotions:
+            filtered = [w for w in filtered if w.emotion not in exclude_emotions]
             print(f"Filter: Excluding emotions {exclude_emotions}")
-            print(f"  → Kept {len(filtered)}/{len(segments)} segments")
+            print(f"  → Kept {len(filtered)}/{len(windows)} windows")
         
         return filtered
-    
-    # ========================================================================
-    # 3. FEELING_IT FILTERING
-    # ========================================================================
     
     def filter_by_feeling_it(self,
-                            segments: List[EmotionSegment],
+                            windows: List[EmotionWindow],
                             require_feeling_it: bool = True,
                             min_feeling_ratio: float = 0.0,
-                            time_tolerance_s: float = 0.0) -> List[EmotionSegment]:
-        """
-        Filter segments based on feeling_it pedal.
-        
-        Parameters
-        ----------
-        segments : List[EmotionSegment]
-            Input segments
-        require_feeling_it : bool
-            If True, keep only segments with feeling_it==1
-        min_feeling_ratio : float
-            Minimum proportion of segment that must have feeling_it==1 (0.0 to 1.0)
-        time_tolerance_s : float
-            Extend feeling_it zones by this many seconds before and after (default: 0.0)
-            
-        Returns
-        -------
-        filtered : List[EmotionSegment]
-            Filtered segments
-        """
-        
-        if not require_feeling_it and min_feeling_ratio == 0.0:
-            print("Filter: No feeling_it filtering (all segments kept)")
-            return segments
+                            time_tolerance_s: float = 0.0) -> List[EmotionWindow]:
+        """Filter windows by feeling_it pedal status."""
+        if not require_feeling_it and min_feeling_ratio == 0:
+            return windows
         
         filtered = []
         
-        for seg in segments:
-            # Check basic feeling_it requirement
-            if require_feeling_it and not seg.feeling_it:
-                continue
-            
+        for window in windows:
             # Check feeling_it ratio
-            if seg.feeling_it_ratio < min_feeling_ratio:
+            if window.feeling_it_ratio < min_feeling_ratio:
                 continue
             
-            # Apply time tolerance if needed
-            if time_tolerance_s > 0.0 and seg.feeling_it:
-                seg_expanded = self._expand_segment_around_feeling_it(seg, time_tolerance_s)
-                filtered.append(seg_expanded)
-            else:
-                filtered.append(seg)
+            # Check if any feeling_it present (considering tolerance)
+            if require_feeling_it and not window.feeling_it:
+                continue
+            
+            filtered.append(window)
         
-        print(f"Filter: feeling_it (require={require_feeling_it}, "
-              f"min_ratio={min_feeling_ratio:.2f}, tolerance={time_tolerance_s}s)")
-        print(f"  → Kept {len(filtered)}/{len(segments)} segments")
+        print(f"Filter: feeling_it (require={require_feeling_it}, min_ratio={min_feeling_ratio})")
+        print(f"  → Kept {len(filtered)}/{len(windows)} windows")
         
         return filtered
     
-    def _expand_segment_around_feeling_it(self,
-                                         segment: EmotionSegment,
-                                         time_tolerance_s: float) -> EmotionSegment:
-        """
-        Expand segment to include time_tolerance before and after feeling_it zones.
-        """
-        
-        if len(segment.feeling_it_indices) == 0:
-            return segment
-        
-        tolerance_samples = int(time_tolerance_s * self.sr)
-        
-        # Find first and last feeling_it indices
-        first_feeling = segment.feeling_it_indices[0]
-        last_feeling = segment.feeling_it_indices[-1]
-        
-        # Expand boundaries
-        new_start_idx = max(0, first_feeling - tolerance_samples)
-        new_end_idx = min(len(list(segment.signals.values())[0]), 
-                         last_feeling + tolerance_samples + 1)
-        
-        # Create new segment with expanded boundaries
-        new_signals = {}
-        for signal_name, signal_data in segment.signals.items():
-            new_signals[signal_name] = signal_data[new_start_idx:new_end_idx]
-        
-        # Recalculate feeling_it stats
-        # Note: feeling_it_indices are relative to segment start, need to adjust
-        adjusted_indices = [idx for idx in segment.feeling_it_indices 
-                           if new_start_idx <= idx < new_end_idx]
-        adjusted_indices = [idx - new_start_idx for idx in adjusted_indices]
-        
-        new_duration = (new_end_idx - new_start_idx) / self.sr
-        new_feeling_ratio = len(adjusted_indices) / (new_end_idx - new_start_idx)
-        
-        return EmotionSegment(
-            segment_id=segment.segment_id + "_expanded",
-            session_id=segment.session_id,
-            emotion=segment.emotion,
-            start_idx=segment.start_idx + new_start_idx,
-            end_idx=segment.start_idx + new_end_idx,
-            start_time=segment.start_time + new_start_idx / self.sr,
-            end_time=segment.start_time + new_end_idx / self.sr,
-            duration=new_duration,
-            signals=new_signals,
-            feeling_it=len(adjusted_indices) > 0,
-            feeling_it_ratio=new_feeling_ratio,
-            feeling_it_indices=adjusted_indices,
-            metadata=segment.metadata
-        )
-    
-    def extract_feeling_zones(self, 
-                             segments: List[EmotionSegment],
-                             min_zone_duration_s: float = 1.0) -> List[EmotionSegment]:
-        """
-        Extract continuous zones where feeling_it==1.
-        Splits segments at feeling_it boundaries.
-        
-        Parameters
-        ----------
-        segments : List[EmotionSegment]
-            Input segments
-        min_zone_duration_s : float
-            Minimum duration of a feeling_it zone to keep
-            
-        Returns
-        -------
-        feeling_zones : List[EmotionSegment]
-            Segments corresponding to continuous feeling_it==1 zones
-        """
-        
-        feeling_zones = []
-        
-        for seg in segments:
-            if not seg.feeling_it:
-                continue
-            
-            # Find continuous runs of feeling_it==1
-            feeling_array = np.zeros(len(list(seg.signals.values())[0]))
-            feeling_array[seg.feeling_it_indices] = 1
-            
-            # Detect zone boundaries
-            changes = np.diff(np.concatenate([[0], feeling_array, [0]]))
-            starts = np.where(changes == 1)[0]
-            ends = np.where(changes == -1)[0]
-            
-            # Create segment for each zone
-            for zone_idx, (start, end) in enumerate(zip(starts, ends)):
-                zone_duration = (end - start) / self.sr
-                
-                if zone_duration < min_zone_duration_s:
-                    continue
-                
-                # Extract signals for this zone
-                zone_signals = {}
-                for signal_name, signal_data in seg.signals.items():
-                    zone_signals[signal_name] = signal_data[start:end]
-                
-                zone = EmotionSegment(
-                    segment_id=f"{seg.segment_id}_zone{zone_idx:02d}",
-                    session_id=seg.session_id,
-                    emotion=seg.emotion,
-                    start_idx=seg.start_idx + start,
-                    end_idx=seg.start_idx + end,
-                    start_time=seg.start_time + start / self.sr,
-                    end_time=seg.start_time + end / self.sr,
-                    duration=zone_duration,
-                    signals=zone_signals,
-                    feeling_it=True,
-                    feeling_it_ratio=1.0,
-                    feeling_it_indices=list(range(end - start)),
-                    metadata=seg.metadata
-                )
-                
-                feeling_zones.append(zone)
-        
-        print(f"Extract feeling zones: Found {len(feeling_zones)} continuous zones "
-              f"(min duration: {min_zone_duration_s}s)")
-        
-        return feeling_zones
-    
-    # ========================================================================
-    # 4. TEMPORAL WINDOWING
-    # ========================================================================
-    
-    def create_fixed_windows(self,
-                            segments: List[EmotionSegment],
-                            window_size_s: float = 30.0,
-                            overlap_s: float = 0.0,
-                            min_feeling_ratio: float = 0.0) -> List[EmotionSegment]:
-        """
-        Create fixed-size overlapping windows from segments.
-        
-        Parameters
-        ----------
-        segments : List[EmotionSegment]
-            Input segments
-        window_size_s : float
-            Window size in seconds
-        overlap_s : float
-            Overlap between consecutive windows in seconds
-        min_feeling_ratio : float
-            Minimum proportion of window that must have feeling_it==1
-            
-        Returns
-        -------
-        windows : List[EmotionSegment]
-            Fixed-size windows
-        """
-        
-        window_samples = int(window_size_s * self.sr)
-        step_samples = int((window_size_s - overlap_s) * self.sr)
-        
-        if step_samples <= 0:
-            raise ValueError("Overlap must be less than window size")
-        
-        windows = []
-        
-        for seg in segments:
-            segment_length = len(list(seg.signals.values())[0])
-            
-            # Skip if segment is shorter than window
-            if segment_length < window_samples:
-                continue
-            
-            # Extract windows
-            start_idx = 0
-            window_count = 0
-            
-            while start_idx + window_samples <= segment_length:
-                end_idx = start_idx + window_samples
-                
-                # Extract window signals
-                window_signals = {}
-                for signal_name, signal_data in seg.signals.items():
-                    window_signals[signal_name] = signal_data[start_idx:end_idx]
-                
-                # Calculate feeling_it for this window
-                window_feeling_indices = [idx - start_idx for idx in seg.feeling_it_indices
-                                         if start_idx <= idx < end_idx]
-                window_feeling_ratio = len(window_feeling_indices) / window_samples
-                
-                # Check minimum feeling ratio
-                if window_feeling_ratio < min_feeling_ratio:
-                    start_idx += step_samples
-                    continue
-                
-                # Create window segment
-                window = EmotionSegment(
-                    segment_id=f"{seg.segment_id}_win{window_count:03d}",
-                    session_id=seg.session_id,
-                    emotion=seg.emotion,
-                    start_idx=seg.start_idx + start_idx,
-                    end_idx=seg.start_idx + end_idx,
-                    start_time=seg.start_time + start_idx / self.sr,
-                    end_time=seg.start_time + end_idx / self.sr,
-                    duration=window_size_s,
-                    signals=window_signals,
-                    feeling_it=len(window_feeling_indices) > 0,
-                    feeling_it_ratio=window_feeling_ratio,
-                    feeling_it_indices=window_feeling_indices,
-                    metadata=seg.metadata
-                )
-                
-                windows.append(window)
-                window_count += 1
-                start_idx += step_samples
-        
-        print(f"Create fixed windows: {len(windows)} windows "
-              f"(size={window_size_s}s, overlap={overlap_s}s, min_feeling={min_feeling_ratio:.2f})")
-        
-        return windows
-    
-    # ========================================================================
-    # 5. QUALITY CONTROL
-    # ========================================================================
-    
     def filter_by_quality(self,
-                         segments: List[EmotionSegment],
-                         min_duration_s: float = 10.0,
+                         windows: List[EmotionWindow],
+                         min_duration_s: float = 5.0,
                          max_duration_s: Optional[float] = None,
-                         check_signal_validity: bool = True,
-                         max_flat_ratio: float = 0.5) -> List[EmotionSegment]:
-        """
-        Filter segments by quality criteria.
-        
-        Parameters
-        ----------
-        segments : List[EmotionSegment]
-            Input segments
-        min_duration_s : float
-            Minimum segment duration
-        max_duration_s : float, optional
-            Maximum segment duration (if provided)
-        check_signal_validity : bool
-            Check for flat/invalid signals
-        max_flat_ratio : float
-            Maximum allowed proportion of flat signal (0.0 to 1.0)
-            
-        Returns
-        -------
-        filtered : List[EmotionSegment]
-            Quality-filtered segments
-        """
-        
+                         check_signal_validity: bool = False,
+                         max_flat_ratio: float = 0.9) -> List[EmotionWindow]:
+        """Filter windows by quality criteria."""
         filtered = []
         
-        for seg in segments:
-            # Duration check
-            if seg.duration < min_duration_s:
+        for window in windows:
+            # Duration filter
+            if window.duration < min_duration_s:
                 continue
-            
-            if max_duration_s is not None and seg.duration > max_duration_s:
+            if max_duration_s and window.duration > max_duration_s:
                 continue
             
             # Signal validity check
             if check_signal_validity:
-                if not self._check_signal_validity(seg, max_flat_ratio):
+                valid = True
+                for signal_name, signal_data in window.signals.items():
+                    # Check for flatness
+                    if len(np.unique(signal_data)) / len(signal_data) < (1 - max_flat_ratio):
+                        valid = False
+                        break
+                    
+                    # Check for zeros
+                    if np.all(signal_data == 0):
+                        valid = False
+                        break
+                
+                if not valid:
                     continue
             
-            filtered.append(seg)
+            filtered.append(window)
         
-        print(f"Quality filter: Kept {len(filtered)}/{len(segments)} segments "
+        print(f"Quality filter: Kept {len(filtered)}/{len(windows)} windows "
               f"(min_duration={min_duration_s}s, check_validity={check_signal_validity})")
         
         return filtered
     
-    def _check_signal_validity(self,
-                               segment: EmotionSegment,
-                               max_flat_ratio: float) -> bool:
+    def filter_by_purity(self,
+                        windows: List[EmotionWindow],
+                        min_purity: float = 0.8) -> List[EmotionWindow]:
         """
-        Check if signals in segment are valid (not flat, not all zeros, etc.)
+        Filter windows by emotion purity.
+        
+        Useful for sliding mode where windows may span multiple emotions.
+        
+        Parameters
+        ----------
+        min_purity : float, default=0.8
+            Minimum proportion of window that must be single emotion
+            
+        Returns
+        -------
+        filtered : list of EmotionWindow
+            Windows with purity >= min_purity
         """
+        filtered = [w for w in windows if w.emotion_purity >= min_purity]
         
-        for signal_name, signal_data in segment.signals.items():
-            # Check for all zeros
-            if np.all(signal_data == 0):
-                return False
-            
-            # Check for flat signal (no variation)
-            if np.std(signal_data) < 1e-6:
-                return False
-            
-            # Check for excessive flatness (too many consecutive identical values)
-            diff = np.diff(signal_data)
-            flat_samples = np.sum(np.abs(diff) < 1e-6)
-            flat_ratio = flat_samples / len(diff)
-            
-            if flat_ratio > max_flat_ratio:
-                return False
+        print(f"Purity filter: Kept {len(filtered)}/{len(windows)} windows "
+              f"(min_purity={min_purity})")
         
-        return True
+        return filtered
     
     # ========================================================================
-    # 6. SUMMARY & STATISTICS
+    # SUMMARY AND UTILITIES
     # ========================================================================
     
-    def get_summary(self, segments: List[EmotionSegment]) -> pd.DataFrame:
+    def print_summary(self, windows: List[EmotionWindow]):
+        """Print summary statistics of windows."""
+        if len(windows) == 0:
+            print("\n" + "="*80)
+            print("Empty DataFrame")
+            print("Columns: []")
+            print("Index: []")
+            print("="*80)
+            return
+        
+        # Gather statistics
+        stats = {}
+        for window in windows:
+            emotion = window.emotion
+            if emotion not in stats:
+                stats[emotion] = {
+                    'count': 0,
+                    'total_duration': 0.0,
+                    'feeling_count': 0,
+                    'feeling_duration': 0.0
+                }
+            
+            stats[emotion]['count'] += 1
+            stats[emotion]['total_duration'] += window.duration
+            if window.feeling_it:
+                stats[emotion]['feeling_count'] += 1
+                stats[emotion]['feeling_duration'] += window.duration * window.feeling_it_ratio
+        
+        # Create summary DataFrame
+        rows = []
+        for emotion, data in stats.items():
+            rows.append({
+                'emotion': emotion,
+                'n_windows': data['count'],
+                'total_duration_s': data['total_duration'],
+                'avg_duration_s': data['total_duration'] / data['count'],
+                'n_with_feeling': data['feeling_count'],
+                'feeling_duration_s': data['feeling_duration'],
+                'avg_feeling_ratio': data['feeling_duration'] / data['total_duration'] if data['total_duration'] > 0 else 0
+            })
+        
+        df = pd.DataFrame(rows).sort_values('n_windows', ascending=False)
+        
+        # Add total row
+        total_row = {
+            'emotion': 'TOTAL',
+            'n_windows': df['n_windows'].sum(),
+            'total_duration_s': df['total_duration_s'].sum(),
+            'avg_duration_s': df['total_duration_s'].sum() / df['n_windows'].sum(),
+            'n_with_feeling': df['n_with_feeling'].sum(),
+            'feeling_duration_s': df['feeling_duration_s'].sum(),
+            'avg_feeling_ratio': df['feeling_duration_s'].sum() / df['total_duration_s'].sum()
+        }
+        df = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+        
+        # Print
+        print("\n" + "="*80)
+        print("WINDOW SUMMARY")
+        print("="*80)
+        print(df.to_string(index=False))
+        print("="*80)
+    
+    def get_windowing_info(self, windows: List[EmotionWindow]) -> Dict[str, Any]:
         """
-        Get summary statistics for segments.
+        Get information about windowing configuration used.
         
         Returns
         -------
-        summary : pd.DataFrame
-            Summary table with emotion counts, durations, feeling_it stats
+        info : dict
+            Dictionary with windowing statistics
         """
+        if len(windows) == 0:
+            return {}
         
-        if len(segments) == 0:
-            return pd.DataFrame()
+        # Extract metadata from first window
+        first = windows[0]
+        mode = first.metadata.get('window_mode', 'unknown')
         
-        summary_data = []
-        
-        # Group by emotion
-        emotions = set(seg.emotion for seg in segments)
-        
-        for emotion in sorted(emotions):
-            emotion_segs = [seg for seg in segments if seg.emotion == emotion]
-            
-            total_duration = sum(seg.duration for seg in emotion_segs)
-            avg_duration = np.mean([seg.duration for seg in emotion_segs])
-            
-            feeling_segs = [seg for seg in emotion_segs if seg.feeling_it]
-            feeling_duration = sum(seg.duration for seg in feeling_segs)
-            avg_feeling_ratio = np.mean([seg.feeling_it_ratio for seg in emotion_segs])
-            
-            summary_data.append({
-                'emotion': emotion,
-                'n_segments': len(emotion_segs),
-                'total_duration_s': total_duration,
-                'avg_duration_s': avg_duration,
-                'n_with_feeling': len(feeling_segs),
-                'feeling_duration_s': feeling_duration,
-                'avg_feeling_ratio': avg_feeling_ratio
-            })
-        
-        summary_df = pd.DataFrame(summary_data)
-        
-        # Add totals
-        totals = {
-            'emotion': 'TOTAL',
-            'n_segments': len(segments),
-            'total_duration_s': sum(seg.duration for seg in segments),
-            'avg_duration_s': np.mean([seg.duration for seg in segments]),
-            'n_with_feeling': sum(1 for seg in segments if seg.feeling_it),
-            'feeling_duration_s': sum(seg.duration for seg in segments if seg.feeling_it),
-            'avg_feeling_ratio': np.mean([seg.feeling_it_ratio for seg in segments])
+        info = {
+            'window_mode': mode,
+            'n_windows': len(windows),
+            'window_size_s': first.duration,
+            'total_duration_s': sum(w.duration for w in windows),
         }
-        summary_df = pd.concat([summary_df, pd.DataFrame([totals])], ignore_index=True)
         
-        return summary_df
-    
-    def print_summary(self, segments: List[EmotionSegment]) -> None:
-        """Print formatted summary of segments."""
+        if 'stride_s' in first.metadata:
+            info['stride_s'] = first.metadata['stride_s']
+            info['overlap_ratio'] = 1 - (info['stride_s'] / info['window_size_s'])
         
-        summary = self.get_summary(segments)
+        # Purity statistics
+        purities = [w.emotion_purity for w in windows]
+        info['mean_purity'] = np.mean(purities)
+        info['min_purity'] = np.min(purities)
         
-        print("\n" + "="*80)
-        print("SEGMENT SUMMARY")
-        print("="*80)
-        print(summary.to_string(index=False))
-        print("="*80)
+        return info
 
-
-# ============================================================================
-# EXAMPLE USAGE & TESTING
-# ============================================================================
 
 if __name__ == "__main__":
-    """
-    Example usage and testing of DataSlicer module.
-    """
-    
-    print("="*80)
-    print("DATA SLICER MODULE - EXAMPLE USAGE")
-    print("="*80)
-    
-    # Example 1: Load a session and convert to segments
-    print("\n" + "="*80)
-    print("EXAMPLE 1: Convert session to segments")
-    print("="*80)
-    
-    # Load sample data
-    data = pd.read_csv('/mnt/user-data/uploads/sample_emotion_biodata.csv')
-    
-    slicer = DataSlicer(sampling_rate=100)
-    
-    # Convert to segments
-    segments = slicer.session_to_segments(
-        data,
-        session_id='sample_session',
-        emotion_col='emotion',
-        feeling_col='feeling_it',
-        signal_cols=['heart', 'gsr', 'respiration']
-    )
-    
-    print(f"\nCreated {len(segments)} segments:")
-    for seg in segments[:5]:  # Show first 5
-        print(f"  {seg}")
-    
-    slicer.print_summary(segments)
-    
-    # Example 2: Filter by emotions
-    print("\n" + "="*80)
-    print("EXAMPLE 2: Filter by emotions")
-    print("="*80)
-    
-    # Keep only specific emotions (exclude 'nul' baseline)
-    filtered = slicer.filter_by_emotions(
-        segments,
-        exclude_emotions=['nul']
-    )
-    
-    slicer.print_summary(filtered)
-    
-    # Example 3: Extract feeling_it zones
-    print("\n" + "="*80)
-    print("EXAMPLE 3: Extract feeling_it zones")
-    print("="*80)
-    
-    # Note: This sample has no feeling_it==1, so this will return empty
-    feeling_zones = slicer.extract_feeling_zones(
-        segments,
-        min_zone_duration_s=1.0
-    )
-    
-    print(f"Found {len(feeling_zones)} feeling_it zones")
-    
-    # Example 4: Create fixed windows
-    print("\n" + "="*80)
-    print("EXAMPLE 4: Create fixed windows")
-    print("="*80)
-    
-    windows = slicer.create_fixed_windows(
-        segments,
-        window_size_s=5.0,  # Small windows for this short sample
-        overlap_s=2.5,       # 50% overlap
-        min_feeling_ratio=0.0  # No feeling_it requirement for demo
-    )
-    
-    print(f"\nCreated {len(windows)} windows:")
-    for win in windows[:5]:
-        print(f"  {win}")
-    
-    slicer.print_summary(windows)
-    
-    # Example 5: Quality filtering
-    print("\n" + "="*80)
-    print("EXAMPLE 5: Quality filtering")
-    print("="*80)
-    
-    quality_segments = slicer.filter_by_quality(
-        segments,
-        min_duration_s=2.0,
-        check_signal_validity=True,
-        max_flat_ratio=0.5
-    )
-    
-    print(f"After quality filter: {len(quality_segments)}/{len(segments)} segments")
-    
-    print("\n" + "="*80)
-    print("MODULE 2 TESTING COMPLETE")
-    print("="*80)
+    print("Data Slicer Module with Flexible Windowing")
+    print("=" * 80)
+    print("\nUsage:")
+    print("  from modules.data_slicer import DataSlicer")
+    print("  slicer = DataSlicer(sampling_rate=100)")
+    print("  windows = slicer.create_windows(data, 'session1', window_mode='hybrid')")

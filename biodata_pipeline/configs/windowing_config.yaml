@@ -1,0 +1,267 @@
+# Windowing Configuration for Crocodile Biodata Pipeline
+# 
+# This file defines windowing strategies for different use cases.
+# Each preset specifies how to slice physiological data into training samples.
+
+# =============================================================================
+# SEGMENT MODE (Original Approach)
+# =============================================================================
+segment_mode:
+  mode: 'segment'
+  description: 'One sample per emotion segment (original behavior)'
+  use_case: 'Quick analysis, feature validation, interpretability'
+  expected_samples: 50-100
+  pros:
+    - Simple and interpretable
+    - No overlap/autocorrelation concerns
+    - Fast to compute
+  cons:
+    - Very few training samples
+    - Cannot capture temporal dynamics
+    - Poor for 23-emotion classification
+
+# =============================================================================
+# TRAINING MODES (Recommended for Classifier Training)
+# =============================================================================
+
+# Conservative training (minimal overlap)
+training_conservative:
+  mode: 'hybrid'
+  window_size_s: 30
+  stride_s: 15
+  description: 'Conservative training with 50% overlap'
+  use_case: 'When concerned about autocorrelation'
+  expected_samples: 300-500
+  overlap_ratio: 0.50
+  pros:
+    - Good balance of data vs independence
+    - Less autocorrelation than standard
+    - Suitable for statistical tests
+  cons:
+    - Fewer samples than standard mode
+
+# Standard training (recommended)
+training_standard:
+  mode: 'hybrid'
+  window_size_s: 30
+  stride_s: 5
+  description: 'Standard training with 83% overlap (recommended)'
+  use_case: 'Default for classifier training'
+  expected_samples: 800-1500
+  overlap_ratio: 0.833
+  pros:
+    - Good number of training samples
+    - Maintains emotion purity (no boundary crossing)
+    - Proven effective in emotion recognition
+  cons:
+    - Moderate autocorrelation between adjacent windows
+
+# Dense training (maximum data)
+training_dense:
+  mode: 'hybrid'
+  window_size_s: 30
+  stride_s: 2
+  description: 'Dense training with 93% overlap'
+  use_case: 'When you need maximum training data'
+  expected_samples: 2000-3000
+  overlap_ratio: 0.933
+  pros:
+    - Maximum training samples
+    - Good for deep learning
+    - Captures fine temporal dynamics
+  cons:
+    - High autocorrelation
+    - Computationally expensive
+    - Risk of overfitting
+
+# =============================================================================
+# REAL-TIME MODES (For Deployment)
+# =============================================================================
+
+# Real-time smooth
+realtime_smooth:
+  mode: 'sliding'
+  window_size_s: 30
+  stride_s: 1
+  min_purity: 0.7
+  description: 'Update predictions every second'
+  use_case: 'Live performance, smooth real-time predictions'
+  expected_samples: 5000-6000
+  overlap_ratio: 0.967
+  pros:
+    - Smooth prediction updates
+    - Low latency (1 second)
+    - Good user experience
+  cons:
+    - May cross emotion boundaries (use min_purity filter)
+    - High computational load
+
+# Real-time balanced
+realtime_balanced:
+  mode: 'sliding'
+  window_size_s: 30
+  stride_s: 5
+  min_purity: 0.8
+  description: 'Update predictions every 5 seconds'
+  use_case: 'Live performance, balanced latency/accuracy'
+  expected_samples: 1000-1500
+  overlap_ratio: 0.833
+  pros:
+    - Good balance of smoothness and computation
+    - Reasonable latency
+    - Higher purity threshold
+  cons:
+    - Less smooth than 1s stride
+
+# =============================================================================
+# EXPERIMENTAL MODES
+# =============================================================================
+
+# Independent windows (for cross-validation)
+experimental_independent:
+  mode: 'hybrid'
+  window_size_s: 30
+  stride_s: 30
+  description: 'Non-overlapping windows for statistical independence'
+  use_case: 'Cross-validation, statistical tests'
+  expected_samples: 150-250
+  overlap_ratio: 0.0
+  pros:
+    - Statistically independent samples
+    - No autocorrelation
+    - Clean cross-validation
+  cons:
+    - Fewer training samples
+    - Loses temporal information
+
+# Short windows (high temporal resolution)
+experimental_short_window:
+  mode: 'hybrid'
+  window_size_s: 15
+  stride_s: 5
+  description: 'Shorter windows for faster emotion changes'
+  use_case: 'Detecting rapid emotional transitions'
+  expected_samples: 1500-2500
+  overlap_ratio: 0.667
+  pros:
+    - Captures faster dynamics
+    - More samples
+    - Good for transition detection
+  cons:
+    - Less stable features (fewer heartbeats, breaths)
+    - May have insufficient data for HRV
+
+# Long windows (stable features)
+experimental_long_window:
+  mode: 'hybrid'
+  window_size_s: 60
+  stride_s: 10
+  description: 'Longer windows for more stable features'
+  use_case: 'When features need longer integration time'
+  expected_samples: 400-700
+  overlap_ratio: 0.833
+  pros:
+    - More stable feature estimates
+    - Better HRV, respiratory features
+    - Less noise
+  cons:
+    - Fewer samples
+    - Slower response to emotion changes
+
+# Sliding with pure windows only
+experimental_pure_sliding:
+  mode: 'sliding'
+  window_size_s: 30
+  stride_s: 5
+  min_purity: 0.95
+  description: 'Sliding mode but only very pure windows'
+  use_case: 'Maximum data while maintaining emotion purity'
+  expected_samples: 800-1200
+  overlap_ratio: 0.833
+  pros:
+    - More data than hybrid
+    - High emotion purity
+    - Crosses boundaries but filters impure windows
+  cons:
+    - Excludes transition regions
+    - May lose samples at segment boundaries
+
+# =============================================================================
+# ANALYSIS MODES
+# =============================================================================
+
+# Feature analysis (same as segment for backwards compatibility)
+analysis_features:
+  mode: 'segment'
+  description: 'For feature importance analysis (Module 4)'
+  use_case: 'Running feature analyzer'
+  expected_samples: 50-100
+  pros:
+    - Fast computation
+    - Meaningful feature statistics
+    - One value per emotional experience
+  cons:
+    - Not enough for training
+
+# Data exploration
+analysis_exploration:
+  mode: 'hybrid'
+  window_size_s: 30
+  stride_s: 30
+  description: 'Non-overlapping for data exploration'
+  use_case: 'Initial data exploration, distribution checks'
+  expected_samples: 150-250
+  pros:
+    - Independent samples
+    - Good for visualizations
+    - Fast to compute
+  cons:
+    - Not optimal for training
+
+# =============================================================================
+# USAGE GUIDELINES
+# =============================================================================
+#
+# How to choose a mode:
+#
+# 1. For Development/Analysis:
+#    - Use: segment_mode or analysis_features
+#    - Purpose: Quick iteration, feature validation
+#
+# 2. For Classifier Training:
+#    - Start with: training_standard (most balanced)
+#    - If underfitting: Try training_dense (more data)
+#    - If overfitting: Try training_conservative (less overlap)
+#
+# 3. For Real-Time Deployment:
+#    - Use: realtime_smooth (smooth predictions)
+#    - Or: realtime_balanced (computational efficiency)
+#
+# 4. For Cross-Validation:
+#    - Use: experimental_independent (no autocorrelation)
+#    - Ensures clean train/test split
+#
+# 5. For Research/Experiments:
+#    - Try multiple modes and compare
+#    - Plot accuracy vs. sample count
+#    - Find optimal trade-off for your dataset
+
+# =============================================================================
+# NOTES
+# =============================================================================
+#
+# Overlap Ratio: overlap_ratio = 1 - (stride_s / window_size_s)
+#   - 0.0 = no overlap (independent windows)
+#   - 0.5 = 50% overlap (conservative)
+#   - 0.83 = 83% overlap (standard, recommended)
+#   - 0.97 = 97% overlap (very dense, real-time)
+#
+# Expected Samples: Rough estimates for a typical dataset
+#   - Actual numbers depend on:
+#     * Total data duration
+#     * Number/length of emotion segments
+#     * Filtering applied (emotions, purity, quality)
+#
+# Autocorrelation: Higher overlap = higher autocorrelation
+#   - Use GroupKFold for cross-validation with overlapping windows
+#   - Group by parent segment to avoid leakage

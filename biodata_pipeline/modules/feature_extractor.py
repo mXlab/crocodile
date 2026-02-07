@@ -12,7 +12,36 @@ class EmotionFeatureExtractor:
     
     def __init__(self, sampling_rate=100):
         self.sr = sampling_rate
-        
+
+    def _safe_divide(self, numerator, denominator, default=0.0):
+        """Safe division that handles zero denominator and invalid results."""
+        if denominator == 0 or np.isnan(denominator) or np.isinf(denominator):
+            return default
+        result = numerator / denominator
+        if np.isnan(result) or np.isinf(result):
+            return default
+        if np.abs(result) > 1e10:
+            return default
+        return result
+
+    def _validate_feature(self, value, feature_name="unknown", default=0.0):
+        """Validate a feature value and replace invalid values."""
+        if np.isnan(value):
+            return default
+        if np.isinf(value):
+            return default
+        if np.abs(value) > 1e10:
+            return default
+        return value
+
+    def _validate_feature_dict(self, feature_dict, prefix=""):
+        """Validate all features in a dictionary."""
+        validated = {}
+        for key, value in feature_dict.items():
+            feature_name = f"{prefix}.{key}" if prefix else key
+            validated[key] = self._validate_feature(value, feature_name)
+        return validated
+
     def extract_all_features(self, eda_raw, ppg_raw, resp_raw, 
                             window_size_s=30, baseline=None):
         """Extract all features from raw physiological signals."""
@@ -46,10 +75,16 @@ class EmotionFeatureExtractor:
         print("Computing multimodal features...")
         features['multimodal'] = self._compute_multimodal_features(features)
         
+        # Validate all features
+        features['eda'] = self._validate_feature_dict(features['eda'], 'eda')
+        features['cardiac'] = self._validate_feature_dict(features['cardiac'], 'cardiac')
+        features['respiratory'] = self._validate_feature_dict(features['respiratory'], 'respiratory')
+        features['multimodal'] = self._validate_feature_dict(features['multimodal'], 'multimodal')
+
         # Normalize to baseline if provided
         if baseline is not None:
             features = self._normalize_to_baseline(features, baseline)
-        
+
         return features
     
     def _extract_eda_features(self, eda_raw, window_size_s):
@@ -113,7 +148,7 @@ class EmotionFeatureExtractor:
         features['scr_std'] = np.std(scr[-medium_window:])
         
         window_peaks = peaks[peaks >= (len(scr) - medium_window)]
-        features['scr_frequency'] = len(window_peaks) / window_size_s
+        features['scr_frequency'] = self._safe_divide(len(window_peaks), window_size_s)
         
         if len(window_peaks) > 0 and len(properties['prominences']) > 0:
             window_prominences = properties['prominences'][peaks >= (len(scr) - medium_window)]
@@ -197,7 +232,7 @@ class EmotionFeatureExtractor:
                 features['hrv_rmssd'] = np.sqrt(np.mean(np.diff(rr_intervals_ms)**2))
                 features['hrv_sdnn'] = np.std(rr_intervals_ms)
                 features['hrv_pnn50'] = self._compute_pnn50(rr_intervals_ms)
-                features['hrv_cv'] = features['hrv_sdnn'] / (np.mean(rr_intervals_ms) + 1e-6)
+                features['hrv_cv'] = self._safe_divide(features['hrv_sdnn'], np.mean(rr_intervals_ms))
             else:
                 features['hrv_rmssd'] = 0
                 features['hrv_sdnn'] = 0
@@ -278,7 +313,7 @@ class EmotionFeatureExtractor:
             features['resp_rate_trend_10s'] = self._compute_linear_slope(resp_rate_10s)
             
             if len(resp_rate_10s) > 1:
-                features['resp_variability_cv_10s'] = np.std(resp_rate_10s) / (np.mean(resp_rate_10s) + 1e-6)
+                features['resp_variability_cv_10s'] = self._safe_divide(np.std(resp_rate_10s), np.mean(resp_rate_10s))
             else:
                 features['resp_variability_cv_10s'] = 0
         else:
@@ -301,7 +336,7 @@ class EmotionFeatureExtractor:
             features['resp_rate_mean'] = np.mean(resp_rate)
             features['resp_rate_median'] = np.median(resp_rate)
             features['resp_rate_std'] = np.std(resp_rate)
-            features['resp_variability_cv'] = features['resp_rate_std'] / (features['resp_rate_mean'] + 1e-6)
+            features['resp_variability_cv'] = self._safe_divide(features['resp_rate_std'], features['resp_rate_mean'])
         else:
             features['resp_rate_mean'] = 0
             features['resp_rate_median'] = 0
@@ -320,10 +355,10 @@ class EmotionFeatureExtractor:
             features['resp_amplitude_std'] = 0
             features['resp_amplitude_range'] = 0
         
-        features['resp_sigh_frequency'] = self._detect_sighs(
-            filtered[-medium_window:],
-            amplitude_envelope[-medium_window:]
-        ) / window_size_s
+        features['resp_sigh_frequency'] = self._safe_divide(
+            self._detect_sighs(filtered[-medium_window:], amplitude_envelope[-medium_window:]),
+            window_size_s
+        )
         
         if len(resp_rate) > 0:
             features['resp_rate_trend_full'] = self._compute_linear_slope(resp_rate)
@@ -468,7 +503,7 @@ class EmotionFeatureExtractor:
         return np.any(gasps)
     
     def _safe_normalize(self, value, scale=100.0):
-        return np.clip(value / scale, 0, 1)
+        return np.clip(self._safe_divide(value, scale), 0, 1)
     
     def _normalize_to_baseline(self, features, baseline):
         normalized = {}
@@ -480,10 +515,9 @@ class EmotionFeatureExtractor:
                     baseline_mean = baseline[modality][feature_name]['mean']
                     baseline_std = baseline[modality][feature_name]['std']
                     
-                    if baseline_std > 0:
-                        normalized[modality][feature_name] = (value - baseline_mean) / baseline_std
-                    else:
-                        normalized[modality][feature_name] = 0
+                    normalized[modality][feature_name] = self._safe_divide(
+                        value - baseline_mean, baseline_std
+                    )
                 else:
                     normalized[modality][feature_name] = value
         
