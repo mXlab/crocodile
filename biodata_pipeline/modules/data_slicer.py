@@ -760,6 +760,81 @@ class DataSlicer:
         return info
 
 
+def slice_features_into_windows(features_df: pd.DataFrame,
+                                window_size_s: float = 30,
+                                stride_s: float = 5,
+                                min_purity: float = 0.7) -> List[Dict]:
+    """
+    Slice continuous features into windows for training.
+
+    Parameters
+    ----------
+    features_df : pd.DataFrame
+        Continuous features with 'timestamp' and 'emotion' columns
+    window_size_s : float
+        Window size in seconds
+    stride_s : float
+        Stride between windows in seconds
+    min_purity : float
+        Minimum emotion purity (0.0-1.0)
+
+    Returns
+    -------
+    list of dict
+        Windows with aggregated features and metadata
+    """
+
+    windows = []
+
+    max_time = features_df['timestamp'].max()
+    window_id = 0
+
+    for start_time in np.arange(0, max_time - window_size_s, stride_s):
+        end_time = start_time + window_size_s
+
+        # Get features in this window
+        mask = (features_df['timestamp'] >= start_time) & (features_df['timestamp'] < end_time)
+        window_features = features_df[mask]
+
+        if len(window_features) < 2:
+            continue
+
+        # Determine emotion label (majority vote)
+        emotion_counts = window_features['emotion'].value_counts()
+        dominant_emotion = emotion_counts.index[0]
+        emotion_purity = emotion_counts.iloc[0] / len(window_features)
+
+        # Skip if purity too low
+        if emotion_purity < min_purity:
+            continue
+
+        # Aggregate features (mean over window)
+        feature_cols = [c for c in window_features.columns
+                       if c not in ['timestamp', 'sample_idx', 'emotion', 'feeling_it']]
+
+        window_dict = {
+            'window_id': f'win{window_id:04d}',
+            'start_time': start_time,
+            'end_time': end_time,
+            'duration': window_size_s,
+            'emotion': dominant_emotion,
+            'emotion_purity': emotion_purity,
+        }
+
+        # Mean of features over window
+        for col in feature_cols:
+            window_dict[col] = window_features[col].mean()
+
+        # Add feeling_it if available
+        if 'feeling_it' in window_features.columns:
+            window_dict['feeling_it_ratio'] = window_features['feeling_it'].mean()
+
+        windows.append(window_dict)
+        window_id += 1
+
+    return windows
+
+
 if __name__ == "__main__":
     print("Data Slicer Module with Flexible Windowing")
     print("=" * 80)
