@@ -17,7 +17,7 @@
 # starting a longer run instead. Rorqual's cap is 168:00:00 (7 days).
 #
 # Usage:
-#   cd ~/projects/def-<PI>/crocodile
+#   cd ~/links/projects/def-sofian/crocodile
 #
 #   # Continue the interrupted laptop run (uploaded latest.pt, epoch 10):
 #   sbatch latent_pipeline/cluster/submit_train_rorqual.sh --resume latent_pipeline/outputs/latest.pt

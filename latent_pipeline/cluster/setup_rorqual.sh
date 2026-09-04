@@ -3,15 +3,15 @@
 #
 # Expected directory layout on Rorqual (mirrors the local layout — crocodile/
 # and stylegan_Autolume/ are siblings under the project space, no wrapper dir):
-#   ~/projects/def-<PI>/crocodile/         <- this git repo
-#   ~/projects/def-<PI>/stylegan_Autolume/ <- StyleGAN2 code
+#   ~/links/projects/def-sofian/crocodile/         <- this git repo
+#   ~/links/projects/def-sofian/stylegan_Autolume/ <- StyleGAN2 code
 #
 # Data goes to:
-#   ~/projects/def-<PI>/crocodile/latent_pipeline/data/
-#   ~/projects/def-<PI>/crocodile/models/
+#   ~/links/projects/def-sofian/crocodile/latent_pipeline/data/
+#   ~/links/projects/def-sofian/crocodile/models/
 #
 # Usage:
-#   cd ~/projects/def-<PI>/crocodile
+#   cd ~/links/projects/def-sofian/crocodile
 #   bash latent_pipeline/cluster/setup_rorqual.sh
 #
 # Note: the venv below is created under $HOME, same as the Vulcan setup.
