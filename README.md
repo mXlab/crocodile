@@ -23,18 +23,18 @@ See [PIPELINE.md](PIPELINE.md) for how these fit together and current status.
 
 ```
 crocodile/
-├── biodata_pipeline/      # Modular emotion recognition pipeline (feature extraction, analysis)
-├── BioDataFeatureExtract/ # Arduino/Teensy real-time biodata collection system
+├── biodata_pipeline/       # Modular emotion recognition pipeline (feature extraction, analysis)
+├── BioDataFeatureExtract/  # Arduino/Teensy real-time biodata collection system
 ├── cnn_emotion_classifier/ # CNN-based emotion classifier from physiological signals
-├── conda/                 # Legacy conda environment (PyTorch 1.5.0, Python 3.7)
-├── data/                  # Emotion-labeled physiological recordings (raw + CSV)
-├── latent_pipeline/       # W-space encoder: invert video frames into StyleGAN2 latent space, attach biodata
-├── lib/                   # Core Python library (datasets, models, signal processing, evaluation)
-├── notebooks/             # Exploratory Jupyter notebooks for biodata feature engineering
-├── requirements/          # Modern pip dependencies (PyTorch 2.1, Python 3.10+)
-├── scripts/               # SLURM batch job scheduling
-├── tools/                 # Utility scripts (signal testing, conversion, video generation)
-└── training_gan/          # LEGACY — from-scratch conditional GAN training, superseded by latent_pipeline
+├── conda/                  # Legacy conda environment (PyTorch 1.5.0, Python 3.7)
+├── data/                   # Emotion-labeled physiological recordings (raw + CSV)
+├── latent_pipeline/        # W-space encoder: invert video frames into StyleGAN2 latent space, attach biodata
+├── lib/                    # Core Python library (datasets, models, signal processing, evaluation)
+├── notebooks/              # Exploratory Jupyter notebooks for biodata feature engineering
+├── requirements/           # Modern pip dependencies (PyTorch 2.1, Python 3.10+)
+├── scripts/                # SLURM batch job scheduling
+├── tools/                  # Utility scripts (signal testing, conversion, video generation)
+└── training_gan/           # LEGACY — from-scratch conditional GAN training, superseded by latent_pipeline
 ```
 
 Each major subdirectory has its own README with detailed documentation:
