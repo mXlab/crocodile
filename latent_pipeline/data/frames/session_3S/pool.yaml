@@ -1,0 +1,12 @@
+name: session_3S
+source: videos/video_3S.mov
+type: video
+has_biodata: true
+has_emotions: true
+has_temporal_continuity: true
+has_feeling_it: true
+fps: 24
+recording_start_time: 17.127
+continuous_features_session_id: emotion_biodata_laurence_main_3
+session_key: 3S
+skip_seconds: 17.127  # skip clapperboard + pre-recording frames

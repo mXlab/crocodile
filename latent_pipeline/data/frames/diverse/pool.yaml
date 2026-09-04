@@ -1,0 +1,7 @@
+name: diverse
+source: Diverse
+type: images
+has_biodata: false
+has_emotions: false
+has_temporal_continuity: false
+has_feeling_it: false
