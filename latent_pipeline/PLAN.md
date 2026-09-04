@@ -90,7 +90,8 @@ latent_pipeline/
 │       └── biodata_mapping_manifest.csv
 ├── scripts/
 │   ├── stage1_extract.py
-│   ├── stage2_train.py
+│   ├── stage2a_train_synthetic.py
+│   ├── stage2b_train_frames.py
 │   ├── stage3_validate.py
 │   ├── stage4_assemble.py
 │   ├── generate_synthetic.py     # sample W vectors + generate images at any resolution
@@ -317,18 +318,26 @@ Outputs: `outputs/synthetic/images/`, `outputs/synthetic/w_vectors.csv`, `output
 
 ## Step 7: Loss Functions + Training Loop (Stage 2)
 
-**File**: `latent_pipeline/scripts/stage2_train.py`
+Stage 2 is two separate scripts, run in sequence — not one training loop.
+2B does not automatically load 2A's weights; you must pass them explicitly
+(`--pretrained latent_pipeline/outputs/train_synthetic/best.pt`), otherwise
+2B starts from a randomly-initialized encoder.
 
-### Two-phase training strategy
+**Phase 2A — Synthetic pre-training** (optional but recommended)
 
-**Phase 2A — Synthetic pre-training** (optional but recommended):
-- Sample W vectors on-the-fly via `sample_w()`, generate images via `generate_with_grad()` at `train_resolution`
-- Loss: MSE(encoder(image), W) — pure supervised regression, no LPIPS, no real data
-- No generator in the loss computation graph except as image source
-- Fast convergence: encoder learns approximate W-space geometry before seeing real faces
+**File**: `latent_pipeline/scripts/stage2a_train_synthetic.py`
+
+- Pre-generates a fixed set of (image, W) pairs offline (`generate_synthetic.py`), then trains as pure supervised regression against those saved images/W vectors — no generator forward pass during training at all (contrast with 2B, which calls `generate_with_grad()` every step)
+- Loss: MSE(encoder(image), W) — no LPIPS, no real data
+- Fast: no generator in the training loop, large batches (64), ~5min/epoch
+- Convergence: encoder learns approximate W-space geometry before seeing real faces
 - Run for a few epochs until W prediction MSE is low
+- Output: `latent_pipeline/outputs/train_synthetic/best.pt` — feed this into 2B via `--pretrained`
 
-**Phase 2B — Real-data fine-tuning**:
+**Phase 2B — Real-data fine-tuning** — this is the actual encoder training goal; 2A only exists to warm-start it
+
+**File**: `latent_pipeline/scripts/stage2b_train_frames.py`
+
 - Train on `cnn_training_manifest.csv` frames (real video + diverse images)
 - Losses (all below):
   1. **LPIPS (VGG)**: Primary. All pools. `generate_with_grad()` at `train_resolution`, downsample to `train_resolution` for comparison. feeling_it weighting (3×) for pools with `has_feeling_it: true`.
@@ -410,7 +419,8 @@ Outputs: `outputs/synthetic/images/`, `outputs/synthetic/w_vectors.csv`, `output
 | 4b | Encoder model | `models/encoder.py` | ✓ done |
 | 5 | Dataset + DataLoader | `data/dataset.py` | ✓ done |
 | 5b | Synthetic dataset generator | `scripts/generate_synthetic.py` | ✓ done |
-| 6 | Training loop (Stage 2) | `scripts/stage2_train.py` | in progress |
+| 6a | Synthetic pre-training (Stage 2A) | `scripts/stage2a_train_synthetic.py` | ✓ done — val_mse 0.0046 |
+| 6b | Real-frame fine-tuning (Stage 2B) | `scripts/stage2b_train_frames.py` | in progress — resuming from epoch 10/20 |
 | 7 | Diagnostic reconstruction | `scripts/quick_recon.py` | ✓ done |
 | 8 | Validation (Stage 3) | `scripts/stage3_validate.py` | ✓ done |
 | 9 | Assembly (Stage 4) | `scripts/stage4_assemble.py` | pending |
@@ -433,8 +443,13 @@ python latent_pipeline/scripts/generate_synthetic.py \
     --config latent_pipeline/configs/default.yaml \
     --n 256 --resolution 256 --psi 0.7 --seed 42
 
-# Stage 2: Train encoder (set train_resolution in config first)
-python latent_pipeline/scripts/stage2_train.py --config latent_pipeline/configs/default.yaml
+# Stage 2A: synthetic pre-training (warm-start, optional but recommended)
+python latent_pipeline/scripts/stage2a_train_synthetic.py --config latent_pipeline/configs/default.yaml
+
+# Stage 2B: fine-tune on real frames (set train_resolution in config first)
+# --pretrained loads 2A's weights; without it, 2B starts from random init
+python latent_pipeline/scripts/stage2b_train_frames.py --config latent_pipeline/configs/default.yaml \
+    --pretrained latent_pipeline/outputs/train_synthetic/best.pt
 
 # Quick reconstruction check from any checkpoint
 python latent_pipeline/scripts/quick_recon.py \

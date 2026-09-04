@@ -43,7 +43,7 @@ flowchart TB
 
     subgraph TRAIN_ENC["latent_pipeline — active preprocessing pipeline"]
         E1[Stage 1: Extract frames\n& build manifests]
-        E2[Stage 2: Train VGG Encoder\nimage → W ∈ ℝ⁵¹²]
+        E2["Stage 2: Train VGG Encoder\nimage → W ∈ ℝ⁵¹²\n(2A synthetic pretrain → 2B real fine-tune,\nsee stage-detail diagram below)"]
         E3[Stage 3: Validate\nEncoder vs Optimization]
         E4[Stage 4: Assemble\nbiodata → W dataset]
         E5["Stage 5: Biodata→W Regressor\nNOT YET BUILT"]
@@ -162,13 +162,17 @@ flowchart LR
 ```mermaid
 flowchart TD
     S1["Stage 1\nstage1_extract.py\nExtract frames, align timestamps,\nbuild pool manifests"]
-    S2["Stage 2\ntrain_synthetic.py → train_frames.py\nVGG EmotionEncoder\nimage B×3×H×H → W B×512\nLPIPS + MSE + temporal smoothness\n(stalled epoch 14/20 — resume from latest.pt)"]
+    S2A["Stage 2A — synthetic pre-training\nstage2a_train_synthetic.py\nMSE(encoder(image), W) on 10k\ngenerator-sampled pairs, no LPIPS\n(done — val_mse 0.0046)"]
+    S2B["Stage 2B — real-frame fine-tuning\nstage2b_train_frames.py\nLPIPS + MSE + diversity +\ntemporal + emotion-contrastive,\nbackprop through frozen StyleGAN2\n(resuming from epoch 10/20)"]
     S3["Stage 3\nstage3_validate.py\nCompare encoder vs\noptimization-based inversion"]
     S4["Stage 4\nstage4_assemble.py\nRun encoder on all biodata frames\nwrite biodata → W CSV"]
     S5["Stage 5\nNOT YET BUILT\nFit biodata → W regressor\non biodata_w_dataset.csv"]
 
-    S1 --> S2 --> S3 --> S4 --> S5
+    S1 --> S2B
+    S2A -->|"--pretrained best.pt\n(not automatic)"| S2B
+    S2B --> S3 --> S4 --> S5
 
-    style S2 fill:#dbeafe,stroke:#3b82f6
+    style S2A fill:#f0fdf4,stroke:#22c55e
+    style S2B fill:#dbeafe,stroke:#3b82f6
     style S5 fill:#fef3c7,stroke:#f59e0b,stroke-dasharray: 5 5
 ```

@@ -81,8 +81,15 @@ extraction, windowing/evaluation, and the cross-subject alignment transformer.
 
 ```bash
 python latent_pipeline/scripts/stage1_extract.py --config latent_pipeline/configs/default.yaml
-python latent_pipeline/scripts/train_synthetic.py --config latent_pipeline/configs/default.yaml
-python latent_pipeline/scripts/train_frames.py --config latent_pipeline/configs/default.yaml
+
+# Stage 2A: synthetic pre-training (warm-start, optional but recommended)
+python latent_pipeline/scripts/stage2a_train_synthetic.py --config latent_pipeline/configs/default.yaml
+
+# Stage 2B: fine-tune on real frames — the actual encoder training.
+# --pretrained loads 2A's weights; without it, 2B starts from random init.
+python latent_pipeline/scripts/stage2b_train_frames.py --config latent_pipeline/configs/default.yaml \
+    --pretrained latent_pipeline/outputs/train_synthetic/best.pt
+
 python latent_pipeline/scripts/stage3_validate.py --config latent_pipeline/configs/default.yaml
 python latent_pipeline/scripts/stage4_assemble.py --config latent_pipeline/configs/default.yaml
 ```

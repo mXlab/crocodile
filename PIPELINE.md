@@ -60,10 +60,11 @@ correspondence table below).
 | Stage | Script | Purpose |
 |---|---|---|
 | 1. Frame extraction | `scripts/stage1_extract.py` | Video → labeled frame pools |
-| 2. Encoder training | `scripts/train_synthetic.py`, `scripts/train_frames.py` | Train a CNN that maps a face image → 512-dim W vector, using the frozen StyleGAN2 as a differentiable decoder |
+| 2A. Synthetic pre-training | `scripts/stage2a_train_synthetic.py` | Warm-start: supervised MSE(encoder(image), W) on 10k generator-sampled (image, W) pairs — no LPIPS, no frozen-generator backprop, ~5min/epoch. Optional but recommended: real footage alone is too little data to train the encoder from random init. |
+| 2B. Real-frame fine-tuning | `scripts/stage2b_train_frames.py` | **The actual encoder training.** Fine-tunes a CNN (face image → 512-dim W vector) on real actress frames, backpropagating through the frozen StyleGAN2 with LPIPS + MSE + diversity + temporal + emotion-contrastive losses. Does **not** auto-load 2A's weights — pass `--pretrained outputs/train_synthetic/best.pt` explicitly, or it starts from random init. |
 | 3. Validation | `scripts/stage3_validate.py` | Compare CNN inversion vs. slow optimization-based inversion |
 | 4. Biodata attachment | `scripts/stage4_assemble.py` | Encode all biodata-pool frames → join with `biodata_pipeline`'s `continuous_features.csv` → `data/biodata_w_dataset.csv` |
-| 5. Biodata→W regressor | — | **Not built.** Next real piece of work once Stage 2 finishes: fit biodata → W on `biodata_w_dataset.csv`. |
+| 5. Biodata→W regressor | — | **Not built.** Next real piece of work once Stage 2B finishes: fit biodata → W on `biodata_w_dataset.csv`. |
 
 → Details: `latent_pipeline/PLAN.md` (architecture, directory layout, corrected
 parameters) and `crocodile_pipeline_handoff.md` (original CNN architecture, loss
@@ -103,11 +104,16 @@ time has passed.
   Everything since the last commit (2026-02-10) is now committed as of this
   session.
 - **`latent_pipeline`**: Stages 0–5 (setup through dataset/dataloader) done.
-  Stage 2 encoder training (`train_frames.py`) **stalled mid-epoch-14-of-20 on
-  2026-02-25**, ~6 hours after a suspicious 11-hour gap, no crash log, no process
-  running now. Checkpoints (`outputs/best.pt`/`latest.pt`) are from epoch ~10,
-  so resuming loses ~4 epochs (~4 hours of compute). Stage 3 (validate) and
-  Stage 4 (assemble) are coded but blocked on Stage 2 finishing.
+  Stage 2A (`stage2a_train_synthetic.py`) completed 20/20 epochs on 2026-02-20 (val_mse
+  0.0046). Stage 2B (`stage2b_train_frames.py`) ran through epoch 14/20 by 2026-02-25 but
+  its checkpoints (`outputs/best.pt`/`latest.pt`) were only actually saved up to
+  epoch 10 — a log-overwrite bug (`training_log.json` was replaced instead of
+  appended to on each `--resume`) masked this until this session, when it was
+  fixed. Stage 2B resume is now running from epoch 10, both locally and on the
+  Alliance cluster Rorqual (`latent_pipeline/cluster/submit_train_rorqual.sh`) —
+  these are two independent, diverging checkpoint lineages by design; compare
+  `training_log.json` from both before picking one to continue from. Stage 3
+  (validate) and Stage 4 (assemble) are coded but blocked on Stage 2B finishing.
 - **Stage 5 (biodata→W regressor)**: not started — no code anywhere references it.
 - **Runtime pipeline**: not built. The alignment model exists (`biodata_pipeline`)
   but isn't wired to anything live.
@@ -115,9 +121,8 @@ time has passed.
 ## Picking this back up
 
 The critical path to a first end-to-end result is:
-1. Resume/finish `latent_pipeline/scripts/train_frames.py` (from `latest.pt`,
-   note the `training_log.json` overwrite issue flagged earlier — fix before a
-   long run so you don't lose history again on a restart)
+1. Let Stage 2B finish (local + Rorqual runs in progress — see status above);
+   pick the better checkpoint lineage once both have logged results
 2. Run Stage 3 validation, then Stage 4 assembly → `biodata_w_dataset.csv`
 3. Build Stage 5 (biodata→W regressor) — the one genuinely unbuilt piece
 4. Only then does "runtime pipeline" become a real question: wire
