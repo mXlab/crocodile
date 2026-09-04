@@ -269,7 +269,7 @@ Thumbs.db
 trash/
 tmp/
 results/
-data/
+/data/
 output/
 outputs/
 *venv/

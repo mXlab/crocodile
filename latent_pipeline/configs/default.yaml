@@ -1,0 +1,91 @@
+# Latent Pipeline Configuration
+# All paths are relative to the repository root unless noted otherwise.
+
+paths:
+  repo_root: /home/tats/Documents/workspace/crocodile
+  stylegan_code: /home/tats/Documents/workspace/stylegan_Autolume
+  stylegan_model: models/finalModel_Crocodile.pkl
+  continuous_features: biodata_pipeline/data/processed/continuous_features.csv
+  frames_dir: latent_pipeline/data/frames
+  metadata_dir: latent_pipeline/data/metadata
+  outputs_dir: latent_pipeline/outputs
+  diverse_images: Diverse
+  synthetic_dir: latent_pipeline/data/synthetic
+
+# StyleGAN2 model parameters (confirmed from model inspection)
+stylegan:
+  img_resolution: 2048
+  w_dim: 512
+  # num_ws: verify after loading model — expected ~20
+
+# Video parameters
+video:
+  fps: 24
+  extract_fps: 1  # extract 1 frame per second
+  frame_size: 256  # resize frames to 256x256
+
+# Phase 2B: train on real video frames with reconstruction loss
+train_frames:
+  train_resolution: 128  # resize images to this before feeding encoder (128 or 256)
+  batch_size: 1
+  gradient_accumulation_steps: 16  # effective batch size = 16
+  lr: 5.0e-4
+  lr_min: 1.0e-6
+  epochs: 20
+  gradient_clip_max_norm: 1.0
+  val_fraction: 0.1  # fraction of all real frames randomly held out for validation
+  num_workers: 0    # 0 = load in main process (avoids DataLoader deadlock)
+
+  # Loss weights
+  loss:
+    lpips_weight: 1.0
+    mse_weight: 2.0            # pixel MSE (clamped to [-1,1]) — direct gradient to prevent collapse
+    diversity_weight: 0.1      # W-diversity (log-based) — gentle push against collapse
+    temporal_weight: 0.1
+    emotion_weight: 0.05
+    feeling_it_multiplier: 3.0  # upweight for feeling_it=True frames
+    emotion_contrastive_margin: 2.0
+
+  # Logging
+  log_every_epoch: 1
+  visual_check_every: 1
+  checkpoint_dir: latent_pipeline/outputs
+
+# Phase 2A: train on synthetic (image, W) pairs
+train_synthetic:
+  train_resolution: 128  # resize 2048 images to this for the encoder
+  batch_size: 32
+  lr: 1.0e-3
+  lr_min: 1.0e-6
+  epochs: 20
+  val_split: 0.1         # fraction of synthetic data held out for validation
+  gradient_clip_max_norm: 1.0
+  checkpoint_dir: latent_pipeline/outputs/train_synthetic
+  visual_check_every: 1  # save recon_epoch_*.png every N epochs (requires StyleGAN2)
+
+# Encoder architecture
+encoder:
+  channels: [32, 64, 128, 256, 512]
+  w_dim: 512
+  dropout: 0.3
+
+# Stage 3 validation
+validation:
+  n_frames: 30
+  optim_lr: 0.01
+  optim_steps: 1000
+  lpips_threshold: 0.1  # accept if CNN within this of optimization
+
+# Recording start times (seconds from video start to biodata recording start)
+recording_start_times:
+  1S: 19.332
+  2S: 17.582
+  3S: 17.127
+  4S: 22.201
+
+# Session to continuous_features.csv session_id mapping
+session_feature_ids:
+  1S: emotion_biodata_laurence_main_1
+  2S: emotion_biodata_laurence_main_2
+  3S: emotion_biodata_laurence_main_3
+  4S: emotion_biodata_laurence_main_4
