@@ -6,11 +6,13 @@ This file provides guidance to Claude Code when working with this repository.
 
 Crocodile is an interactive art project that uses physiological markers of emotion and generative AI (GANs). Technically, it is a multimodal emotion classification and generation system. It generates synthetic facial videos conditioned on physiological signals (heart rate, EDA, respiration) and classifies emotions from those same signals. See the [README.md](README.md) for a general introduction.
 
+See [PIPELINE.md](PIPELINE.md) for how `biodata_pipeline` and `latent_pipeline` fit together as the active preprocessing pipeline, current build status, and terminology notes.
+
 ## Repository Map
 
 | Directory | Purpose | Key entry point |
 |---|---|---|
-| `training_gan/` | GAN training (unconditional, label-conditioned, biodata-conditioned) | `train_with_biodata.py` |
+| `training_gan/` | **Legacy** — from-scratch conditional GAN (unconditional, label-conditioned, biodata-conditioned), predates the StyleGAN2/`latent_pipeline` approach; superseded, not on the active critical path | `train_with_biodata.py` |
 | `lib/` | Shared library: datasets, models, signal processing, FID, losses | `dataset.py`, `biodata.py`, `models/` |
 | `cnn_emotion_classifier/` | 1D ResNet emotion classifier from physiological signals | `train.py` |
 | `biodata_pipeline/` | Modular pipeline: data slicing, feature extraction, analysis | `modules/data_slicer.py`, `modules/feature_extractor.py` |
@@ -36,7 +38,7 @@ A legacy conda environment exists (`conda/crocodile.yml`, Python 3.7, PyTorch 1.
 ## Common Commands
 
 ```bash
-# Train biodata-conditioned GAN (main research focus)
+# Train biodata-conditioned GAN (legacy, superseded by latent_pipeline — see PIPELINE.md)
 python training_gan/train_with_biodata.py OUTPUT_PATH -r 128 --path-to-dataset DATASET_PATH --path-to-biodata BIODATA_CSV
 
 # Train emotion classifier

@@ -32,7 +32,7 @@ Conditions generation on discrete emotion labels.
 python training_gan/train_conditional.py OUTPUT_PATH -r 128 --path-to-dataset DATASET_PATH
 ```
 
-### Biodata-Conditioned GAN (main research focus)
+### Biodata-Conditioned GAN (legacy — superseded by `latent_pipeline`, see `../PIPELINE.md`)
 
 Conditions generation on continuous physiological signals (heart rate, EDA).
 

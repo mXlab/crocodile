@@ -1,5 +1,13 @@
 # Crocodile: Latent Vector Pipeline — Claude Code Implementation Handoff
 
+> **Start with [`PIPELINE.md`](PIPELINE.md)** for current architecture, status,
+> and how this fits with `biodata_pipeline`/`training_gan`. This document is
+> kept for its Stage 1–2 implementation detail (CNN architecture, loss
+> functions, training loop) — its pool names, parameters (video FPS/resolution,
+> StyleGAN2 layer count), and "Stage 5 is future work" framing are outdated;
+> see `PIPELINE.md`'s terminology table and `latent_pipeline/PLAN.md` for the
+> corrected values actually in use.
+
 ## Project Context
 
 **Crocodile** is an interactive art installation in which a participant's physiological
