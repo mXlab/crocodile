@@ -21,7 +21,7 @@ PREPROCESSING (offline, built against the actress' data)
                                               │
   latent_pipeline:   video frames ──▶ W-space encoder ──▶ biodata_w_dataset.csv
                                                                   │
-                     [Stage 5 — biodata→W regressor]  ◀──────────┘   NOT YET BUILT
+                     [Stage 5 — biodata→W regressor]  ◀───────────┘   NOT YET BUILT
 
 RUNTIME (live, not yet built)
   participant biodata ──▶ [alignment]† ──▶ [W regressor] ──▶ frozen StyleGAN2 ──▶ face
