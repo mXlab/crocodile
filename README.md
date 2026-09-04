@@ -40,13 +40,13 @@ crocodile/
 Each major subdirectory has its own README with detailed documentation:
 
 - [PIPELINE.md](PIPELINE.md) -- How biodata_pipeline and latent_pipeline fit together, current status
-- [training_gan/README.md](training_gan/README.md) -- GAN training usage and configuration
 - [biodata_pipeline/README.md](biodata_pipeline/README.md) -- Emotion recognition pipeline status and documentation
 - [latent_pipeline/PLAN.md](latent_pipeline/PLAN.md) -- W-space encoder pipeline architecture and implementation plan
 - [cnn_emotion_classifier/README.md](cnn_emotion_classifier/README.md) -- Emotion classifier training
-- [BioDataFeatureExtract/README.md](BioDataFeatureExtract/README.md) -- Arduino sensor collection setup
 - [lib/README.md](lib/README.md) -- Core library API overview
 - [tools/README.md](tools/README.md) -- Utility scripts reference
+- [BioDataFeatureExtract/README.md](BioDataFeatureExtract/README.md) -- Arduino sensor collection setup
+- [training_gan/README.md](training_gan/README.md) -- GAN training usage and configuration
 
 ## Environment Setup
 
