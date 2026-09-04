@@ -57,9 +57,16 @@ conda env create -f conda/crocodile.yml
 conda activate crocodile
 ```
 
-**Option B -- pip (modern, PyTorch 2.1 / Python 3.10+):**
+**Option B -- pip (modern, PyTorch 2.1 / Python 3.10):**
+
+`requirements/biodata_features.txt` pins exact versions (pandas 2.1.4, numpy
+1.26.2, torch 2.1.2, ...) that only have prebuilt wheels for Python 3.10 --
+installing on a newer default `python3` (3.12+) will fail trying to build
+old pandas/numpy from source. Create a 3.10 virtualenv first:
 
 ```bash
+python3.10 -m venv crocodile-venv
+source crocodile-venv/bin/activate
 pip install -r requirements/biodata_features.txt
 ```
 

@@ -27,9 +27,12 @@ Each subdirectory has its own README.md with detailed documentation.
 
 ## Environment
 
-Use the modern pip environment (Python 3.10+):
+Use the modern pip environment (Python 3.10 exactly -- `requirements/biodata_features.txt`
+pins versions with no prebuilt wheels for 3.12+):
 
 ```bash
+python3.10 -m venv crocodile-venv
+source crocodile-venv/bin/activate
 pip install -r requirements/biodata_features.txt
 ```
 

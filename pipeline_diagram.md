@@ -30,7 +30,7 @@ flowchart TB
     end
 
     subgraph BIODATA_PIPE["biodata_pipeline — Feature Extraction @ 100Hz\n(separate sampling rate — do not mix with 1000Hz path above)"]
-        BF[EnhancedContinuousFeatureExtractor\n67 features/sec]
+        BF[EnhancedContinuousFeatureExtractor\n73 features/sec]
         CF[(continuous_features.csv)]
         BF --> CF
     end
@@ -130,7 +130,7 @@ flowchart LR
     subgraph EXTRACT["Feature Extraction"]
         RAW[Raw sensor CSV\n100Hz: heart · gsr · respiration]
         FE[EnhancedContinuousFeatureExtractor\nenhanced_respiratory_features.py]
-        CF[(continuous_features.csv\n67 features/sec)]
+        CF[(continuous_features.csv\n73 features/sec)]
         RAW --> FE --> CF
     end
 

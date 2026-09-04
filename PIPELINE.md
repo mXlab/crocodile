@@ -36,7 +36,7 @@ exists and works — it just isn't wired into a runtime script yet.
 Turns raw 100Hz sensor recordings into feature vectors, and separately, learns
 to map a *new* subject's physiological feature space onto the actress'.
 
-- **Feature extraction**: raw `heart`/`gsr`/`respiration` CSV → 67 features/second
+- **Feature extraction**: raw `heart`/`gsr`/`respiration` CSV → 73 features/second
   (`continuous_features.csv`). This is what feeds `latent_pipeline` Stage 4 below.
 - **Windowing + classification eval**: sanity-checks that emotions are separable
   in the extracted features (not on the pipeline's critical path to the avatar).
@@ -91,7 +91,7 @@ reading it, translate:
 | Pool GAN (2500 images) | `gan_images` (from `Diverse/`) |
 | 30fps video, 2160×2160 | 24fps, 500×500 `.mov` (originals were 2160×2160) |
 | StyleGAN2 1024px, 14–18 layers | StyleGAN2 2048px, 20 layers (`num_ws`) |
-| 20 hand-specified biodata features | 67 features from `EnhancedContinuousFeatureExtractor` |
+| 20 hand-specified biodata features | 73 features from `EnhancedContinuousFeatureExtractor` |
 
 ## Current status (as of this session — 2026-09-04)
 

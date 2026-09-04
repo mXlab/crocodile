@@ -20,7 +20,7 @@ python train.py --path_to_dataset PATH --epochs 3 --batch_size_train 128 --optim
 | `--momentum` | SGD momentum | 0.5 |
 | `--optim` | Optimizer (`adam`, `sgd`, `sls`) | `adam` |
 | `--path_to_dataset` | Path to dataset directory | None |
-| `--output_path` | Path to save results | None |
+| `--output_path` | Directory to save model/optimizer checkpoints (created if missing) | `results/` |
 | `--downsampling` | Downsampling factor | 1 |
 | `--overlap` | Window overlap fraction | 0.0 |
 | `--log_interval` | Logging frequency (batches) | 10 |
@@ -35,7 +35,7 @@ The model uses `ResBlock` layers with 1D convolutions, batch normalization, and 
 
 **EmotionDataset** (`dataset.py`): Loads labeled physiological recordings from CSV files. Each sample is a window of sensor readings with an associated emotion label. Preprocessing applies envelope filtering and normalization via [lib/biodata.py](../lib/biodata.py).
 
-Training data (`sensor_data.csv`, `timestamps.csv`) maps physiological signal windows to emotion categories.
+Training data is `timestamps.csv` (emotion labels) plus a biodata CSV, both under `--path_to_dataset`. The biodata CSV defaults to `LaurenceHBS-Nov919mins1000Hz-Heart+GSR-2channels.csv` (override via `path_to_biodata` in `EmotionDataset_v2`) -- both files already exist in the repo's `data/` directory.
 
 ## Dependencies
 

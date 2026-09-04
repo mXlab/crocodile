@@ -20,7 +20,7 @@ parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--momentum', type=float, default=0.5)
 parser.add_argument('--log_interval', type=int, default=10)
 parser.add_argument('--path_to_dataset', type=str, default=None)
-parser.add_argument('--output_path', type=str, default="/Users/etiennemontenegro/Desktop/MNIST_CLASSIFIER/results/")
+parser.add_argument('--output_path', type=str, default="results/", help="Directory to save model/optimizer checkpoints (created if missing)")
 parser.add_argument('--optim', type=str, default="adam", choices=('adam', 'sgd', 'sls'))
 parser.add_argument('--downsampling', type=int, default=1)
 parser.add_argument('--overlap', type=float, default=0.)
@@ -34,6 +34,7 @@ learning_rate = args.learning_rate
 momentum = args.momentum
 log_interval = args.log_interval
 output_path = args.output_path
+os.makedirs(output_path, exist_ok=True)
 # define random seed manualy for a repeatable experiment
 random_seed = 1
 torch.backends.cudnn.enabled = False  # disable nondeterministics algorithms used by cuDNN
