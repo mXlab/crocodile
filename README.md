@@ -2,15 +2,15 @@
 
 Crocodile is an interactive installation: a participant's physiological signals
 (heart rate, EDA, respiration) drive real-time generation of a face via a
-StyleGAN2 model, trained on actress Laurence Dauphinais, that reacts to the
+StyleGAN2 model, trained on a method actress, that reacts to the
 participant's emotional state. The project combines:
 
-- **A W-space encoder pipeline** (`latent_pipeline/`) inverting Dauphinais' own
+- **A W-space encoder pipeline** (`latent_pipeline/`) inverting the actress' own
   video into a pretrained StyleGAN2's latent space, so a future biodata→W
   regressor can drive that frozen generator — the active approach
 - **A biodata feature/alignment pipeline** (`biodata_pipeline/`) extracting
   physiological features and mapping a new participant's signal space onto
-  Dauphinais' reference space
+  the actress' reference space
 - **Emotion classification** from physiological signals (heart rate, EDA/skin
   conductance, respiration)
 - **Arduino-based biodata collection** using wearable sensors

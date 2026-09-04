@@ -168,7 +168,7 @@ def validate_alignment_quality(transformer, subject_df):
 
     Nearest-Prototype Accuracy (NPA)
         For each transformed subject window, check whether the nearest
-        Dauphinais prototype is the correct one.  No classifier needed.
+        actress' prototype is the correct one.  No classifier needed.
         Random baseline = 1 / n_emotions.
 
     Normalized Prototype RMSE

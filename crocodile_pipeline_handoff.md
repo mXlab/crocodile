@@ -12,12 +12,12 @@
 
 **Crocodile** is an interactive art installation in which a participant's physiological
 biodata (heart rate, EDA, respiration) drives real-time generation of facial expressions
-via a StyleGAN2 model trained on actress Laurence Dauphinais. The installation creates
+via a StyleGAN2 model trained on a method actress. The installation creates
 a psychosomatic mirror: the participant activates the avatar's emotions through
 empathetic connection.
 
 The core technical challenge is building a pipeline that:
-1. Inverts Dauphinais' video frames into the W-space of a trained StyleGAN2 model
+1. Inverts the actress' video frames into the W-space of a trained StyleGAN2 model
 2. Associates those W vectors with synchronized physiological biodata
 3. Trains a biodata→W regressor that can be used at runtime with participant data
 
@@ -67,7 +67,7 @@ Pool A (synchronized — PRIMARY DATA SOURCE):
     video_session_03.mp4  +  biodata_session_03.csv
     video_session_04.mp4  +  biodata_session_04.csv
     Total duration: ~90 minutes
-    Content: Dauphinais performing emotional states
+    Content: the actress performing emotional states
     Emotion labels: available per session segment
     feeling_it flag: available (marks confirmed genuine emotional experience)
 
@@ -79,7 +79,7 @@ Pool B (grimaces/variations — ENCODER TRAINING ONLY):
 
 Pool GAN (diversity-selected — ENCODER TRAINING ONLY):
     2500 pre-extracted images at 2160×2160 resolution
-    Content: visually diverse frames from Dauphinais recordings
+    Content: visually diverse frames from the actress' recordings
     Frame position in original videos: UNKNOWN (metadata lost)
     These are the images used to train the StyleGAN2 model
 ```
@@ -556,7 +556,7 @@ val_loss_lpips       - validation perceptual loss (primary quality signal)
 
 Qualitative checks every 10 epochs:
 - Generate a grid of 16 random frames and their reconstructions side-by-side
-- Visually confirm faces are recognizably Dauphinais
+- Visually confirm faces are recognizably the actress
 - Check that W vectors for same-emotion frames are closer than different-emotion frames
   (compute pairwise cosine similarity matrix and visualize as heatmap)
 
@@ -663,7 +663,7 @@ This dataset is the input to Stage 5 (biodata→W regressor, implemented separat
    The generator is a fixed rendering function, not a trainable component.
 
 5. FEELING_IT FRAMES ARE ANCHORS
-   These are frames where Dauphinais confirmed genuine emotional experience.
+   These are frames where the actress confirmed genuine emotional experience.
    They represent the highest-quality ground truth in the entire dataset.
    Always upweight them in any loss computation and treat them as the primary
    quality signal during validation.
@@ -738,5 +738,5 @@ Key considerations for that stage:
 - Upweight `feeling_it=True` rows during regression fitting
 - Consider dimensionality reduction on W vectors (PCA to ~50 dims) before
   regression to reduce the output space from 512 to something more tractable
-- The physiological alignment step (mapping participant biodata to Dauphinais
+- The physiological alignment step (mapping participant biodata to the actress'
   biodata space) must happen before the W regressor at runtime

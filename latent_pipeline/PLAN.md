@@ -2,7 +2,7 @@
 
 ## Context
 
-The Crocodile project needs a pipeline to invert Dauphinais' video frames into StyleGAN2 W-space and associate those W vectors with synchronized physiological biodata. This enables a future biodata→W regressor for real-time avatar generation.
+The Crocodile project needs a pipeline to invert the actress' video frames into StyleGAN2 W-space and associate those W vectors with synchronized physiological biodata. This enables a future biodata→W regressor for real-time avatar generation.
 
 This plan covers Stages 1-4: frame extraction, CNN encoder training, validation, and biodata→W dataset assembly.
 

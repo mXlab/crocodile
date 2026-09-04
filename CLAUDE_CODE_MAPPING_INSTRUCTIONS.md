@@ -1,7 +1,7 @@
 # Transformation Pipeline Implementation Guide for Claude Code
 
 ## Overview
-Implement a 3-step pipeline to map user biodata to Dauphinais' emotional space using prototype alignment with Ridge regression.
+Implement a 3-step pipeline to map user biodata to Actress' emotional space using prototype alignment with Ridge regression.
 
 **Validation Results**: Already tested with sample data showing 68.6% separation ratio (excellent performance).
 
@@ -11,7 +11,7 @@ Implement a 3-step pipeline to map user biodata to Dauphinais' emotional space u
 
 ### Objective
 Create a standardized feature extraction pipeline that:
-- Works with both Dauphinais and user biodata
+- Works with both Actress and user biodata
 - Produces consistent CSV output format
 - Handles emotion labels and session metadata
 - Reuses existing BioData library code
@@ -40,7 +40,7 @@ QUESTIONS TO ANSWER:
 """
 Feature extraction that produces standardized output for transformation pipeline.
 
-Input: Raw biodata recordings (Dauphinais or user)
+Input: Raw biodata recordings (Actress or user)
 Output: CSV with columns [feature_1, feature_2, ..., feature_N, timestamp, emotion, session_id]
 
 Reuses existing BioData feature extraction code.
@@ -48,22 +48,22 @@ Reuses existing BioData feature extraction code.
 
 # IMPLEMENTATION REQUIREMENTS:
 # 1. Import and use existing feature extraction functions
-# 2. Support both subjects (Dauphinais and user)
+# 2. Support both subjects (Actress and user)
 # 3. Output format matches test.csv structure (73 features + metadata)
 # 4. Handle emotion labels from annotation files
 # 5. Include proper windowing (10-second windows recommended)
-# 6. Save to: data/features/dauphinais_features.csv and data/features/user_features.csv
+# 6. Save to: data/features/actress_features.csv and data/features/user_features.csv
 ```
 
 **OUTPUT FILES:**
-- `data/features/dauphinais_features.csv` - All Dauphinais sessions with emotion labels
+- `data/features/actress_features.csv` - All Actress sessions with emotion labels
 - `data/features/user_features.csv` - User calibration sessions with emotion labels
 
 **FORMAT:**
 ```csv
 feature_1,feature_2,...,feature_73,timestamp,sample_idx,emotion,session_id
-0.123,0.456,...,0.789,0.0,0,joy,dauphinais_session_2024-01-15
-0.234,0.567,...,0.890,10.0,1,joy,dauphinais_session_2024-01-15
+0.123,0.456,...,0.789,0.0,0,joy,actress_session_2024-01-15
+0.234,0.567,...,0.890,10.0,1,joy,actress_session_2024-01-15
 ...
 ```
 
@@ -72,7 +72,7 @@ feature_1,feature_2,...,feature_73,timestamp,sample_idx,emotion,session_id
 ## Step 2: Prototype Alignment Transformer
 
 ### Objective
-Implement Ridge regression transformation that maps user features to Dauphinais feature space.
+Implement Ridge regression transformation that maps user features to Actress feature space.
 
 ### Tasks for Claude Code
 
@@ -81,15 +81,15 @@ Implement Ridge regression transformation that maps user features to Dauphinais 
 # File: scripts/train_transformer.py
 
 """
-Train Ridge regression to align user biodata with Dauphinais space.
+Train Ridge regression to align user biodata with Actress space.
 
 Algorithm:
-1. Load Dauphinais features CSV
+1. Load Actress features CSV
 2. Load user features CSV
 3. For each emotion:
-   - Compute mean feature vector (prototype) from Dauphinais
+   - Compute mean feature vector (prototype) from Actress
    - Compute mean feature vector (prototype) from user
-4. Learn transformation: Ridge(user_prototypes → dauphinais_prototypes)
+4. Learn transformation: Ridge(user_prototypes → actress_prototypes)
 5. Save transformer model
 
 Based on validation: Mean separation ratio 0.686 (excellent)
@@ -111,27 +111,27 @@ class PrototypeAlignmentTransformer:
         """
         self.alpha = alpha
         self.transformer = Ridge(alpha=self.alpha)
-        self.dauphinais_prototypes = {}
+        self.actress_prototypes = {}
         self.user_prototypes = {}
         self.trained = False
         
-    def fit(self, dauphinais_features_df, user_features_df):
+    def fit(self, actress_features_df, user_features_df):
         """
-        Train transformation from user → Dauphinais space
+        Train transformation from user → Actress space
         
         Args:
-            dauphinais_features_df: DataFrame with Dauphinais features + emotion labels
+            actress_features_df: DataFrame with Actress features + emotion labels
             user_features_df: DataFrame with user features + emotion labels
         """
         # Extract feature column names (exclude metadata: timestamp, emotion, session_id, etc.)
-        feature_cols = [col for col in dauphinais_features_df.columns 
+        feature_cols = [col for col in actress_features_df.columns 
                        if col not in ['timestamp', 'sample_idx', 'emotion', 
                                      'feeling_it', 'session_id']]
         
         # Get emotions present in BOTH datasets
-        dauphinais_emotions = set(dauphinais_features_df['emotion'].unique())
+        actress_emotions = set(actress_features_df['emotion'].unique())
         user_emotions = set(user_features_df['emotion'].unique())
-        common_emotions = sorted(dauphinais_emotions & user_emotions)
+        common_emotions = sorted(actress_emotions & user_emotions)
         
         print(f"Common emotions for training: {common_emotions}")
         
@@ -140,13 +140,13 @@ class PrototypeAlignmentTransformer:
         
         # Compute prototypes for each emotion
         for emotion in common_emotions:
-            # Dauphinais prototype
-            d_data = dauphinais_features_df[dauphinais_features_df['emotion'] == emotion]
+            # Actress prototype
+            d_data = actress_features_df[actress_features_df['emotion'] == emotion]
             d_features = d_data[feature_cols].values
             # Remove NaN/inf
             d_features = d_features[~np.isnan(d_features).any(axis=1)]
             d_features = d_features[~np.isinf(d_features).any(axis=1)]
-            self.dauphinais_prototypes[emotion] = np.mean(d_features, axis=0)
+            self.actress_prototypes[emotion] = np.mean(d_features, axis=0)
             
             # User prototype
             u_data = user_features_df[user_features_df['emotion'] == emotion]
@@ -156,11 +156,11 @@ class PrototypeAlignmentTransformer:
             u_features = u_features[~np.isinf(u_features).any(axis=1)]
             self.user_prototypes[emotion] = np.mean(u_features, axis=0)
             
-            print(f"  {emotion}: Dauphinais n={len(d_features)}, User n={len(u_features)}")
+            print(f"  {emotion}: Actress n={len(d_features)}, User n={len(u_features)}")
         
         # Prepare training data: align prototypes
         X_train = np.array([self.user_prototypes[e] for e in common_emotions])
-        Y_train = np.array([self.dauphinais_prototypes[e] for e in common_emotions])
+        Y_train = np.array([self.actress_prototypes[e] for e in common_emotions])
         
         print(f"\nTraining transformer on {len(common_emotions)} emotion pairs")
         print(f"Input shape: {X_train.shape}")
@@ -175,13 +175,13 @@ class PrototypeAlignmentTransformer:
         
     def transform(self, user_features):
         """
-        Transform user features to Dauphinais space
+        Transform user features to Actress space
         
         Args:
             user_features: Array or DataFrame of user features
             
         Returns:
-            Transformed features in Dauphinais space
+            Transformed features in Actress space
         """
         if not self.trained:
             raise RuntimeError("Transformer not trained. Call fit() first.")
@@ -198,7 +198,7 @@ class PrototypeAlignmentTransformer:
         
         joblib.dump({
             'transformer': self.transformer,
-            'dauphinais_prototypes': self.dauphinais_prototypes,
+            'actress_prototypes': self.actress_prototypes,
             'user_prototypes': self.user_prototypes,
             'feature_cols': self.feature_cols,
             'common_emotions': self.common_emotions,
@@ -212,7 +212,7 @@ class PrototypeAlignmentTransformer:
         data = joblib.load(filepath)
         obj = cls(alpha=data['alpha'])
         obj.transformer = data['transformer']
-        obj.dauphinais_prototypes = data['dauphinais_prototypes']
+        obj.actress_prototypes = data['actress_prototypes']
         obj.user_prototypes = data['user_prototypes']
         obj.feature_cols = data['feature_cols']
         obj.common_emotions = data['common_emotions']
@@ -223,22 +223,22 @@ class PrototypeAlignmentTransformer:
 # Main training script
 if __name__ == "__main__":
     # Load feature CSVs
-    dauphinais_df = pd.read_csv('data/features/dauphinais_features.csv')
+    actress_df = pd.read_csv('data/features/actress_features.csv')
     user_df = pd.read_csv('data/features/user_features.csv')
     
-    print(f"Loaded Dauphinais: {len(dauphinais_df)} samples")
+    print(f"Loaded Actress: {len(actress_df)} samples")
     print(f"Loaded User: {len(user_df)} samples")
     
     # Train transformer
     transformer = PrototypeAlignmentTransformer(alpha=10.0)
-    transformer.fit(dauphinais_df, user_df)
+    transformer.fit(actress_df, user_df)
     
     # Save
-    transformer.save('models/user_to_dauphinais_transformer.pkl')
+    transformer.save('models/user_to_actress_transformer.pkl')
 ```
 
 **OUTPUT:**
-- `models/user_to_dauphinais_transformer.pkl` - Trained transformer model
+- `models/user_to_actress_transformer.pkl` - Trained transformer model
 
 ---
 
@@ -272,14 +272,14 @@ from sklearn.decomposition import PCA
 from scipy.spatial.distance import cdist
 import seaborn as sns
 
-def validate_transformer(transformer, user_features_df, dauphinais_rf_classifier=None):
+def validate_transformer(transformer, user_features_df, actress_rf_classifier=None):
     """
     Run comprehensive validation on trained transformer
     
     Args:
         transformer: Trained PrototypeAlignmentTransformer
         user_features_df: User features DataFrame
-        dauphinais_rf_classifier: Optional - Dauphinais RF classifier for predictions
+        actress_rf_classifier: Optional - Actress RF classifier for predictions
         
     Returns:
         Dict with validation metrics
@@ -313,7 +313,7 @@ def validate_transformer(transformer, user_features_df, dauphinais_rf_classifier
         transformed = transformer.transform(test_features)
         
         # Expected prototype
-        expected = transformer.dauphinais_prototypes[held_out]
+        expected = transformer.actress_prototypes[held_out]
         
         # Metrics
         reconstruction_error = np.mean(np.linalg.norm(transformed - expected, axis=1))
@@ -323,7 +323,7 @@ def validate_transformer(transformer, user_features_df, dauphinais_rf_classifier
         dists_to_wrong = []
         for e in emotions:
             if e != held_out:
-                dist = np.mean(np.linalg.norm(transformed - transformer.dauphinais_prototypes[e], axis=1))
+                dist = np.mean(np.linalg.norm(transformed - transformer.actress_prototypes[e], axis=1))
                 dists_to_wrong.append(dist)
         
         separation_ratio = dist_to_correct / np.mean(dists_to_wrong) if dists_to_wrong else float('inf')
@@ -362,17 +362,17 @@ def visualize_transformation(transformer, user_features_df):
     
     # Collect prototypes
     user_prototypes = np.array([transformer.user_prototypes[e] for e in emotions])
-    dauphinais_prototypes = np.array([transformer.dauphinais_prototypes[e] for e in emotions])
+    actress_prototypes = np.array([transformer.actress_prototypes[e] for e in emotions])
     transformed = transformer.transform(user_prototypes)
     
     # PCA to 2D
-    all_data = np.vstack([user_prototypes, dauphinais_prototypes, transformed])
+    all_data = np.vstack([user_prototypes, actress_prototypes, transformed])
     pca = PCA(n_components=2)
     projected = pca.fit_transform(all_data)
     
     n = len(emotions)
     user_proj = projected[:n]
-    dauphinais_proj = projected[n:2*n]
+    actress_proj = projected[n:2*n]
     transformed_proj = projected[2*n:]
     
     # Plot
@@ -387,8 +387,8 @@ def visualize_transformation(transformer, user_features_df):
         plt.scatter(transformed_proj[i, 0], transformed_proj[i, 1], 
                    c='green', marker='^', s=300, alpha=0.6, edgecolors='black', linewidth=2)
         
-        # Dauphinais target
-        plt.scatter(dauphinais_proj[i, 0], dauphinais_proj[i, 1], 
+        # Actress target
+        plt.scatter(actress_proj[i, 0], actress_proj[i, 1], 
                    c='blue', marker='s', s=300, alpha=0.6, edgecolors='black', linewidth=2)
         
         # Arrow
@@ -397,13 +397,13 @@ def visualize_transformation(transformer, user_features_df):
                  transformed_proj[i, 1] - user_proj[i, 1],
                  color='orange', alpha=0.4, width=0.05, head_width=0.15)
         
-        plt.text(dauphinais_proj[i, 0], dauphinais_proj[i, 1], 
+        plt.text(actress_proj[i, 0], actress_proj[i, 1], 
                 f' {emotion.upper()}', fontsize=14, fontweight='bold')
     
     plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)', fontsize=12)
     plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)', fontsize=12)
-    plt.title('Transformation Quality: User → Dauphinais Space', fontsize=16, fontweight='bold')
-    plt.legend(['User Original', 'Transformed', 'Dauphinais Target'], fontsize=12)
+    plt.title('Transformation Quality: User → Actress Space', fontsize=16, fontweight='bold')
+    plt.legend(['User Original', 'Transformed', 'Actress Target'], fontsize=12)
     plt.grid(True, alpha=0.3)
     
     plt.savefig('outputs/transformation_validation.png', dpi=150, bbox_inches='tight')
@@ -416,7 +416,7 @@ if __name__ == "__main__":
     from train_transformer import PrototypeAlignmentTransformer
     
     # Load transformer
-    transformer = PrototypeAlignmentTransformer.load('models/user_to_dauphinais_transformer.pkl')
+    transformer = PrototypeAlignmentTransformer.load('models/user_to_actress_transformer.pkl')
     
     # Load user data
     user_df = pd.read_csv('data/features/user_features.csv')
@@ -446,9 +446,9 @@ Raw biodata → BioData library → Features → [STANDARDIZED CSV]
                                               ↓
                                          TRANSFORMER
                                               ↓
-                                    Dauphinais space features
+                                    Actress space features
                                               ↓
-                                     Dauphinais RF classifier
+                                     Actress RF classifier
                                               ↓
                                       Emotion probabilities
                                               ↓
@@ -467,11 +467,11 @@ Raw biodata → BioData library → Features → [STANDARDIZED CSV]
 crocodile/
 ├── data/
 │   └── features/
-│       ├── dauphinais_features.csv      # Step 1 output
+│       ├── actress_features.csv      # Step 1 output
 │       └── user_features.csv            # Step 1 output
 ├── models/
-│   ├── user_to_dauphinais_transformer.pkl  # Step 2 output
-│   └── dauphinais_rf_emotion_classifier.pkl  # Your existing RF
+│   ├── user_to_actress_transformer.pkl  # Step 2 output
+│   └── actress_rf_emotion_classifier.pkl  # Your existing RF
 ├── scripts/
 │   ├── extract_features_standardized.py    # Step 1
 │   ├── train_transformer.py                # Step 2
@@ -486,7 +486,7 @@ crocodile/
 ## Success Criteria
 
 **Step 1 Complete When:**
-- [ ] dauphinais_features.csv exists with all emotion sessions
+- [ ] actress_features.csv exists with all emotion sessions
 - [ ] user_features.csv exists with calibration sessions
 - [ ] Both files have identical feature columns
 - [ ] Emotion labels are properly assigned
@@ -534,7 +534,7 @@ Claude Code should investigate and answer:
    - What window size is currently used?
 
 2. **Data Availability:**
-   - Where is Dauphinais' labeled biodata stored?
+   - Where is Actress' labeled biodata stored?
    - What format are the raw recordings in?
    - Are emotion annotations in separate files or embedded?
 

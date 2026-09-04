@@ -6,17 +6,17 @@ don't duplicate them here.
 ## The goal
 
 Crocodile is an interactive installation: a participant's physiological signals
-(heart rate, EDA, respiration) drive real-time generation of a face — actress
-Laurence Dauphinais' avatar — via a trained StyleGAN2 model. The participant's
+(heart rate, EDA, respiration) drive real-time generation of a face — a method
+actress' avatar — via a trained StyleGAN2 model. The participant's
 biodata becomes the avatar's emotional state.
 
 Getting there requires an **offline preprocessing pipeline** (build training
-data + models from Dauphinais' own recordings) and a **runtime pipeline** (turn
+data + models from the actress' own recordings) and a **runtime pipeline** (turn
 a live participant's signals into a face at the installation). Only the first
 one has working code today; the second is still mostly a design.
 
 ```
-PREPROCESSING (offline, built against Dauphinais' data)
+PREPROCESSING (offline, built against the actress' data)
   biodata_pipeline:  raw sensor CSVs ──▶ physiological features
                                               │
   latent_pipeline:   video frames ──▶ W-space encoder ──▶ biodata_w_dataset.csv
@@ -34,23 +34,23 @@ exists and works — it just isn't wired into a runtime script yet.
 ### `biodata_pipeline/` — the physiological side
 
 Turns raw 100Hz sensor recordings into feature vectors, and separately, learns
-to map a *new* subject's physiological feature space onto Dauphinais'.
+to map a *new* subject's physiological feature space onto the actress'.
 
 - **Feature extraction**: raw `heart`/`gsr`/`respiration` CSV → 67 features/second
   (`continuous_features.csv`). This is what feeds `latent_pipeline` Stage 4 below.
 - **Windowing + classification eval**: sanity-checks that emotions are separable
   in the extracted features (not on the pipeline's critical path to the avatar).
 - **Cross-subject alignment**: trains a transformer (Ridge / Optimal Transport)
-  mapping a new subject's feature space onto Dauphinais' reference space. **This
+  mapping a new subject's feature space onto the actress' reference space. **This
   is the runtime pipeline's "alignment" box** — a participant's biodata has to
   pass through this before anything downstream can make sense of it, since the
-  W-regressor (once built) will only understand biodata shaped like Dauphinais'.
+  W-regressor (once built) will only understand biodata shaped like the actress'.
 
 → Details: `biodata_pipeline/README.md`
 
 ### `latent_pipeline/` — the visual side
 
-Inverts Dauphinais' own video frames into the W-space of an *already-trained*,
+Inverts the actress' own video frames into the W-space of an *already-trained*,
 frozen StyleGAN2 model (`models/finalModel_Crocodile.pkl`, 2048×2048, `w_dim=512`),
 then attaches her synchronized biodata to those W vectors. This is the direct
 implementation of `crocodile_pipeline_handoff.md`'s Stages 1–4 (that doc predates

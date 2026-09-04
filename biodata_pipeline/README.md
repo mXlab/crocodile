@@ -100,7 +100,7 @@ python scripts/train_and_evaluate.py \
 
 ### 3. Cross-subject alignment
 
-When a new subject records calibration data with shared emotions, their feature space can be aligned to the reference subject's (Dauphinais') space so the GAN sees physiologically plausible conditioning vectors.
+When a new subject records calibration data with shared emotions, their feature space can be aligned to the reference subject's (the actress') space so the GAN sees physiologically plausible conditioning vectors.
 
 The goal is not emotion classification but a good geometric mapping: transformed subject features should land close to the correct reference emotion prototypes, in the same region of feature space the GAN was trained on.
 
@@ -167,7 +167,7 @@ Outputs:
 - `reports/validation_results.json` — all metrics including per-emotion NPA and prototype errors
 - `reports/transformation_validation.png` — PCA visualization of prototype alignment
 
-**Benchmark on Erin → Laurence (anx, neu, sad):**
+**Benchmark on Erin → Actress (anx, neu, sad):**
 
 | Method | RMSE\_norm | NPA | RF accuracy |
 |--------|-----------|-----|-------------|

@@ -141,7 +141,7 @@ flowchart LR
     end
 
     subgraph ALIGN["Cross-Subject Alignment — feeds the runtime pipeline"]
-        REF[Dauphinais reference features]
+        REF[Actress reference features]
         NEW[New subject\ncalibration recording]
         XF[Transformer\ntrain_transformer.py\nRidge / OT class-conditional]
         MODEL[("transformer_ot_classconditional.pkl\nbest: NPA 54.2%")]
