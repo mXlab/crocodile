@@ -17,7 +17,7 @@
 # starting a longer run instead. Rorqual's cap is 168:00:00 (7 days).
 #
 # Usage:
-#   cd ~/links/projects/def-sofian/crocodile
+#   cd ~/links/projects/def-sofian/sofian/crocodile
 #
 #   # Continue the interrupted laptop run (uploaded latest.pt, epoch 10):
 #   sbatch latent_pipeline/cluster/submit_train_rorqual.sh --resume latent_pipeline/outputs/latest.pt
@@ -27,8 +27,10 @@
 
 set -euo pipefail
 
-# Load modules and activate env
-module load python/3.11 scipy-stack/2024a
+# Load modules and activate env. gcc+opencv must be loaded before the venv
+# is activated — see setup_rorqual.sh for why. Keep the version in sync with
+# whatever you filled in there.
+module load python/3.11 scipy-stack/2024a gcc opencv/CHANGEME
 source "$HOME/envs/crocodile/bin/activate"
 
 # Move to repo root

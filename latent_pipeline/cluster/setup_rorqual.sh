@@ -3,15 +3,15 @@
 #
 # Expected directory layout on Rorqual (mirrors the local layout — crocodile/
 # and stylegan_Autolume/ are siblings under the project space, no wrapper dir):
-#   ~/links/projects/def-sofian/crocodile/         <- this git repo
-#   ~/links/projects/def-sofian/stylegan_Autolume/ <- StyleGAN2 code
+#   ~/links/projects/def-sofian/sofian/crocodile/         <- this git repo
+#   ~/links/projects/def-sofian/sofian/stylegan_Autolume/ <- StyleGAN2 code
 #
 # Data goes to:
-#   ~/links/projects/def-sofian/crocodile/latent_pipeline/data/
-#   ~/links/projects/def-sofian/crocodile/models/
+#   ~/links/projects/def-sofian/sofian/crocodile/latent_pipeline/data/
+#   ~/links/projects/def-sofian/sofian/crocodile/models/
 #
 # Usage:
-#   cd ~/links/projects/def-sofian/crocodile
+#   cd ~/links/projects/def-sofian/sofian/crocodile
 #   bash latent_pipeline/cluster/setup_rorqual.sh
 #
 # Note: the venv below is created under $HOME, same as the Vulcan setup.
@@ -22,8 +22,12 @@ set -euo pipefail
 
 echo "=== Rorqual environment setup ==="
 
-# Load modules (same Alliance national software stack as other clusters)
-module load python/3.11 scipy-stack/2024a
+# Load modules (same Alliance national software stack as other clusters).
+# opencv-python is NOT a real pip package on the Alliance stack — it's a
+# dummy wheel that dlopens the system module, so gcc+opencv must be loaded
+# BEFORE the venv is created/activated. Run `module avail opencv` to find
+# the exact version string on Rorqual and fill it in below.
+module load python/3.11 scipy-stack/2024a gcc opencv/CHANGEME
 
 # Create virtualenv in home space (persists across jobs)
 VENV_DIR="$HOME/envs/crocodile"
