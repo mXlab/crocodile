@@ -109,7 +109,6 @@ biodata_pipeline/
 │   ├── module_guides/
 │   │   ├── module1_data_loader.md
 │   │   ├── module2_data_slicer.md     ✅ DONE
-│   │   ├── module3_feature_extractor.md ✅ DONE
 │   │   ├── module4_feature_analyzer.md
 │   │   ├── module5_classifier.md
 │   │   └── module6_realtime.md
@@ -144,7 +143,7 @@ biodata_pipeline/
 - **Key Classes**: `EmotionFeatureExtractor`
 - **Features**: 54 total (17 EDA, 13 cardiac, 19 respiratory, 5 multimodal)
 - **Dependencies**: pandas, numpy, scipy
-- **Documentation**: `docs/module_guides/module3_feature_extractor.md`
+- **Documentation**: none dedicated -- this `EmotionFeatureExtractor` (54 features) is the older, per-segment extractor used by older scripts (per `README.md`'s module table). It was superseded by the continuous `EnhancedContinuousFeatureExtractor` (73 features, `modules/continuous_feature_extractor.py`), which is the one actually used by the active pipeline (`README.md` workflow 1) and is documented in full at [`FEATURES.md`](../../FEATURES.md).
 
 ---
 

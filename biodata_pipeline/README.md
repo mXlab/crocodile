@@ -14,7 +14,7 @@ pip install -r requirements.txt
 
 | Module | Description |
 |--------|-------------|
-| `modules/continuous_feature_extractor.py` | `EnhancedContinuousFeatureExtractor` — extracts 73 features (17 EDA, 18 cardiac, 33 respiratory, 5 multimodal) sample-by-sample, maintaining filter state across the entire session. This is the main extractor. |
+| `modules/continuous_feature_extractor.py` | `EnhancedContinuousFeatureExtractor` — extracts 73 features (17 EDA, 18 cardiac, 33 respiratory, 5 multimodal) sample-by-sample, maintaining filter state across the entire session. This is the main extractor. See [FEATURES.md](FEATURES.md) for the full per-feature glossary (formula + intent for each one) and an ANOVA discriminability ranking of all 73. |
 | `modules/data_slicer.py` | `DataSlicer` — slices raw physiological data into emotion-labeled windows (segment, sliding, or hybrid mode). Also provides `slice_features_into_windows()` for windowing pre-extracted feature DataFrames. |
 | `modules/feature_extractor.py` | `EmotionFeatureExtractor` — per-segment feature extraction (resets filters at emotion boundaries). Used by older scripts. |
 | `modules/feature_analyzer.py` | `FeatureAnalyzer` — statistical analysis of feature discriminability (ANOVA, feature importance ranking, visualizations). |
