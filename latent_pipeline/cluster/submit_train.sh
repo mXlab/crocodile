@@ -45,7 +45,7 @@ CONFIG="latent_pipeline/configs/vulcan.yaml"
 
 # Pass any arguments (e.g. --resume <path>) directly to the training script
 echo "Starting train_frames with config: $CONFIG"
-python latent_pipeline/scripts/train_frames.py \
+python latent_pipeline/scripts/stage2b_train_frames.py \
     --config "$CONFIG" \
     "$@"
 

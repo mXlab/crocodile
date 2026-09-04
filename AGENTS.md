@@ -19,7 +19,7 @@ Crocodile is an interactive art project that uses physiological markers of emoti
 | `scripts/` | SLURM batch job launcher | `launch_batch.py` |
 | `notebooks/` | Exploratory Jupyter notebooks (v3 is latest, uses NeuroKit2) | `biodata_features-v3.ipynb` |
 | `data/` | Emotion-labeled physiological recordings (ANG, ARO, FEA, HAP) | `csv/`, `raw/`, `timestamps.csv` |
-| `latent_pipeline/` | W-space encoder: synthetic pre-training + real frame fine-tuning | `scripts/train_synthetic.py`, `scripts/train_frames.py` |
+| `latent_pipeline/` | W-space encoder: synthetic pre-training + real frame fine-tuning | `scripts/stage2a_train_synthetic.py`, `scripts/stage2b_train_frames.py` |
 
 Each subdirectory has its own README.md with detailed documentation.
 

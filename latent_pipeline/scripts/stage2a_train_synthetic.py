@@ -15,16 +15,18 @@ Every visual_check_every epochs a recon_epoch_*.png grid is saved showing
 synthetic originals (resized to train_resolution) alongside their
 StyleGAN2 reconstructions via the current encoder weights.
 
-The saved checkpoint is compatible with train_frames.py (same encoder
+The saved checkpoint is compatible with stage2b_train_frames.py (same encoder
 state_dict format), so the pre-trained weights can be used as
-initialisation for Phase 2B fine-tuning.
+initialisation for Phase 2B fine-tuning via --pretrained (not --resume —
+that loads optimizer/scheduler state too, which belongs to this phase's
+MSE-only objective, not Phase 2B's multi-loss one).
 
 Usage:
-    python latent_pipeline/scripts/train_synthetic.py \\
+    python latent_pipeline/scripts/stage2a_train_synthetic.py \\
         --config latent_pipeline/configs/default.yaml
 
     # Resume from checkpoint:
-    python latent_pipeline/scripts/train_synthetic.py \\
+    python latent_pipeline/scripts/stage2a_train_synthetic.py \\
         --config latent_pipeline/configs/default.yaml \\
         --resume latent_pipeline/outputs/train_synthetic/latest.pt
 """
@@ -319,7 +321,8 @@ def main():
 
     print(f"\ntrain_synthetic complete. Best val_mse: {best_val_loss:.6f}")
     print(f"Checkpoint: {output_dir}/best.pt")
-    print(f"\nNext: fine-tune on real frames with train_frames.py --resume {output_dir}/best.pt")
+    print(f"\nNext: fine-tune on real frames with "
+          f"stage2b_train_frames.py --pretrained {output_dir}/best.pt")
 
 
 if __name__ == '__main__':

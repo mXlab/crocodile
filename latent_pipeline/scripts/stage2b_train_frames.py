@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Stage 2: Train the EmotionEncoder (face image → W-space).
+"""Stage 2B: Train the EmotionEncoder (face image → W-space) on real frames.
+
+Fine-tunes weights from Stage 2A (stage2a_train_synthetic.py) — pass them
+via --pretrained, or this starts from a randomly-initialized encoder.
 
 Losses:
   1. LPIPS reconstruction (all pools, feeling_it-weighted)
@@ -9,7 +12,8 @@ Losses:
   5. Emotion contrastive (pools with emotions, valid labels only)
 
 Usage:
-    python latent_pipeline/scripts/stage2_train.py --config latent_pipeline/configs/default.yaml
+    python latent_pipeline/scripts/stage2b_train_frames.py --config latent_pipeline/configs/default.yaml \\
+        --pretrained latent_pipeline/outputs/train_synthetic/best.pt
 """
 
 import argparse
@@ -454,9 +458,14 @@ def main():
         encoder.load_state_dict(ckpt['encoder'])
         print(f"Loaded pretrained encoder weights (trained up to epoch {ckpt['epoch']}), starting fine-tuning from epoch 0")
 
-    # Training log
+    # Training log — reload existing history on resume so it accumulates
+    # across restarts instead of being overwritten each run.
     log_path = os.path.join(output_dir, 'training_log.json')
     log_entries = []
+    if os.path.exists(log_path):
+        with open(log_path) as f:
+            log_entries = json.load(f)
+        log_entries = [e for e in log_entries if e['epoch'] < start_epoch]
 
     print(f"\nStarting training for {tc['epochs']} epochs")
     for epoch in range(start_epoch, tc['epochs']):
