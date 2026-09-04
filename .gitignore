@@ -12,6 +12,9 @@ biodata_pipeline/data/processed/
 biodata_pipeline/data/features/
 biodata_pipeline/data/metadata/
 
+# Named-subject raw biometric data
+luana-Crocodile-with-data/
+
 # Trained models (large binary files)
 biodata_pipeline/models/
 
@@ -107,9 +110,8 @@ celerybeat-schedule
 
 # Environments
 .env
-.venv
 env/
-venv/
+*venv/
 ENV/
 env.bak/
 venv.bak/
@@ -131,8 +133,12 @@ venv.bak/
 # DATA FILE FORMATS
 # ============================================================================
 
+*.csv
+*.tsv
 *.hdf5
 *.hd5
+*.pkl
+*.pt
 
 # ============================================================================
 # OS GENERATED FILES
@@ -230,6 +236,11 @@ Thumbs.db
 *.3dm
 *.max
 
+# Audio formats
+*.mp3
+*.ogg
+*.wav
+
 # Video formats
 *.3g2
 *.3gp
@@ -259,6 +270,9 @@ trash/
 tmp/
 results/
 data/
+output/
+outputs/
+*venv/
 
 # ============================================================================
 # CREDENTIALS & SECRETS (CRITICAL)
