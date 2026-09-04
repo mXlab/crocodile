@@ -1,0 +1,94 @@
+================================================================================
+FEATURE ANALYSIS SUMMARY
+================================================================================
+
+DATASET SUMMARY
+--------------------------------------------------------------------------------
+Total samples: 46
+Total features: 67
+Emotions: 5
+
+Emotion distribution:
+  fea            :  10 segments
+  ang            :  10 segments
+  joy            :   9 segments
+  sad            :   9 segments
+  neu            :   8 segments
+
+================================================================================
+TOP 20 FEATURES (Random Forest Importance)
+================================================================================
+ rank                                             feature  importance
+    1                                    cardiac.hrv_sdnn    0.043505
+    2          respiratory.resp_amplitude_variability_10s    0.040326
+    3                                      cardiac.hrv_cv    0.032638
+    4                                   cardiac.hrv_pnn50    0.031189
+    5                 respiratory.resp_amplitude_spike_5s    0.030774
+    6                        multimodal.instability_index    0.028094
+    7                             eda.eda_instability_10s    0.026454
+    8                cardiac.bpm_coefficient_of_variation    0.026058
+    9                                      cardiac.hr_std    0.025127
+   10                 respiratory.resp_rpm_rate_of_change    0.023959
+   11                     respiratory.resp_amplitude_mean    0.022701
+   12                                      eda.scl_median    0.022600
+   13      cardiac.ppg_amplitude_coefficient_of_variation    0.022283
+   14                respiratory.resp_amplitude_trend_10s    0.022127
+   15                respiratory.resp_rpm_level_indicator    0.021900
+   16                       eda.scr_recent_mean_amplitude    0.021883
+   17                                   cardiac.hrv_rmssd    0.021491
+   18 respiratory.resp_amplitude_coefficient_of_variation    0.020632
+   19               respiratory.resp_amplitude_trend_full    0.020622
+   20                                cardiac.hr_trend_10s    0.019815
+
+Note: Top 36 features explain 80% of importance
+
+================================================================================
+STATISTICAL SIGNIFICANCE (ANOVA)
+================================================================================
+Significant features (p < 0.05): 23/67
+
+Top 10 by effect size:
+                             feature  f_statistic  p_value  effect_size
+         eda.scr_mean_peak_amplitude     5.391817 0.001392     0.344705
+                       eda.scl_range     5.218169 0.001717     0.337349
+                         eda.scl_std     5.204479 0.001746     0.336762
+        multimodal.instability_index     5.110176 0.001959     0.332690
+                      cardiac.hr_std     5.096699 0.001991     0.332104
+                         eda.scr_std     4.873973 0.002617     0.322268
+                        eda.scr_mean     4.774272 0.002961     0.317771
+                      cardiac.hrv_cv     4.704250 0.003230     0.314576
+                    cardiac.hrv_sdnn     4.668813 0.003376     0.312948
+cardiac.bpm_coefficient_of_variation     4.435693 0.004522     0.302042
+
+================================================================================
+EMOTION DISCRIMINABILITY
+================================================================================
+
+Most separable emotion pairs (easy to discriminate):
+emotion_1 emotion_2     distance
+      ang       sad 5.505326e+07
+      ang       joy 5.033369e+07
+      ang       neu 4.369791e+07
+      ang       fea 3.295992e+07
+      fea       sad 2.209344e+07
+
+Least separable emotion pairs (confusable):
+emotion_1 emotion_2     distance
+      joy       sad 4.719669e+06
+      joy       neu 6.636458e+06
+      fea       neu 1.073800e+07
+      neu       sad 1.135556e+07
+      fea       joy 1.737399e+07
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+1. Use top 36 features for classifier (80% importance)
+
+3. Watch for confusion between:
+   - joy <-> sad (distance: 4719668.932)
+   - joy <-> neu (distance: 6636458.251)
+   - fea <-> neu (distance: 10738001.801)
+
+================================================================================

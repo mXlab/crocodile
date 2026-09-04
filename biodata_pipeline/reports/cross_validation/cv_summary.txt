@@ -1,0 +1,12 @@
+CROSS-VALIDATION SUMMARY
+================================================================================
+
+Dataset: /home/tats/Documents/workspace/crocodile/biodata_pipeline/data/processed/windowed_ang_joy_fea_w20s2.csv
+Samples: 317
+Features: 75
+Emotions: 3
+Groups: 3
+CV Folds: 3
+
+Mean Accuracy:      4.95% ± 6.99%
+Mean F1 (macro):    2.87% ± 4.06%

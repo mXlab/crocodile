@@ -1,0 +1,39 @@
+# Best 3-Emotion Configuration: Sadness, Anger, Joy
+# Expected accuracy: 75-80%
+
+# Input
+features_file: data/processed/continuous_features.csv
+
+# Emotions
+include_emotions:
+  - sad
+  - ang
+  - joy
+
+# Windowing
+window_size_s: 20.0
+stride_s: 2.0
+min_purity: 0.7
+super_segment_size_s: 45.0
+
+# Cross-validation
+n_folds: 5
+classifier: random_forest
+n_estimators: 100
+max_depth: null
+random_state: 42
+
+# Output
+output_file: null
+save_model: false
+evaluate: true
+verbose: true
+
+# Notes
+# -----
+# Three well-performing emotions:
+# - sad: F1 = 0.96 (excellent, low arousal/negative)
+# - ang: F1 = 0.81 (very good, high arousal/negative)
+# - joy: F1 = 0.77 (good, high arousal/positive)
+#
+# Good emotional range covering arousal and valence dimensions.

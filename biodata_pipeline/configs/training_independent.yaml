@@ -1,0 +1,38 @@
+# Training Independent Preset
+# Windows are completely independent (no overlap)
+
+# Input
+features_file: data/processed/continuous_features.csv
+
+# Emotions
+include_emotions: null
+exclude_emotions: null
+
+# Windowing - INDEPENDENT
+window_size_s: 30.0
+stride_s: 30.0         # No overlap!
+min_purity: 0.7
+super_segment_size_s: null  # Not needed (no overlap)
+
+# Cross-validation
+n_folds: 5
+classifier: random_forest
+n_estimators: 100
+max_depth: null
+random_state: 42
+
+# Output
+output_file: null
+save_model: false
+evaluate: true
+verbose: true
+
+# Notes
+# -----
+# Independent windows configuration:
+# - 30s windows
+# - 30s stride (NO overlap)
+# - Every window is completely independent
+# - Can use regular K-Fold instead of GroupKFold
+# - Less training data but no leakage concerns
+# - ~100 windows per session

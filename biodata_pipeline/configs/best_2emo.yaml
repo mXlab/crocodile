@@ -1,0 +1,37 @@
+# Best 2-Emotion Configuration: Sadness vs Anger
+# Expected accuracy: 85-90%
+
+# Input
+features_file: data/processed/continuous_features.csv
+
+# Emotions
+include_emotions:
+  - sad
+  - ang
+
+# Windowing
+window_size_s: 20.0
+stride_s: 2.0
+min_purity: 0.7
+super_segment_size_s: 45.0
+
+# Cross-validation
+n_folds: 5
+classifier: random_forest
+n_estimators: 100
+max_depth: null
+random_state: 42
+
+# Output
+output_file: null  # Auto-generate
+save_model: false
+evaluate: true
+verbose: true
+
+# Notes
+# -----
+# This configuration uses the two best-performing emotions from testing:
+# - sad: F1 = 0.96 (excellent)
+# - ang: F1 = 0.81 (very good)
+# 
+# Both emotions are well-separated physiologically and have good data coverage.

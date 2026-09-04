@@ -30,7 +30,7 @@ from sklearn.metrics import classification_report, accuracy_score
 # Allow importing PrototypeAlignmentTransformer when run from biodata_pipeline/
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from train_transformer import PrototypeAlignmentTransformer, METADATA_COLS
+from train_transformer import load_transformer, METADATA_COLS
 
 
 def validate(transformer, subject_df):
@@ -162,6 +162,108 @@ def validate_with_classifier(transformer, reference_df, subject_df):
     }
 
 
+def validate_alignment_quality(transformer, subject_df):
+    """
+    Compute two method-agnostic alignment quality metrics.
+
+    Nearest-Prototype Accuracy (NPA)
+        For each transformed subject window, check whether the nearest
+        Dauphinais prototype is the correct one.  No classifier needed.
+        Random baseline = 1 / n_emotions.
+
+    Normalized Prototype RMSE
+        Root-mean-square distance between each transformed subject prototype
+        and its reference target, divided by the mean pairwise distance
+        between reference prototypes.
+        0 = perfect alignment.  1 = error as large as the inter-class spread.
+
+    Both metrics work for any alignment method that exposes transform().
+    """
+    feature_cols = transformer.feature_cols
+    emotions = transformer.common_emotions
+    n = len(emotions)
+
+    # Reference prototypes in raw reference space
+    ref_protos_scaled = np.array([transformer.reference_prototypes[e] for e in emotions])
+    ref_protos_raw = transformer.ref_scaler.inverse_transform(ref_protos_scaled)
+
+    # Transformed subject prototypes via the method-agnostic interface
+    trans_protos_raw = transformer.transform_prototypes()
+
+    # ── Normalized Prototype RMSE ─────────────────────────────────────────
+    proto_errors = np.linalg.norm(trans_protos_raw - ref_protos_raw, axis=1)
+    rmse = float(np.sqrt(np.mean(proto_errors ** 2)))
+
+    pairwise_dists = [
+        np.linalg.norm(ref_protos_raw[i] - ref_protos_raw[j])
+        for i in range(n) for j in range(i + 1, n)
+    ]
+    mean_pairwise = float(np.mean(pairwise_dists)) if pairwise_dists else 1.0
+    rmse_norm = rmse / mean_pairwise if mean_pairwise > 0 else float('inf')
+
+    # ── Nearest-Prototype Accuracy (NPA) ──────────────────────────────────
+    correct = 0
+    total = 0
+    per_emotion_npa = {}
+
+    for i, emotion in enumerate(emotions):
+        rows = subject_df.loc[subject_df['emotion'] == emotion, feature_cols].values
+        rows = rows[~np.isnan(rows).any(axis=1)]
+        rows = rows[~np.isinf(rows).any(axis=1)]
+
+        if len(rows) == 0:
+            per_emotion_npa[emotion] = None
+            continue
+
+        transformed = transformer.transform(rows)  # (n_windows, n_features), raw ref space
+
+        # Distance from each window to each reference prototype
+        dists = np.stack([
+            np.linalg.norm(transformed - ref_protos_raw[j], axis=1)
+            for j in range(n)
+        ], axis=1)  # (n_windows, n_emotions)
+
+        n_correct = int((np.argmin(dists, axis=1) == i).sum())
+        per_emotion_npa[emotion] = float(n_correct / len(rows))
+        correct += n_correct
+        total += len(rows)
+
+    npa = float(correct / total) if total > 0 else 0.0
+
+    # ── Print ─────────────────────────────────────────────────────────────
+    print("\n" + "=" * 60)
+    print("ALIGNMENT QUALITY METRICS")
+    print("=" * 60)
+
+    print(f"\nNormalized Prototype RMSE: {rmse_norm:.3f}")
+    print(f"  (0=perfect, 1=error as large as inter-class distance)")
+    print(f"  Raw RMSE:            {rmse:.4f}")
+    print(f"  Mean pairwise dist:  {mean_pairwise:.4f}")
+    print(f"  Per-emotion prototype error:")
+    for i, emotion in enumerate(emotions):
+        print(f"    {emotion}: {proto_errors[i]:.4f}")
+
+    print(f"\nNearest-Prototype Accuracy: {npa:.1%}  "
+          f"(random baseline: {1/n:.1%})")
+    print(f"  Per emotion:")
+    for emotion, val in per_emotion_npa.items():
+        marker = '' if val is None else f'  ({val:.1%})'
+        label = 'no samples' if val is None else ''
+        print(f"    {emotion}: {label}{marker}")
+
+    print("=" * 60)
+
+    return {
+        'rmse_norm': rmse_norm,
+        'rmse_raw': rmse,
+        'mean_pairwise_dist': mean_pairwise,
+        'per_emotion_proto_error': {e: float(proto_errors[i]) for i, e in enumerate(emotions)},
+        'npa': npa,
+        'npa_random_baseline': float(1 / n),
+        'per_emotion_npa': per_emotion_npa,
+    }
+
+
 def visualize(transformer, output_path):
     """PCA plot: subject prototypes (red) -> transformed (green) vs reference (blue)."""
     emotions = transformer.common_emotions
@@ -247,8 +349,8 @@ def main():
     print("Transformer Validation")
     print("=" * 60)
 
-    transformer = PrototypeAlignmentTransformer.load(args.model)
-    print(f"Loaded transformer from {args.model}")
+    transformer = load_transformer(args.model)
+    print(f"Loaded transformer from {args.model} ({type(transformer).__name__})")
     print(f"  Emotions: {transformer.common_emotions}")
     print(f"  Features: {len(transformer.feature_cols)}")
 
@@ -259,6 +361,7 @@ def main():
     print(f"Subject data: {len(subject_df)} samples from {args.subject}")
 
     results = validate(transformer, subject_df)
+    results['alignment_quality'] = validate_alignment_quality(transformer, subject_df)
     results['classifier'] = validate_with_classifier(transformer, reference_df, subject_df)
 
     # Save JSON (numpy types → Python floats)

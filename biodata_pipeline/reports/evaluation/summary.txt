@@ -1,0 +1,14 @@
+CROSS-VALIDATION SUMMARY
+================================================================================
+
+Dataset: data/processed/windowed_neu_sad_anx_w30s5.csv
+Samples: 258
+Features: 75
+Emotions: 3
+CV Method: K-Fold (shuffle=True)
+CV Folds: 5
+
+Mean Accuracy:      99.23% ± 0.94%
+Mean F1 (macro):    99.15% ± 1.04%
+
+Random Baseline: 33.33%

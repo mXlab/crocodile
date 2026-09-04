@@ -156,7 +156,7 @@ class EmotionFeatureExtractor:
                 features['scr_mean_peak_amplitude'] = np.mean(window_prominences)
             else:
                 features['scr_mean_peak_amplitude'] = 0
-        else:
+        else:Ok coo
             features['scr_mean_peak_amplitude'] = 0
         
         features['scl_trend_full'] = self._compute_linear_slope(scl[-medium_window:])

@@ -1,0 +1,55 @@
+# Production Configuration for Crocodile Installation
+# Optimized for real-time emotion recognition
+
+# Input
+features_file: data/processed/continuous_features.csv
+
+# Emotions (based on best performance)
+include_emotions:
+  - fea  # Fear (for calibration phase)
+  - sad  # Sadness (excellent F1=0.96)
+  - ang  # Anger (very good F1=0.81)
+
+# Windowing (optimized for physiological signals)
+window_size_s: 30.0  # Captures 5-7 breaths, 30-50 heartbeats
+stride_s: 5.0        # Balanced overlap
+min_purity: 0.7      # Strict emotion purity
+super_segment_size_s: 35.0  # For stable CV during development
+
+# Model training
+n_folds: 5
+classifier: random_forest
+n_estimators: 200    # More trees for production
+max_depth: 25        # Prevent overfitting
+random_state: 42
+
+# Output
+output_file: data/processed/production_dataset.csv
+save_model: true
+model_output: models/crocodile_production.pkl
+evaluate: true
+verbose: true
+
+# Notes
+# -----
+# Production-ready configuration for Crocodile installation:
+#
+# Emotion selection:
+#   - fea: Used during calibration to assess participant's arousal response
+#   - sad: Primary emotion (excellent performance, clear physiological signature)
+#   - ang: Secondary emotion (good separation from sadness)
+#
+# Window size rationale:
+#   - 30s captures sufficient respiratory cycles (5-7 breaths at 12-20 breaths/min)
+#   - Allows for stable HRV computation (30-50 heartbeats)
+#   - Multiple SCR events for reliable EDA features
+#
+# Model parameters:
+#   - 200 trees: More robust predictions
+#   - max_depth=25: Prevents overfitting while capturing complexity
+#   - 5-fold CV: Validates generalization to unseen participants
+#
+# Deployment notes:
+#   - Train final model on full dataset (no CV) before deployment
+#   - Use continuous feature extractor in real-time
+#   - Calibration phase: ~3-4 minutes per emotion

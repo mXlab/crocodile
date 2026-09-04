@@ -98,40 +98,84 @@ python scripts/train_and_evaluate.py \
     --features data/processed/windowed_neu_sad_anx_w30s5.csv
 ```
 
-### 3. Cross-subject alignment and classification
+### 3. Cross-subject alignment
 
-When a new subject records calibration data with shared emotions, you can align their feature space to the reference subject and reuse the reference subject's classifier.
+When a new subject records calibration data with shared emotions, their feature space can be aligned to the reference subject's (Dauphinais') space so the GAN sees physiologically plausible conditioning vectors.
+
+The goal is not emotion classification but a good geometric mapping: transformed subject features should land close to the correct reference emotion prototypes, in the same region of feature space the GAN was trained on.
 
 **Step 1: Extract features for both subjects** (see workflow 1).
 
-**Step 2: Train a prototype alignment transformer.** Computes per-emotion mean feature vectors (prototypes) for both subjects, then learns a Ridge regression mapping from the new subject's prototypes to the reference subject's prototypes. Features are standardized before fitting.
+**Step 2: Train an alignment transformer.** Three methods are available:
+
+| Method | `--method` | Description |
+|--------|-----------|-------------|
+| Ridge regression | `ridge` | Fits a linear map on per-emotion prototype pairs (means only). Fast, minimal data required. |
+| Global linear OT | `ot_global` | Gaussian Monge map fitted on all samples from both domains, ignoring emotion labels. Aligns full distributions but conflates emotion classes. |
+| Class-conditional OT | `ot_classconditional` | Separate Gaussian Monge map per emotion, fitted on matching emotion samples. Best alignment quality in practice. |
 
 ```bash
+# Class-conditional OT (recommended)
 python scripts/train_transformer.py \
     --reference data/processed/laurence_main_features.csv \
-    --subject data/processed/subject_session_features.csv
+    --subject data/processed/subject_session_features.csv \
+    --method ot_classconditional \
+    --output models/transformer_ot_classconditional.pkl
+
+# Ridge (fast baseline)
+python scripts/train_transformer.py \
+    --reference data/processed/laurence_main_features.csv \
+    --subject data/processed/subject_session_features.csv \
+    --method ridge \
+    --output models/transformer_ridge.pkl
 ```
 
 Options:
-- `--alpha 10.0` — Ridge regularization strength (default)
-- `--n-features 20` — optional: keep only top N features ranked by ANOVA F-test
-- `--output models/custom_transformer.pkl` — output path (default: `models/subject_alignment_transformer.pkl`)
+- `--method` — `ridge` (default), `ot_global`, or `ot_classconditional`
+- `--alpha 10.0` — Ridge regularization strength (Ridge only)
+- `--reg 1e-5` — OT regularization strength (OT methods only)
+- `--n-features 20` — keep only top N features by ANOVA F-test (Ridge only)
+- `--output models/custom_transformer.pkl` — output path
 
-**Step 3: Validate.** Runs two tests: (1) separation ratio — transformed samples should land closer to the correct emotion prototype than to wrong ones (ratio < 1.0 is good), (2) RF classifier — trains a Random Forest on the reference data, classifies the transformed subject data, and compares accuracy with and without the transformation.
+All three methods share the same `transform()` interface and are saved as `.pkl` files that load automatically with the correct class.
+
+At inference, class-conditional OT assigns each sample to its nearest subject emotion prototype, then applies that emotion's specific map — no emotion label is required at runtime.
+
+**Step 3: Validate.** Four metrics are reported:
+
+| Metric | What it measures |
+|--------|-----------------|
+| Separation ratio | `dist(correct proto) / mean dist(wrong protos)` — below 1.0 is good |
+| Normalized Prototype RMSE | Prototype alignment error as a fraction of inter-class spread — 0 is perfect, 1 is useless |
+| Nearest-Prototype Accuracy (NPA) | Fraction of transformed windows nearest to the correct reference prototype — method-agnostic, random baseline = 1/n\_emotions |
+| RF accuracy | Random Forest trained on reference, tested on transformed subject — useful but affected by between-session physiological drift |
+
+NPA and RMSE\_norm are the recommended metrics for comparing alignment methods as they are method-agnostic and directly measure geometric quality.
 
 ```bash
 python scripts/validate_transformer.py \
     --reference data/processed/laurence_main_features.csv \
-    --subject data/processed/subject_session_features.csv
+    --subject data/processed/subject_session_features.csv \
+    --model models/transformer_ot_classconditional.pkl
 ```
 
 Options:
-- `--model models/subject_alignment_transformer.pkl` — path to trained transformer (default)
+- `--model` — path to any trained transformer `.pkl` (method detected automatically)
 - `--output-dir reports/` — where to save results (default)
 
 Outputs:
-- `reports/validation_results.json` — per-emotion separation ratios and RF classification accuracy
+- `reports/validation_results.json` — all metrics including per-emotion NPA and prototype errors
 - `reports/transformation_validation.png` — PCA visualization of prototype alignment
+
+**Benchmark on Erin → Laurence (anx, neu, sad):**
+
+| Method | RMSE\_norm | NPA | RF accuracy |
+|--------|-----------|-----|-------------|
+| Ridge | 0.397 | 52.8% | 59.3% |
+| OT global | 0.455 | 37.4% | 30.2% |
+| OT class-conditional | **0.000** | **54.2%** | **77.0%** |
+
+Class-conditional OT wins on all metrics. OT global underperforms Ridge because a single map conflates emotion-specific structure.
 
 ## Directory Structure
 

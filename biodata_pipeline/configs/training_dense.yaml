@@ -1,0 +1,37 @@
+# Training Dense Preset
+# Equivalent to old --preset training_dense
+
+# Input
+features_file: data/processed/continuous_features.csv
+
+# Emotions
+include_emotions: null
+exclude_emotions: null
+
+# Windowing - DENSE
+window_size_s: 30.0
+stride_s: 2.0          # Dense overlap (HIGH data, need super-segments!)
+min_purity: 0.7
+super_segment_size_s: 35.0  # CRITICAL for dense overlap
+
+# Cross-validation
+n_folds: 5
+classifier: random_forest
+n_estimators: 100
+max_depth: null
+random_state: 42
+
+# Output
+output_file: null
+save_model: false
+evaluate: true
+verbose: true
+
+# Notes
+# -----
+# Dense training configuration:
+# - 30s windows
+# - 2s stride (DENSE overlap, ~1500 windows per session)
+# - Maximum training data
+# - MUST use super_segment_size to prevent data leakage
+# - Results in ~12 windows per super-segment group

@@ -1,0 +1,62 @@
+{
+  "anx": {
+    "n_samples": 345,
+    "dist_to_correct": 1290.8909231672803,
+    "mean_dist_to_wrong": 1289.570146614414,
+    "separation_ratio": 1.0010241990762068
+  },
+  "neu": {
+    "n_samples": 677,
+    "dist_to_correct": 1281.6285221378669,
+    "mean_dist_to_wrong": 1280.070580248665,
+    "separation_ratio": 1.0012170749904268
+  },
+  "sad": {
+    "n_samples": 326,
+    "dist_to_correct": 1308.7018069657086,
+    "mean_dist_to_wrong": 1311.648532983142,
+    "separation_ratio": 0.9977534179749116
+  },
+  "_summary": {
+    "mean_separation_ratio": 0.999998230680515,
+    "n_emotions": 3
+  },
+  "alignment_quality": {
+    "rmse_norm": 0.3967806984932045,
+    "rmse_raw": 44.060747943797466,
+    "mean_pairwise_dist": 111.04559297143349,
+    "per_emotion_proto_error": {
+      "anx": 20.400511733537495,
+      "neu": 45.51217481068263,
+      "sad": 57.76252758590315
+    },
+    "npa": 0.5281899109792285,
+    "npa_random_baseline": 0.3333333333333333,
+    "per_emotion_npa": {
+      "anx": 0.9507246376811594,
+      "neu": 0.4446085672082718,
+      "sad": 0.254601226993865
+    }
+  },
+  "classifier": {
+    "reference_self_accuracy": 1.0,
+    "transformed_accuracy": 0.5934718100890207,
+    "baseline_accuracy": 0.2707715133531157,
+    "n_reference_samples": 781,
+    "n_subject_samples": 1348,
+    "per_class": {
+      "anx": {
+        "precision": 0.7073170731707317,
+        "recall": 0.08405797101449275
+      },
+      "neu": {
+        "precision": 0.5910064239828694,
+        "recall": 0.8153618906942393
+      },
+      "sad": {
+        "precision": 0.5871313672922251,
+        "recall": 0.6717791411042945
+      }
+    }
+  }
+}

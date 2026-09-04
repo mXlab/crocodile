@@ -1,0 +1,41 @@
+# Quick Test Configuration
+# Fast evaluation for rapid experimentation
+
+# Input
+features_file: data/processed/continuous_features.csv
+
+# Emotions (just 2 for speed)
+include_emotions:
+  - sad
+  - joy
+
+# Windowing (less overlap for speed)
+window_size_s: 30.0
+stride_s: 10.0  # Less overlap = fewer windows = faster
+min_purity: 0.6  # Slightly relaxed
+super_segment_size_s: 40.0
+
+# Cross-validation (fewer folds for speed)
+n_folds: 3
+classifier: random_forest
+n_estimators: 50  # Fewer trees = faster
+max_depth: 15
+random_state: 42
+
+# Output
+output_file: null
+save_model: false
+evaluate: true
+verbose: false  # Less output
+
+# Notes
+# -----
+# Quick test configuration for fast iteration:
+# - Only 2 emotions
+# - Less overlap (stride=10s)
+# - 3-fold CV instead of 5
+# - Fewer trees (50 vs 100)
+# - Less verbose output
+#
+# Use this for quick parameter exploration, then switch to
+# a production config for final evaluation.

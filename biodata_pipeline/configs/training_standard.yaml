@@ -1,0 +1,35 @@
+# Training Standard Preset
+# Equivalent to old --preset training_standard
+
+# Input
+features_file: data/processed/continuous_features.csv
+
+# Emotions (configure as needed)
+include_emotions: null  # All emotions
+exclude_emotions: null
+
+# Windowing - STANDARD
+window_size_s: 30.0
+stride_s: 5.0          # Medium overlap
+min_purity: 0.7
+super_segment_size_s: 35.0
+
+# Cross-validation
+n_folds: 5
+classifier: random_forest
+n_estimators: 100
+max_depth: null
+random_state: 42
+
+# Output
+output_file: null
+save_model: false
+evaluate: true
+verbose: true
+
+# Notes
+# -----
+# Standard training configuration:
+# - 30s windows (captures 5-7 breaths)
+# - 5s stride (moderate overlap, ~600 windows per session)
+# - Balanced between data quantity and independence

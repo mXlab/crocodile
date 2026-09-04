@@ -1,0 +1,36 @@
+# Training Moderate Preset
+# Equivalent to old --preset training_moderate
+
+# Input
+features_file: data/processed/continuous_features.csv
+
+# Emotions
+include_emotions: null
+exclude_emotions: null
+
+# Windowing - MODERATE
+window_size_s: 30.0
+stride_s: 10.0         # Light overlap
+min_purity: 0.7
+super_segment_size_s: 40.0
+
+# Cross-validation
+n_folds: 5
+classifier: random_forest
+n_estimators: 100
+max_depth: null
+random_state: 42
+
+# Output
+output_file: null
+save_model: false
+evaluate: true
+verbose: true
+
+# Notes
+# -----
+# Moderate training configuration:
+# - 30s windows
+# - 10s stride (light overlap, ~300 windows per session)
+# - Less data than dense, more independence
+# - Good balance for smaller datasets
