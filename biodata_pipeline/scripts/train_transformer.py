@@ -78,6 +78,9 @@ class PrototypeAlignmentTransformer:
             X_sel, y_sel = X_sel[valid], y_sel[valid]
 
             f_scores, _ = f_classif(X_sel, y_sel)
+            # NaN (constant-feature) scores sort to the end ascending, which
+            # `[::-1]` would otherwise put first -- rank them lowest instead.
+            f_scores = np.nan_to_num(f_scores, nan=-np.inf)
             top_idx = np.argsort(f_scores)[::-1][:self.n_features]
             selected = sorted([self.feature_cols[i] for i in top_idx])
 
