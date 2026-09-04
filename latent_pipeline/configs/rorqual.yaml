@@ -1,0 +1,96 @@
+# Alliance cluster configuration for Rorqual (H100 80GB GPU).
+#
+# BEFORE FIRST USE: update paths.repo_root and paths.stylegan_code
+# to match your project directory on Rorqual.
+#
+# Differences from default.yaml (laptop, RTX 5060 8GB):
+#   - Paths point to cluster project space
+#   - batch_size=16 (80GB VRAM vs laptop's 8GB) — UNTESTED, drop to 8 with
+#     gradient_accumulation_steps=2 if you hit CUDA OOM on the first epoch
+#   - epochs stays 20, matching default.yaml — the checkpoint being resumed
+#     was trained with a CosineAnnealingLR scheduler whose T_max=20 is baked
+#     into its state_dict; only raise this if starting a fresh (non-resumed)
+#     run and you want a longer schedule
+#   - num_workers=8 (adjust to your actual --cpus-per-task allocation)
+
+paths:
+  # CHANGEME: update these two paths for your account
+  repo_root: /home/sofian/projects/def-sofian/crocodile/code
+  stylegan_code: /home/sofian/projects/def-sofian/crocodile/stylegan_Autolume
+  stylegan_model: models/finalModel_Crocodile.pkl
+  continuous_features: biodata_pipeline/data/processed/continuous_features.csv
+  frames_dir: latent_pipeline/data/frames
+  metadata_dir: latent_pipeline/data/metadata
+  outputs_dir: latent_pipeline/outputs
+  diverse_images: Diverse
+  synthetic_dir: latent_pipeline/data/synthetic
+
+stylegan:
+  img_resolution: 2048
+  w_dim: 512
+
+video:
+  fps: 24
+  extract_fps: 1
+  frame_size: 256
+
+# Phase 2B: fine-tune on real frames with reconstruction loss
+train_frames:
+  train_resolution: 128
+  batch_size: 16                   # H100 80GB — see note above, untested
+  gradient_accumulation_steps: 1   # effective batch size = 16, same as laptop
+  lr: 5.0e-4
+  lr_min: 1.0e-6
+  epochs: 20                       # must match the checkpoint's original schedule — see note above
+  gradient_clip_max_norm: 1.0
+  val_fraction: 0.1  # fraction of all real frames randomly held out for validation
+  num_workers: 8
+
+  loss:
+    lpips_weight: 1.0
+    mse_weight: 2.0
+    diversity_weight: 0.1
+    temporal_weight: 0.1
+    emotion_weight: 0.05
+    feeling_it_multiplier: 3.0
+    emotion_contrastive_margin: 2.0
+
+  log_every_epoch: 1
+  visual_check_every: 1
+  checkpoint_dir: latent_pipeline/outputs
+
+# Phase 2A: train on synthetic (image, W) pairs
+# (only needed if re-running from scratch on cluster)
+train_synthetic:
+  train_resolution: 128
+  batch_size: 64
+  lr: 1.0e-3
+  lr_min: 1.0e-6
+  epochs: 20
+  val_split: 0.1
+  gradient_clip_max_norm: 1.0
+  checkpoint_dir: latent_pipeline/outputs/train_synthetic
+  visual_check_every: 5
+
+encoder:
+  channels: [32, 64, 128, 256, 512]
+  w_dim: 512
+  dropout: 0.3
+
+validation:
+  n_frames: 30
+  optim_lr: 0.01
+  optim_steps: 1000
+  lpips_threshold: 0.1
+
+recording_start_times:
+  1S: 19.332
+  2S: 17.582
+  3S: 17.127
+  4S: 22.201
+
+session_feature_ids:
+  1S: emotion_biodata_laurence_main_1
+  2S: emotion_biodata_laurence_main_2
+  3S: emotion_biodata_laurence_main_3
+  4S: emotion_biodata_laurence_main_4
