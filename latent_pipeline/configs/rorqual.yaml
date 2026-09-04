@@ -14,9 +14,10 @@
 #   - num_workers=8 (adjust to your actual --cpus-per-task allocation)
 
 paths:
-  # CHANGEME: update these two paths for your account
-  repo_root: /home/sofian/projects/def-sofian/crocodile/code
-  stylegan_code: /home/sofian/projects/def-sofian/crocodile/stylegan_Autolume
+  # Mirrors the local layout: crocodile/ and stylegan_Autolume/ are siblings,
+  # both directly under the project space (no wrapper/code/ nesting).
+  repo_root: /home/sofian/projects/def-sofian/crocodile
+  stylegan_code: /home/sofian/projects/def-sofian/stylegan_Autolume
   stylegan_model: models/finalModel_Crocodile.pkl
   continuous_features: biodata_pipeline/data/processed/continuous_features.csv
   frames_dir: latent_pipeline/data/frames

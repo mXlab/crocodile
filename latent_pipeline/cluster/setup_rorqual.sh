@@ -1,17 +1,17 @@
 #!/bin/bash
 # One-time setup on Rorqual (run from login node).
 #
-# Expected directory layout on Rorqual:
-#   ~/projects/def-<PI>/crocodile/         <- main project dir
-#       code/                              <- this git repo
-#       stylegan_Autolume/                 <- StyleGAN2 code
+# Expected directory layout on Rorqual (mirrors the local layout — crocodile/
+# and stylegan_Autolume/ are siblings under the project space, no wrapper dir):
+#   ~/projects/def-<PI>/crocodile/         <- this git repo
+#   ~/projects/def-<PI>/stylegan_Autolume/ <- StyleGAN2 code
 #
-# Data uploaded via Globus goes to:
-#   ~/projects/def-<PI>/crocodile/code/latent_pipeline/data/
-#   ~/projects/def-<PI>/crocodile/code/models/
+# Data goes to:
+#   ~/projects/def-<PI>/crocodile/latent_pipeline/data/
+#   ~/projects/def-<PI>/crocodile/models/
 #
 # Usage:
-#   cd ~/projects/def-<PI>/crocodile/code
+#   cd ~/projects/def-<PI>/crocodile
 #   bash latent_pipeline/cluster/setup_rorqual.sh
 #
 # Note: the venv below is created under $HOME, same as the Vulcan setup.
@@ -52,8 +52,8 @@ echo "=== Setup complete ==="
 echo "Activate with: source $VENV_DIR/bin/activate"
 echo ""
 echo "Next steps:"
-echo "  1. Upload data via Globus (see latent_pipeline/cluster/VULCAN_TRANSFER.md"
-echo "     for the file list — same layout applies to Rorqual)"
+echo "  1. Transfer data (rsync or Globus — see latent_pipeline/cluster/VULCAN_TRANSFER.md"
+echo "     for the file list; same files apply to Rorqual)"
 echo "  2. Edit latent_pipeline/configs/rorqual.yaml with your paths"
 echo "  3. Edit latent_pipeline/cluster/submit_train_rorqual.sh with your account"
 echo "  4. Submit: sbatch latent_pipeline/cluster/submit_train_rorqual.sh --resume latent_pipeline/outputs/latest.pt"
