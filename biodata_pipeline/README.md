@@ -106,13 +106,14 @@ The goal is not emotion classification but a good geometric mapping: transformed
 
 **Step 1: Extract features for both subjects** (see workflow 1).
 
-**Step 2: Train an alignment transformer.** Three methods are available:
+**Step 2: Train an alignment transformer.** Four methods are available:
 
 | Method | `--method` | Description |
 |--------|-----------|-------------|
 | Ridge regression | `ridge` | Fits a linear map on per-emotion prototype pairs (means only). Fast, minimal data required. |
 | Global linear OT | `ot_global` | Gaussian Monge map fitted on all samples from both domains, ignoring emotion labels. Aligns full distributions but conflates emotion classes. |
 | Class-conditional OT | `ot_classconditional` | Separate Gaussian Monge map per emotion, fitted on matching emotion samples. Best alignment quality in practice. |
+| CORAL | `coral` | Unsupervised global covariance whitening/re-coloring (Sun & Saenko 2016; the closed-form cousin of Euclidean Alignment used for cross-subject transfer in BCI). Like `ot_global`, ignores emotion labels — no per-class calibration data required. |
 
 ```bash
 # Class-conditional OT (recommended)
@@ -131,15 +132,15 @@ python scripts/train_transformer.py \
 ```
 
 Options:
-- `--method` — `ridge` (default), `ot_global`, or `ot_classconditional`
+- `--method` — `ridge` (default), `ot_global`, `ot_classconditional`, or `coral`
 - `--alpha 10.0` — Ridge regularization strength (Ridge only)
-- `--reg 1e-5` — OT regularization strength (OT methods only)
+- `--reg 1e-5` — OT/CORAL regularization strength (OT and CORAL methods only)
 - `--n-features 20` — keep only top N features by ANOVA F-test (Ridge only)
 - `--output models/custom_transformer.pkl` — output path
 
-All three methods share the same `transform()` interface and are saved as `.pkl` files that load automatically with the correct class.
+All four methods share the same `transform()` interface and are saved as `.pkl` files that load automatically with the correct class.
 
-At inference, class-conditional OT assigns each sample to its nearest subject emotion prototype, then applies that emotion's specific map — no emotion label is required at runtime.
+At inference, class-conditional OT assigns each sample to its nearest subject emotion prototype, then applies that emotion's specific map — no emotion label is required at runtime. Ridge and CORAL apply the same single global map to every sample regardless of emotion, so they have no assignment step and no per-class decision boundary to misclassify across — relevant if the deployment scenario has to handle biodata from emotions that weren't part of calibration.
 
 **Step 3: Validate.** Four metrics are reported:
 
