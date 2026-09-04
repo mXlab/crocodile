@@ -204,6 +204,20 @@ def _common_setup(reference_df, subject_df):
     return feature_cols, common_emotions
 
 
+def _sym_sqrt(M):
+    """Symmetric PSD matrix square root via eigendecomposition."""
+    eigvals, eigvecs = np.linalg.eigh(M)
+    eigvals = np.clip(eigvals, a_min=0.0, a_max=None)
+    return eigvecs @ np.diag(np.sqrt(eigvals)) @ eigvecs.T
+
+
+def _sym_inv_sqrt(M):
+    """Symmetric PSD matrix inverse square root via eigendecomposition."""
+    eigvals, eigvecs = np.linalg.eigh(M)
+    eigvals = np.clip(eigvals, a_min=1e-12, a_max=None)
+    return eigvecs @ np.diag(1.0 / np.sqrt(eigvals)) @ eigvecs.T
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Linear OT transformer (global Gaussian Monge map)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -424,6 +438,121 @@ class ClassConditionalOTTransformer:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CORAL / Euclidean alignment transformer (global covariance whitening+recoloring)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class CORALTransformer:
+    """
+    Unsupervised global feature alignment via CORAL (Correlation Alignment,
+    Sun & Saenko 2016) -- the closed-form linear-algebra cousin of Euclidean
+    Alignment used for cross-subject transfer in BCI.
+
+    Whitens the subject distribution to identity covariance, then re-colors
+    it with the reference distribution's covariance (both scaled to zero
+    mean by sub_scaler/ref_scaler beforehand, so no separate mean-centering
+    step is needed -- ref_scaler's inverse_transform re-adds the reference
+    mean at the end).
+
+    Like `ot_global`, this never looks at the emotion label when computing
+    the map -- common_emotions only selects which pooled samples to estimate
+    the covariance from, so no per-class calibration data is strictly
+    required. Unlike `ot_global` (which solves for the optimal-transport
+    Gaussian map), this uses the classic non-optimal whitening/recoloring
+    closed form -- in practice the two behave similarly, since both are
+    class-blind, moment-matching linear maps (see `ClassConditionalOT` for
+    the class-aware alternative).
+    """
+
+    def __init__(self, reg=1e-5):
+        self.reg = reg
+        self.A = None  # Cs^{-1/2} @ Ct^{1/2}, applied to scaled subject features
+        self.sub_scaler = StandardScaler()
+        self.ref_scaler = StandardScaler()
+        self.feature_cols = []
+        self.common_emotions = []
+        self.subject_prototypes = {}
+        self.reference_prototypes = {}
+        self.trained = False
+
+    def fit(self, reference_df, subject_df):
+        self.feature_cols, self.common_emotions = _common_setup(reference_df, subject_df)
+
+        ref_all = _clean(reference_df.loc[
+            reference_df['emotion'].isin(self.common_emotions), self.feature_cols
+        ].values)
+        sub_all = _clean(subject_df.loc[
+            subject_df['emotion'].isin(self.common_emotions), self.feature_cols
+        ].values)
+
+        self.ref_scaler.fit(ref_all)
+        self.sub_scaler.fit(sub_all)
+
+        for emotion in self.common_emotions:
+            r = _clean(reference_df.loc[reference_df['emotion'] == emotion, self.feature_cols].values)
+            s = _clean(subject_df.loc[subject_df['emotion'] == emotion, self.feature_cols].values)
+            self.reference_prototypes[emotion] = np.mean(self.ref_scaler.transform(r), axis=0)
+            self.subject_prototypes[emotion] = np.mean(self.sub_scaler.transform(s), axis=0)
+            print(f"  {emotion}: reference n={len(r)}, subject n={len(s)}")
+
+        X_ref_sc = self.ref_scaler.transform(ref_all)
+        X_sub_sc = self.sub_scaler.transform(sub_all)
+        n_features = X_sub_sc.shape[1]
+
+        print(f"\nFitting CORAL on {len(X_sub_sc)} subject -> {len(X_ref_sc)} reference samples "
+              f"(class-blind, {n_features} features)")
+
+        Cs = np.cov(X_sub_sc, rowvar=False) + self.reg * np.eye(n_features)
+        Ct = np.cov(X_ref_sc, rowvar=False) + self.reg * np.eye(n_features)
+
+        self.A = _sym_inv_sqrt(Cs) @ _sym_sqrt(Ct)
+        self.trained = True
+        print("CORAL transformer trained successfully")
+
+    def transform(self, features):
+        if not self.trained:
+            raise RuntimeError("Transformer not trained. Call fit() first.")
+        if isinstance(features, pd.DataFrame):
+            features = features[self.feature_cols].values
+        scaled = self.sub_scaler.transform(features)
+        aligned_scaled = scaled @ self.A
+        return self.ref_scaler.inverse_transform(aligned_scaled)
+
+    def transform_prototypes(self):
+        """Return transformed subject prototypes in raw reference space."""
+        sub_protos_scaled = np.array([self.subject_prototypes[e] for e in self.common_emotions])
+        aligned_scaled = sub_protos_scaled @ self.A
+        return self.ref_scaler.inverse_transform(aligned_scaled)
+
+    def save(self, filepath):
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump({
+            'class': 'CORAL',
+            'reg': self.reg,
+            'A': self.A,
+            'sub_scaler': self.sub_scaler,
+            'ref_scaler': self.ref_scaler,
+            'feature_cols': self.feature_cols,
+            'common_emotions': self.common_emotions,
+            'subject_prototypes': self.subject_prototypes,
+            'reference_prototypes': self.reference_prototypes,
+        }, filepath)
+        print(f"Saved CORAL transformer to {filepath}")
+
+    @classmethod
+    def load(cls, data):
+        obj = cls(reg=data['reg'])
+        obj.A = data['A']
+        obj.sub_scaler = data['sub_scaler']
+        obj.ref_scaler = data['ref_scaler']
+        obj.feature_cols = data['feature_cols']
+        obj.common_emotions = data['common_emotions']
+        obj.subject_prototypes = data['subject_prototypes']
+        obj.reference_prototypes = data['reference_prototypes']
+        obj.trained = True
+        return obj
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Factory
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -435,6 +564,8 @@ def load_transformer(filepath):
         return LinearOTTransformer.load(data)
     elif class_name == 'ClassConditionalOT':
         return ClassConditionalOTTransformer.load(data)
+    elif class_name == 'CORAL':
+        return CORALTransformer.load(data)
     else:
         return PrototypeAlignmentTransformer.load(data)
 
@@ -453,9 +584,9 @@ def main():
     )
     parser.add_argument(
         '--method',
-        choices=['ridge', 'ot_global', 'ot_classconditional'],
+        choices=['ridge', 'ot_global', 'ot_classconditional', 'coral'],
         default='ridge',
-        help='Alignment method: ridge (default), ot_global, ot_classconditional'
+        help='Alignment method: ridge (default), ot_global, ot_classconditional, coral'
     )
     parser.add_argument(
         '--alpha', type=float, default=10.0,
@@ -463,7 +594,7 @@ def main():
     )
     parser.add_argument(
         '--reg', type=float, default=1e-5,
-        help='OT regularization strength (default: 1e-5, OT methods only)'
+        help='OT/CORAL regularization strength (default: 1e-5, OT and CORAL methods only)'
     )
     parser.add_argument(
         '--n-features', type=int, default=None,
@@ -492,6 +623,8 @@ def main():
         transformer = LinearOTTransformer(reg=args.reg)
     elif args.method == 'ot_classconditional':
         transformer = ClassConditionalOTTransformer(reg=args.reg)
+    elif args.method == 'coral':
+        transformer = CORALTransformer(reg=args.reg)
 
     transformer.fit(ref_df, sub_df)
     transformer.save(args.output)
