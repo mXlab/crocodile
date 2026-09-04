@@ -1,16 +1,17 @@
 """
 Enhanced Continuous Feature Extractor - COMPLETE FEATURE SET
 
-This version ports ALL 67 features from the original EmotionFeatureExtractor
+This version ports features from the original EmotionFeatureExtractor
 while maintaining continuous processing (filters never reset).
 
 Features ported:
-- EDA: 15 features (SCL, SCR, trends, events, instability)
-- Cardiac: 17 features (HR, HRV, PPG amplitude, trends, spikes)
-- Respiratory: 22 features (rate, amplitude, variability, sighs, pauses)
+- EDA: 17 features (SCL, SCR, trends, events, instability)
+- Cardiac: 18 features (HR, HRV, PPG amplitude, trends, spikes)
+- Respiratory: 33 features (rate, amplitude, variability, sighs, pauses)
 - Multimodal: 5 features (arousal, valence, regulation indices)
 
-Total: 67 features (matches original extractor)
+Total: 73 features. See docs/module_guides/module3_feature_extractor.md
+for the full per-feature glossary (formula + intent for each one).
 """
 
 import numpy as np
@@ -25,8 +26,8 @@ warnings.filterwarnings('ignore')
 
 class EnhancedContinuousFeatureExtractor:
     """
-    Complete continuous feature extractor with all 67 features.
-    
+    Complete continuous feature extractor with all 73 features.
+
     Maintains filter states across entire session, never resetting.
     """
     
@@ -207,7 +208,7 @@ class EnhancedContinuousFeatureExtractor:
                                           ppg_signal: np.ndarray,
                                           resp_signal: np.ndarray,
                                           current_idx: int) -> Dict[str, float]:
-        """Extract ALL 67 features at current timestamp."""
+        """Extract ALL 73 features at current timestamp."""
         
         features = {}
         
@@ -226,11 +227,11 @@ class EnhancedContinuousFeatureExtractor:
         return features
     
     # ====================================================================
-    # EDA FEATURE EXTRACTION (15 features)
+    # EDA FEATURE EXTRACTION (17 features)
     # ====================================================================
-    
+
     def _extract_eda_features(self, eda_signal: np.ndarray) -> Dict[str, float]:
-        """Extract all 15 EDA features."""
+        """Extract all 17 EDA features."""
         
         features = {}
         
@@ -374,11 +375,11 @@ class EnhancedContinuousFeatureExtractor:
         return features
     
     # ====================================================================
-    # CARDIAC FEATURE EXTRACTION (17 features)
+    # CARDIAC FEATURE EXTRACTION (18 features)
     # ====================================================================
-    
+
     def _extract_cardiac_features(self, ppg_signal: np.ndarray) -> Dict[str, float]:
-        """Extract all 17 cardiac features."""
+        """Extract all 18 cardiac features."""
         
         features = {}
         
@@ -585,11 +586,11 @@ class EnhancedContinuousFeatureExtractor:
         return features
     
     # ====================================================================
-    # RESPIRATORY FEATURE EXTRACTION (22 features)
+    # RESPIRATORY FEATURE EXTRACTION (33 features)
     # ====================================================================
-    
+
     def _extract_respiratory_features(self, resp_signal: np.ndarray) -> Dict[str, float]:
-        """Extract all 22 respiratory features."""
+        """Extract all 33 respiratory features."""
         
         features = {}
         
@@ -999,11 +1000,11 @@ if __name__ == "__main__":
     print("Enhanced Continuous Feature Extractor - COMPLETE")
     print("="*80)
     print("\nFeatures implemented:")
-    print("  ✓ EDA: 15 features")
-    print("  ✓ Cardiac: 17 features")
-    print("  ✓ Respiratory: 30 features")
+    print("  ✓ EDA: 17 features")
+    print("  ✓ Cardiac: 18 features")
+    print("  ✓ Respiratory: 33 features")
     print("  ✓ Multimodal: 5 features")
-    print("  ✓ Total: 67 features (matches original!)")
+    print("  ✓ Total: 73 features")
     print("\nContinuous processing:")
     print("  ✓ Filters maintain state across emotion boundaries")
     print("  ✓ Adaptive normalization across entire session")
