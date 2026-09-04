@@ -168,15 +168,27 @@ Outputs:
 - `reports/validation_results.json` — all metrics including per-emotion NPA and prototype errors
 - `reports/transformation_validation.png` — PCA visualization of prototype alignment
 
-**Benchmark on Erin → Actress (anx, neu, sad):**
+See [EXPERIMENTS.md](EXPERIMENTS.md) for a benchmark comparing all four methods on real data.
 
-| Method | RMSE\_norm | NPA | RF accuracy |
-|--------|-----------|-----|-------------|
-| Ridge | 0.397 | 52.8% | 59.3% |
-| OT global | 0.455 | 37.4% | 30.2% |
-| OT class-conditional | **0.000** | **54.2%** | **77.0%** |
+**Step 4 (optional): Held-out-emotion generalization test.** Checks how each method handles an emotion it wasn't calibrated on — for a deployment where calibration covers a handful of elicited emotions but the participant is later observed in other states. For each shared emotion, fits every method on the *other* shared emotions only, then checks how it handles the one it never saw.
 
-Class-conditional OT wins on all metrics. OT global underperforms Ridge because a single map conflates emotion-specific structure.
+```bash
+python scripts/validate_heldout_emotion.py \
+    --reference data/processed/laurence_main_features.csv \
+    --subject data/processed/erin_2026-02-09_features.csv
+```
+
+Options:
+- `--methods` — which methods to test (default: all four)
+- `--alpha` / `--reg` — same meaning as workflow-3 Step 2
+- `--n-features N` — ANOVA feature selection, re-selected per held-out split from the calibration emotions' reference data only (default: use all features)
+- `--output-dir reports/heldout_emotion` — where to save results (default)
+
+Two metrics are reported per held-out emotion:
+- **Held-out RMSE_norm** — distance from the transformed held-out samples to the actress' *true* prototype for that emotion (which the transformer never saw), normalized on the same scale as the closed-set RMSE_norm above, so the two are directly comparable.
+- **RF recall(h)** — a Random Forest trained on the reference's full known-emotion data classifies the transformed held-out samples; the fraction correctly labeled as the true (held-out) emotion.
+
+See [EXPERIMENTS.md](EXPERIMENTS.md) for results and interpretation, including a follow-up using `--n-features` to test whether reducing dimensionality helps.
 
 ## Directory Structure
 
