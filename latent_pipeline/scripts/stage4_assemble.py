@@ -59,7 +59,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
-    output_dir = os.path.join(repo_root, config['training']['checkpoint_dir'])
+    output_dir = os.path.join(repo_root, config['train_frames']['checkpoint_dir'])
 
     # Load encoder
     ec = config['encoder']
