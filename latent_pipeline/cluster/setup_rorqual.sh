@@ -48,11 +48,23 @@ pip install --no-index --upgrade pip
 echo "Installing from Alliance stack (--no-index) ..."
 pip install --no-index torch torchvision
 pip install --no-index opencv-python pillow
-pip install --no-index pandas numpy matplotlib scikit-learn tqdm pyyaml requests
+pip install --no-index pandas numpy matplotlib scikit-learn tqdm pyyaml requests click
 
 # lpips is not in the Alliance stack — download wheel from PyPI via proxy
 echo "Installing lpips from PyPI (via proxy) ..."
 pip install lpips
+
+# stylegan_Autolume's torch_utils imports pkg_resources (from setuptools),
+# which recent setuptools (81+) dropped entirely. The Alliance wheelhouse's
+# setuptools build is versioned artificially high (e.g. 84.0.0+computecanada)
+# so pip's resolver always prefers it over a real PyPI setuptools even with
+# --index-url — PIP_CONFIG_FILE=/dev/null bypasses the whole Alliance pip
+# config (find-links, constraints) for this one install so PyPI is actually
+# used. Pinned to 70.2.0 since that's confirmed to still ship pkg_resources
+# (matches the local dev venv); the resulting "torch requires setuptools>=77"
+# conflict warning is cosmetic — torch doesn't invoke setuptools at import time.
+echo "Downgrading setuptools for pkg_resources (needed by stylegan_Autolume) ..."
+PIP_CONFIG_FILE=/dev/null pip install --force-reinstall --index-url https://pypi.org/simple/ "setuptools==70.2.0"
 
 echo ""
 echo "=== Setup complete ==="
