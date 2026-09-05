@@ -211,7 +211,10 @@ def save_w_visualization(w_vectors, emotion_labels, output_path):
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
 
     unique_labels = sorted(set(labels))
-    cmap = plt.cm.get_cmap('tab20', len(unique_labels))
+    # plt.cm.get_cmap(name, n) was deprecated then removed in newer matplotlib
+    # (present locally, gone on Rorqual's stack) -- colormaps[name].resampled(n)
+    # is the version-robust replacement, available since matplotlib 3.6.
+    cmap = plt.colormaps['tab20'].resampled(len(unique_labels))
 
     for i, label_idx in enumerate(unique_labels):
         mask = labels == label_idx
