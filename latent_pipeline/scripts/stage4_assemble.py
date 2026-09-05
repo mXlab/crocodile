@@ -137,6 +137,7 @@ def main():
             'timestamp_s': mrow['timestamp_s'],
             'biodata_timestamp_s': mrow['biodata_timestamp_s'],
             'emotion_label': mrow['emotion_label'],
+            'feeling_it': mrow['feeling_it'],
         }
 
         # W vector dimensions
@@ -178,7 +179,7 @@ def main():
     output_path = os.path.join(repo_root, 'latent_pipeline', 'data', 'biodata_w_dataset.csv')
     result_df.to_csv(output_path, index=False)
     print(f"\nSaved: {output_path}")
-    print(f"  Metadata columns: 6")
+    print(f"  Metadata columns: 7")
     print(f"  W dimensions: {len(w_cols)}")
     print(f"  Feature dimensions: {len(feature_cols)}")
     print(f"  Total columns: {len(result_df.columns)}")
