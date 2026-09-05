@@ -10,24 +10,31 @@ Crocodile is an interactive installation: a participant's physiological signals
 actress' avatar — via a trained StyleGAN2 model. The participant's
 biodata becomes the avatar's emotional state.
 
-Getting there requires an **offline preprocessing pipeline** (build training
-data + models from the actress' own recordings) and a **runtime pipeline** (turn
-a live participant's signals into a face at the installation). Only the first
-one has working code today; the second is still mostly a design.
+This requires a **runtime pipeline** that turns a live user's biodata signals 
+into a (generated) face of the actress in the installation:
 
 ```
-PREPROCESSING (offline, built against the actress' data)
-  biodata_pipeline:  raw sensor CSVs ──▶ physiological features
-                                              │
-  latent_pipeline:   video frames ──▶ W-space encoder ──▶ biodata_w_dataset.csv
-                                                                  │
-                     [Stage 5 — biodata→W regressor]  ◀───────────┘   NOT YET BUILT
-
-RUNTIME (live, not yet built)
-  participant biodata ──▶ [alignment]† ──▶ [W regressor] ──▶ frozen StyleGAN2 ──▶ face
+  [raw user biodata] ── b_u ──▶ [feature extraction] ── x_u ──▶ [user-actress alignment] 
+     ── x_a ──▶ [actress-features-to-W regressor] ── W ──▶ StyleGAN2 ────▶ face
 ```
-† the alignment model itself (biodata_pipeline's cross-subject transformer) already
-exists and works — it just isn't wired into a runtime script yet.
+
+In order to achieve this, we need an **offline preprocessing pipeline** to build training
+data and models from the actress' own recordings. This pipeline consists in two parts:
+
+1. biodata_pipeline:
+  * Converts raw biodata to features ``[feature extraction]``
+  * Performs user-actress alignment ``[user-actress alignment]``
+2. latent_pipeline: 
+  * Creates a regressor that converts the actress biodata features to latent space ``[actress-features-to-W regressor]``
+  * Provides an encoder that converts an image to latent space ``[actress-image-to-W encoder]``
+
+```
+  biodata_pipeline:  raw biodata CSVs ──▶ [feature extraction]
+                                              
+  latent_pipeline:   video frames ──▶ [actress-image-to-W encoder] ──▶ biodata_w_dataset.csv
+                                                                             │
+                     [actress-features-to-W regressor]  ◀────────────────────┘   NOT YET BUILT
+```
 
 ## Where each piece fits
 
