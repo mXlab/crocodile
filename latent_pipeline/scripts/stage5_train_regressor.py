@@ -70,6 +70,41 @@ def clean_rows(X, Y):
     return X[mask], Y[mask]
 
 
+def winsorize_with_train_bounds(X_train, X_val, pct):
+    """Clip both splits to [pct, 100-pct] percentile bounds computed from
+    TRAINING data only.
+
+    No outlier/glitch rejection exists anywhere upstream of this script --
+    confirmed by audit: continuous_feature_extractor.py's trend/rate-of-change
+    features only gate on a minimum sample COUNT (not elapsed time), which is
+    too loose to catch cold-start blowups in the first few seconds of a
+    session, and features like eda.scr_recent_mean_amplitude have no bounds
+    checking at all. A single such glitch is finite (passes clean_rows) but
+    can dominate a Ridge fit -- e.g. one t=928s amplitude spike (z=13) drove
+    an entire LOSO fold's R^2 to -84.
+
+    Clipping (not dropping) the row: earlier tests showed dropping rows
+    (feeling_it filtering, transitional exclusion on the full feature set)
+    unpredictably destabilized fits by shifting which extreme values survive
+    to dominate. Clipping caps a glitch's influence while keeping the row's
+    other ~72 feature values and its W target intact.
+
+    IMPORTANT: bounds must come from training data only, NOT per-session
+    (including the held-out one) -- tried that first and it made things much
+    worse (all-73 LOSO mean R^2 went from -1.46 to -8.76). Clipping a
+    validation session to its OWN percentile bounds doesn't correct the
+    cross-session scale mismatch, it just creates a session-specific plateau
+    of clipped values that a model trained on a *different* session's scale
+    then mispredicts systematically across many rows, instead of being wrong
+    on just the few genuinely bad ones. Bounds from training data only (this
+    version) is standard practice and fixed it: cardiac-only LOSO mean R^2
+    improved from -0.519 to -0.362.
+    """
+    lo = np.nanpercentile(X_train, pct, axis=0)
+    hi = np.nanpercentile(X_train, 100 - pct, axis=0)
+    return np.clip(X_train, lo, hi), np.clip(X_val, lo, hi)
+
+
 @torch.no_grad()
 def save_visual_grid(G, val_df, w_true, w_pred, device, output_path, n=8):
     """Side-by-side: encoder's ground-truth W vs. biodata-predicted W, both
@@ -123,6 +158,10 @@ def main():
     parser.add_argument('--keep-transitional', action='store_true',
                         help='Keep war/tra/coo (warmup/transition/cooldown) frames '
                              'instead of excluding them (default: exclude)')
+    parser.add_argument('--winsorize-pct', type=float, default=None,
+                        help='Clip each feature to [pct, 100-pct] percentile bounds '
+                             'computed from training data only (default: from config; '
+                             '0 disables)')
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -132,6 +171,7 @@ def main():
 
     alpha = args.alpha if args.alpha is not None else rc['alpha']
     val_pool = args.val_pool if args.val_pool is not None else rc['val_pool']
+    winsorize_pct = args.winsorize_pct if args.winsorize_pct is not None else rc['winsorize_pct']
 
     dataset_path = os.path.join(repo_root, 'latent_pipeline', 'data', 'biodata_w_dataset.csv')
     df = pd.read_csv(dataset_path)
@@ -161,6 +201,10 @@ def main():
     if len(X_train) < len(train_df) or len(X_val) < len(val_df):
         print(f"  Dropped {len(train_df) - len(X_train)} train / "
               f"{len(val_df) - len(X_val)} val rows with NaN/inf")
+
+    if winsorize_pct > 0:
+        X_train, X_val = winsorize_with_train_bounds(X_train, X_val, winsorize_pct)
+        print(f"Winsorized to training-only [{winsorize_pct}, {100-winsorize_pct}] percentile bounds")
 
     scaler = StandardScaler()
     X_train_s = scaler.fit_transform(X_train)
@@ -203,6 +247,8 @@ def main():
         'n_features': len(feature_cols),
         'alpha': alpha,
         'val_pool': val_pool,
+        'winsorize_pct': winsorize_pct,
+        'excluded_transitional': not args.keep_transitional,
         'train_mse': float(train_mse),
         'val_mse': float(val_mse),
         'train_r2': float(train_r2),
