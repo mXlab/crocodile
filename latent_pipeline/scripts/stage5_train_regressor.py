@@ -45,8 +45,18 @@ from models.stylegan import load_stylegan, generate
 
 METADATA_COLS = {
     'frame_path', 'pool_name', 'frame_number',
-    'timestamp_s', 'biodata_timestamp_s', 'emotion_label', 'feeling_it',
+    'timestamp_s', 'biodata_timestamp_s', 'emotion_label', 'raw_emotion', 'feeling_it',
 }
+
+# emotion_label collapses war (warmup) / tra (transition) / coo (cooldown) /
+# neu (neutral) all into 'none' -- raw_emotion (added in this session) keeps
+# them distinct. war/tra/coo are frames between emotional states where the
+# biodata is plausibly still settling; excluding them is scoped to Stage 5's
+# regression task only (Stage 2B's encoder training keeps them -- see
+# audit_dataset_labels.py, a valid image is a valid image for reconstruction
+# regardless of emotional content). 'neu' is a genuine scripted rest state,
+# not an in-between one, so it stays.
+TRANSITIONAL_LABELS = {'war', 'tra', 'coo'}
 
 
 def load_config(config_path):
@@ -110,6 +120,9 @@ def main():
                         help='Ridge regularization strength (default: from config)')
     parser.add_argument('--val-pool', default=None,
                         help='Pool held out for validation (default: from config)')
+    parser.add_argument('--keep-transitional', action='store_true',
+                        help='Keep war/tra/coo (warmup/transition/cooldown) frames '
+                             'instead of excluding them (default: exclude)')
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -123,6 +136,16 @@ def main():
     dataset_path = os.path.join(repo_root, 'latent_pipeline', 'data', 'biodata_w_dataset.csv')
     df = pd.read_csv(dataset_path)
     print(f"Loaded {len(df)} rows from {dataset_path}")
+
+    if not args.keep_transitional:
+        n_before = len(df)
+        # isin() is False for NaN, so also explicitly drop unannotated rows
+        # (frame_number outside any labeled range) -- unknown state, same
+        # "don't train on ambiguous data" reasoning as excluding war/tra/coo.
+        exclude = df['raw_emotion'].isin(TRANSITIONAL_LABELS) | df['raw_emotion'].isna()
+        df = df[~exclude].reset_index(drop=True)
+        print(f"Excluded {n_before - len(df)} warmup/transition/cooldown/unannotated frames "
+              f"-> {len(df)} rows (pass --keep-transitional to disable)")
 
     w_cols = [c for c in df.columns if c.startswith('w_')]
     feature_cols = [c for c in df.columns if c not in w_cols and c not in METADATA_COLS]

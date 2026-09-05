@@ -25,7 +25,7 @@ PIPELINE_DIR = os.path.dirname(SCRIPT_DIR)
 REPO_ROOT = os.path.dirname(PIPELINE_DIR)
 sys.path.insert(0, PIPELINE_DIR)
 
-from data.annotations import get_emotion_label, get_feeling_it, is_invalid
+from data.annotations import get_emotion, get_emotion_label, get_feeling_it, is_invalid
 
 
 def load_config(config_path):
@@ -94,9 +94,15 @@ def extract_video_frames(pool, repo_root, frame_size, extract_fps):
 
         # Get annotations if available
         emotion_label = 'none'
+        raw_emotion = None
         feeling_it_val = 0.0
         if session_key:
             emotion_label = get_emotion_label(session_key, frame_number)
+            # get_emotion_label collapses war/tra/coo/neu into 'none' -- keep
+            # the uncollapsed label too so downstream consumers (e.g. Stage 5)
+            # can distinguish genuine neutral rest from warmup/transition/
+            # cooldown, which get_emotion_label makes indistinguishable.
+            raw_emotion = get_emotion(session_key, frame_number)
             fi = get_feeling_it(session_key, frame_number)
             feeling_it_val = 1.0 if fi else 0.0
 
@@ -106,6 +112,7 @@ def extract_video_frames(pool, repo_root, frame_size, extract_fps):
             'frame_number': frame_number,
             'timestamp_s': timestamp_s,
             'emotion_label': emotion_label,
+            'raw_emotion': raw_emotion,
             'feeling_it': feeling_it_val,
         })
 
@@ -149,6 +156,7 @@ def extract_diverse_images(pool, repo_root, frame_size):
             'frame_number': i,
             'timestamp_s': 0.0,
             'emotion_label': 'none',
+            'raw_emotion': None,
             'feeling_it': 0.0,
         })
 
@@ -209,6 +217,7 @@ def build_biodata_manifest(training_records, pools, config):
             'biodata_timestamp_s': biodata_second,
             'continuous_feature_idx': feature_idx,
             'emotion_label': rec['emotion_label'],
+            'raw_emotion': rec.get('raw_emotion'),
             'feeling_it': rec['feeling_it'],
         })
 
