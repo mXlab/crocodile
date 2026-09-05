@@ -48,7 +48,7 @@ pip install --no-index --upgrade pip
 echo "Installing from Alliance stack (--no-index) ..."
 pip install --no-index torch torchvision
 pip install --no-index opencv-python pillow
-pip install --no-index pandas numpy matplotlib scikit-learn tqdm pyyaml
+pip install --no-index pandas numpy matplotlib scikit-learn tqdm pyyaml requests
 
 # lpips is not in the Alliance stack — download wheel from PyPI via proxy
 echo "Installing lpips from PyPI (via proxy) ..."
