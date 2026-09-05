@@ -27,10 +27,11 @@
 
 set -euo pipefail
 
-# Load modules and activate env. gcc+opencv must be loaded before the venv
-# is activated — see setup_rorqual.sh for why. Keep the version in sync with
-# whatever you filled in there.
-module load python/3.11 scipy-stack/2024a gcc opencv/CHANGEME
+# Load modules and activate env. gcc+opencv+cuda must be loaded before the
+# venv is activated — see setup_rorqual.sh for why (without cuda loaded,
+# torch silently runs on CPU with no error). Keep versions in sync with
+# whatever's in setup_rorqual.sh.
+module load python/3.11 scipy-stack/2024a gcc opencv/4.14.0 cuda/12.6
 source "$HOME/envs/crocodile/bin/activate"
 
 # Move to repo root

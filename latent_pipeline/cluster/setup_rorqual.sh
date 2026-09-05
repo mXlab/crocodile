@@ -25,9 +25,12 @@ echo "=== Rorqual environment setup ==="
 # Load modules (same Alliance national software stack as other clusters).
 # opencv-python is NOT a real pip package on the Alliance stack — it's a
 # dummy wheel that dlopens the system module, so gcc+opencv must be loaded
-# BEFORE the venv is created/activated. Run `module avail opencv` to find
-# the exact version string on Rorqual and fill it in below.
-module load python/3.11 scipy-stack/2024a gcc opencv/CHANGEME
+# BEFORE the venv is created/activated. Same story for cuda: the --no-index
+# torch wheel doesn't bundle CUDA, it dynamically links against whatever
+# cuda module is loaded — without it, torch silently falls back to CPU
+# (torch.cuda.is_available() == False, no error). opencv/4.14.0 and
+# cuda/12.6 are Rorqual's defaults (`module avail opencv`/`cuda`) as of 2026-09.
+module load python/3.11 scipy-stack/2024a gcc opencv/4.14.0 cuda/12.6
 
 # Create virtualenv in home space (persists across jobs)
 VENV_DIR="$HOME/envs/crocodile"
