@@ -31,29 +31,12 @@ sys.path.insert(0, REPO_ROOT)
 
 from models.encoder import EmotionEncoder
 from models.stylegan import load_stylegan, generate, generate_with_grad
-from data.dataset import CrocodileEncoderDataset, EMOTION_LABELS, collate_fn
+from data.dataset import CrocodileEncoderDataset, EMOTION_LABELS
 
 
 def load_config(config_path):
     with open(config_path) as f:
         return yaml.safe_load(f)
-
-
-def collate_fn_local(batch):
-    """Reuse from stage2."""
-    images = torch.stack([b[0] for b in batch])
-    metadata = {
-        'pool_name': [b[1]['pool_name'] for b in batch],
-        'frame_number': torch.tensor([b[1]['frame_number'] for b in batch]),
-        'emotion_label': torch.tensor([b[1]['emotion_label'] for b in batch]),
-        'feeling_it': torch.tensor([b[1]['feeling_it'] for b in batch]),
-        'has_emotions': torch.tensor([b[1]['has_emotions'] for b in batch]),
-        'has_temporal_continuity': torch.tensor([b[1]['has_temporal_continuity'] for b in batch]),
-        'is_consecutive': torch.tensor([b[1]['is_consecutive'] for b in batch]),
-        'prev_idx': torch.tensor([b[1]['prev_idx'] for b in batch]),
-        'manifest_idx': torch.tensor([b[1]['manifest_idx'] for b in batch]),
-    }
-    return images, metadata
 
 
 def select_validation_frames(dataset, n_frames=30):
@@ -103,13 +86,23 @@ def select_validation_frames(dataset, n_frames=30):
 
 @torch.no_grad()
 def encoder_inversion(encoder, G, images, device):
-    """Get W vectors from encoder."""
+    """Get W vectors from encoder.
+
+    Runs the frozen generator one image at a time — a full batch at 2048px
+    generator resolution is too much VRAM for anything smaller than a
+    data-center GPU (fine on an H100, OOMs on an 8GB laptop card).
+    """
     encoder.eval()
-    w = encoder(images.to(device))
-    gen_full = generate(G, w)
-    gen_img = F.interpolate(gen_full, size=256, mode='bilinear', align_corners=False)
-    del gen_full
-    return w, gen_img
+    ws, gen_imgs = [], []
+    for i in range(images.shape[0]):
+        img = images[i:i + 1].to(device)
+        w = encoder(img)
+        gen_full = generate(G, w)
+        gen_img = F.interpolate(gen_full, size=256, mode='bilinear', align_corners=False)
+        del gen_full
+        ws.append(w)
+        gen_imgs.append(gen_img)
+    return torch.cat(ws), torch.cat(gen_imgs)
 
 
 def optimization_inversion(G, target_images, lpips_fn, device, lr=0.01,
