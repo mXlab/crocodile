@@ -50,9 +50,12 @@ pip install --no-index torch torchvision
 pip install --no-index opencv-python pillow
 pip install --no-index pandas numpy matplotlib scikit-learn tqdm pyyaml requests click
 
-# lpips is not in the Alliance stack — download wheel from PyPI via proxy
+# lpips is not in the Alliance stack. PIP_CONFIG_FILE=/dev/null forces a real
+# PyPI install (bypassing Alliance find-links) — a plain `pip install lpips`
+# silently resolved to a build missing its bundled weights/v0.1/*.pth data
+# files, causing a FileNotFoundError deep inside training/validation later.
 echo "Installing lpips from PyPI (via proxy) ..."
-pip install lpips
+PIP_CONFIG_FILE=/dev/null pip install --index-url https://pypi.org/simple/ lpips
 
 # stylegan_Autolume's torch_utils imports pkg_resources (from setuptools),
 # which recent setuptools (81+) dropped entirely. The Alliance wheelhouse's
