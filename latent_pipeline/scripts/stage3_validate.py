@@ -15,13 +15,13 @@ import argparse
 import math
 import os
 import sys
+import time
 
 import lpips
 import numpy as np
 import torch
 import torch.nn.functional as F
 import yaml
-from tqdm import tqdm
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PIPELINE_DIR = os.path.dirname(SCRIPT_DIR)
@@ -106,13 +106,24 @@ def encoder_inversion(encoder, G, images, device):
 
 
 def optimization_inversion(G, target_images, lpips_fn, device, lr=0.01,
-                           steps=1000):
-    """Optimization-based inversion starting from mean W."""
+                           steps=1000, log_every=200):
+    """Optimization-based inversion starting from mean W.
+
+    Prints per-frame timing/loss and a running ETA — the outer tqdm bar
+    alone only ticks once every few minutes (once per frame), which reads
+    as "stuck" when tailing a SLURM .out file. log_every controls how often
+    a line is printed *within* a single frame's 1000-step optimization.
+    """
     B = target_images.shape[0]
     results_w = []
     results_img = []
+    frame_times = []
 
-    for i in tqdm(range(B), desc="Optimization inversion"):
+    print(f"Optimization inversion: {B} frames x {steps} steps", flush=True)
+    overall_start = time.time()
+
+    for i in range(B):
+        frame_start = time.time()
         target = target_images[i:i+1].to(device)
 
         # Initialize from zeros (mean W approximation)
@@ -131,6 +142,10 @@ def optimization_inversion(G, target_images, lpips_fn, device, lr=0.01,
             loss.backward()
             optimizer.step()
 
+            if (step + 1) % log_every == 0 or step == 0:
+                print(f"  frame {i+1}/{B} step {step+1}/{steps} "
+                      f"loss={loss.item():.4f}", flush=True)
+
         with torch.no_grad():
             gen_full = generate(G, w)
             gen_img = F.interpolate(gen_full, size=256, mode='bilinear',
@@ -139,6 +154,14 @@ def optimization_inversion(G, target_images, lpips_fn, device, lr=0.01,
 
         results_w.append(w.detach())
         results_img.append(gen_img.detach())
+
+        frame_times.append(time.time() - frame_start)
+        avg_frame_s = sum(frame_times) / len(frame_times)
+        eta_s = avg_frame_s * (B - (i + 1))
+        elapsed_s = time.time() - overall_start
+        print(f"Frame {i+1}/{B} done in {frame_times[-1]:.0f}s "
+              f"(avg {avg_frame_s:.0f}s/frame, elapsed {elapsed_s/60:.1f}min, "
+              f"ETA {eta_s/60:.1f}min)", flush=True)
 
     return torch.cat(results_w), torch.cat(results_img)
 
@@ -213,6 +236,11 @@ def main():
     parser.add_argument('--checkpoint', default=None,
                         help='Encoder checkpoint (default: outputs/best.pt)')
     args = parser.parse_args()
+
+    # SLURM redirects stdout to a file (not a TTY), which Python fully
+    # buffers by default — force line-buffering so progress prints show up
+    # in real time when tailing a .out file instead of sitting unflushed.
+    sys.stdout.reconfigure(line_buffering=True)
 
     config = load_config(args.config)
     vc = config['validation']
