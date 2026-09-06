@@ -117,3 +117,21 @@ same MLP + blocked-CV + OT class-conditional alignment throughout, gives
 mean val R²=0.313 vs. 0.457 for NeuroKit2 — the same direction and similar
 margin as this document's own Ridge-based comparisons, now confirmed to
 hold for the actual downstream regression task and under a stronger model.
+
+A follow-up isolates *why*: `modules/online_feature_extractor.py` computes
+NeuroKit2's exact 51-feature schema but derives the signals causally
+(real-time-safe filters + peak/onset detection) instead of via NeuroKit2's
+offline algorithms, and `scripts/compare_extractors.py` measures feature-by-
+feature agreement against the NeuroKit2 batch output on the same 4 actress
+sessions. Result (full detail and per-feature breakdown in
+[PIPELINE.md](../PIPELINE.md#can-an-online-extractor-match-neurokit2s-51-feature-schema)):
+mean correlation 0.52, but concentrated at the extremes -- 9 features (smooth
+aggregate stats like EDA tonic level/trend) correlate above 0.85, while 20
+features (nearly everything built on exact event timing: SCR onsets, HR
+short-window derivatives, breath rate/variability) correlate below 0.4. Causal
+detection recovers slow trends well but a few samples of timing jitter is
+enough to scramble short-window event-count features -- consistent with
+`batch_feature_extractor.py` itself needing a trough de-duplication fix for
+NeuroKit2's own respiratory over-detection (see that module's docstring),
+suggesting this is an inherent difficulty of real-time biosignal event
+detection rather than a bug specific to either extractor.

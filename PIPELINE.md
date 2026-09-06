@@ -178,6 +178,68 @@ away — this result just confirms NeuroKit2 batch processing is the right
 choice whenever offline processing is available (training, and any
 pre-recorded calibration step).
 
+### Can an online extractor match NeuroKit2's 51-feature schema?
+
+The comparison above answers "which existing extractor is better" but not
+"how good could a real-time-compatible one be if it computed the *same* 51
+features NeuroKit2 does, just online?" — the continuous extractor's 73
+features aren't even the same features, so that comparison can't isolate
+computation method from feature design. To isolate that, `batch_feature_extractor.py`
+was refactored (behavior-preserving, verified bit-identical) to separate
+"derive raw physiological signals" (tonic/phasic, HR/quality, breath
+amplitude/RVT/symmetry/phase — currently via NeuroKit2, sees the whole
+session at once) from "compute the 51 windowed features from those signals"
+(already online-safe, since each second only reads its inputs up to that
+point). `modules/online_feature_extractor.py`'s `OnlineFeatureExtractor`
+subclasses it, overriding only the signal-derivation step with real-time-safe
+algorithms (causal Butterworth filters via `sosfilt` with steady-state
+initial conditions to avoid cold-start transients; a bespoke slope-threshold
+SCR onset/peak detector calibrated from each session's own first 30s;
+rolling z-scored peak/trough detection for cardiac and respiratory events,
+adapted from `EnhancedContinuousFeatureExtractor`'s existing approach) — so
+the 51 feature *definitions* are guaranteed identical between the two, and
+`scripts/compare_extractors.py` measures purely how well the online signal
+derivation approximates NeuroKit2's offline one, feature by feature, on the
+same 4 actress sessions (Pearson correlation + normalized MAE, first 30s of
+each session excluded as warm-up).
+
+**Result: mean correlation 0.52 across 51 features, but split sharply by
+feature type**, not evenly degraded:
+
+- **Strong agreement (corr > 0.85, 9 features)**: EDA tonic-level and its
+  trend/std/range, phasic std, `eda.instability_10s`, PPG amplitude
+  mean/CV, `cardiac.hrv_pnn50_60s` — all smooth, continuous aggregate
+  statistics that don't depend on precisely locating individual discrete
+  events in time.
+- **Weak agreement (corr < 0.4, 20 features)**: nearly everything built on
+  exact event timing/counting -- SCR onset detection (`scr_event_count_10s`,
+  `scr_rate_60s`, `last_onset_*`, `seconds_since_onset`), HR itself and its
+  short-window derivatives (`hr_mean/median/trend/delta/recent_max_10s`),
+  and most respiratory rate/variability/binary-event features
+  (`rate_mean/std/trend_10s`, `cv_60s`, `exhale_ratio_10s`,
+  `symmetry_risedecay_mean_10s`, sigh/pause/gasp detection).
+
+**Interpretation**: a real-time-safe extractor recovers the *slow, smooth*
+physiological trends well but a few-sample timing jitter in causal peak/
+onset detection is enough to scramble short-window (5-10s) event-count and
+rate features, even when the underlying signal trend is well recovered
+(visible directly in `extractor_comparison_timeseries.png` -- e.g.
+`cardiac.hr_mean_10s` tracks the same contour but noisier; respiratory rate
+diverges more sharply during noisier stretches). This isn't a fixable
+one-line bug so much as an inherent trade-off of causal vs. offline
+detection -- NeuroKit2 itself needed the batch extractor's own trough
+de-duplication fix for an analogous over-detection failure mode, so some of
+this gap is fundamental to real-time biosignal event detection, not unique
+to this prototype. Given the offline user-to-latent pipeline's own
+NeuroKit2-batch-vs-continuous result above, the practical conclusion is the
+same either way: batch/NeuroKit2 processing remains the right choice
+whenever the pipeline can afford to be offline (training, and any
+pre-recorded calibration step); this result specifically tells us which
+*categories* of feature would need the most caution if the same 51-feature
+schema were ever computed live -- a live regressor would be safer leaning
+on the smooth/trend features shown here to survive causal computation well,
+not on the event-count/rate ones that don't.
+
 ## Picking this back up
 
 With Stages 1–6 and the offline user-to-latent pipeline all working, the
