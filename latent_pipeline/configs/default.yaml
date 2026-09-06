@@ -5,7 +5,16 @@ paths:
   repo_root: /home/tats/Documents/workspace/crocodile
   stylegan_code: /home/tats/Documents/workspace/stylegan_Autolume
   stylegan_model: models/finalModel_Crocodile.pkl
-  continuous_features: biodata_pipeline/data/processed/continuous_features.csv
+  # NeuroKit2 batch extractor (modules/batch_feature_extractor.py) -- switched
+  # from the causal continuous_features.csv default after confirming under
+  # blocked-CV evaluation it performs substantially better (mean R^2 0.272 vs
+  # 0.153 for the old extractor's full feature set). The old file and its
+  # causal/real-time-compatible extractor are both still available -- revert
+  # this path to continuous_features.csv to switch back (and rebuild
+  # biodata_mapping_manifest.csv's continuous_feature_idx against whichever
+  # file is active, since the two extractors don't have identical row counts
+  # per session -- see stage1_extract.py's build_biodata_manifest).
+  continuous_features: biodata_pipeline/data/processed/continuous_features_batch.csv
   frames_dir: latent_pipeline/data/frames
   metadata_dir: latent_pipeline/data/metadata
   outputs_dir: latent_pipeline/outputs
