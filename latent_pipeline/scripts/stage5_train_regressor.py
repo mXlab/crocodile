@@ -199,6 +199,46 @@ def fit_eval_fold(train_df, val_df, feature_cols, w_cols, alpha, winsorize_pct,
     return model, scaler, metrics, val_pred, Y_val
 
 
+def select_diverse_indices(val_df, n):
+    """Pick n rows spread across as many distinct emotion_labels as possible.
+
+    The naive alternative (step through val_df in row order) doesn't work
+    here: blocked-CV folds preserve the original per-session row grouping,
+    so evenly-spaced steps landed 2 samples from each of the 4 sessions in
+    sequence -- only 8 of e.g. 20 distinct emotions actually present, and no
+    control over which 8. This instead prioritizes covering as many
+    different emotions as possible (excluding the less-informative 'none'
+    unless there aren't enough real emotions to fill n), picking the middle
+    occurrence of each selected emotion as its representative frame.
+    """
+    emotions = sorted(val_df['emotion_label'].unique())
+    non_none = [e for e in emotions if e != 'none']
+    pool = non_none if len(non_none) >= n else emotions
+
+    if len(pool) <= n:
+        selected_emotions = pool
+    else:
+        # Evenly spaced picks across the sorted label list for max spread.
+        pick_idx = np.linspace(0, len(pool) - 1, n).round().astype(int)
+        selected_emotions = [pool[i] for i in sorted(set(pick_idx))]
+
+    indices = []
+    for emo in selected_emotions:
+        rows = val_df.index[val_df['emotion_label'] == emo].tolist()
+        indices.append(rows[len(rows) // 2])
+
+    # Fill any shortfall (e.g. duplicate picks from rounding) with more
+    # frames from the largest remaining emotion groups.
+    if len(indices) < n:
+        remaining = val_df.drop(index=indices)
+        for emo, group in remaining.groupby('emotion_label'):
+            if len(indices) >= n:
+                break
+            indices.append(group.index[len(group) // 2])
+
+    return indices[:n]
+
+
 @torch.no_grad()
 def save_visual_grid(G, val_df, w_true, w_pred, device, output_path, n=8):
     """Side-by-side: encoder's ground-truth W vs. biodata-predicted W, both
@@ -209,8 +249,7 @@ def save_visual_grid(G, val_df, w_true, w_pred, device, output_path, n=8):
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 
-    step = max(1, len(val_df) // n)
-    indices = list(range(0, len(val_df), step))[:n]
+    indices = select_diverse_indices(val_df, n)
 
     fig, axes = plt.subplots(2, len(indices), figsize=(2.5 * len(indices), 5.5))
     if len(indices) == 1:
