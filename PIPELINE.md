@@ -145,6 +145,34 @@ time has passed.
   work together, but reads a pre-recorded CSV as a batch; nothing yet wires
   them to live data.
 
+### Feature extractor comparison: NeuroKit2 batch vs. causal
+
+Re-ran the entire offline user-to-latent pipeline with the causal/real-time-
+compatible extractor (`continuous_feature_extractor.py`, 73 features) in
+place of the NeuroKit2 batch extractor, keeping everything else identical
+(same MLP architecture, same blocked-CV protocol, same OT class-conditional
+alignment method, same subject — Erin) to isolate the extractor as the only
+variable. Config: `latent_pipeline/configs/causal_compare.yaml`; outputs in
+`latent_pipeline/outputs/stage5_regressor_causal/`.
+
+| Extractor | Features | Stage 5 val R² (mean ± std) |
+|---|---|---|
+| NeuroKit2 batch | 51 | **0.457** ± 0.06 |
+| Causal (`continuous_feature_extractor.py`) | 73 | 0.313 ± 0.04 |
+
+NeuroKit2 batch features win clearly, consistent with the earlier Ridge-only
+comparison (0.272 vs 0.153) that originally motivated the switch — this
+confirms the gap holds under the stronger MLP model too, not just Ridge.
+Qualitatively, the causal-extractor's generated faces for Erin showed *more*
+dramatic expression swings than the NeuroKit2 version, but that reads as
+noise rather than signal: it's the extractor with the lower R², so the wider
+swings are consistent with a less-constrained, less-accurate regressor
+rather than better emotional expressiveness. The causal extractor remains
+the only real-time-compatible option and isn't going away — this result
+just confirms NeuroKit2 batch processing is the right choice whenever
+offline processing is available (training, and any pre-recorded calibration
+step).
+
 ## Picking this back up
 
 With Stages 1–6 and the offline user-to-latent pipeline all working, the
