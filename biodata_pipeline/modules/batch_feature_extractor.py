@@ -106,6 +106,16 @@ class BatchFeatureExtractor:
     # EDA
     # ------------------------------------------------------------------
     def _eda_features(self, gsr, fs, n_seconds, step):
+        tonic, phasic, onset_times, amplitude, rise_time, recovery_time = \
+            self._eda_derive_signals(gsr, fs)
+        return self._eda_aggregate(tonic, phasic, onset_times, amplitude,
+                                    rise_time, recovery_time, fs, n_seconds, step)
+
+    def _eda_derive_signals(self, gsr, fs):
+        """Offline tonic/phasic decomposition + SCR event detection via
+        NeuroKit2 (cvxEDA + eda_findpeaks) -- sees the whole session at once.
+        Override point for an online-safe equivalent (see
+        OnlineFeatureExtractor)."""
         signals, info = nk.eda_process(gsr, sampling_rate=fs)
         tonic = signals['EDA_Tonic'].values
         phasic = signals['EDA_Phasic'].values
@@ -114,7 +124,15 @@ class BatchFeatureExtractor:
         amplitude = np.asarray(info['SCR_Amplitude'], dtype=float)
         rise_time = np.asarray(info['SCR_RiseTime'], dtype=float)
         recovery_time = np.asarray(info['SCR_RecoveryTime'], dtype=float)
+        return tonic, phasic, onset_times, amplitude, rise_time, recovery_time
 
+    def _eda_aggregate(self, tonic, phasic, onset_times, amplitude, rise_time,
+                        recovery_time, fs, n_seconds, step):
+        """Per-second windowed EDA features from already-derived tonic/phasic/
+        SCR-event signals. Only ever reads tonic/phasic/onset_times up to the
+        current second `t` (via `end`) -- this loop is itself online-safe
+        regardless of how the input signals were derived.
+        """
         # First derivative of the phasic signal, for an instability measure
         # analogous to the old extractor's eda_instability_10s.
         phasic_deriv = np.diff(phasic, prepend=phasic[0])
@@ -192,22 +210,37 @@ class BatchFeatureExtractor:
     # Cardiac (PPG)
     # ------------------------------------------------------------------
     def _cardiac_features(self, ppg, fs, n_seconds, step):
+        hr, quality, clean, peak_times = self._cardiac_derive_signals(ppg, fs)
+        return self._cardiac_aggregate(hr, quality, clean, peak_times, fs, n_seconds, step)
+
+    def _cardiac_derive_signals(self, ppg, fs):
+        """Offline cleaning, peak detection, instantaneous rate, and quality
+        index via NeuroKit2 -- sees the whole session at once. Override point
+        for an online-safe equivalent (see OnlineFeatureExtractor)."""
         signals, info = nk.ppg_process(ppg, sampling_rate=fs)
         hr = signals['PPG_Rate'].values
         quality = signals['PPG_Quality'].values
         clean = signals['PPG_Clean'].values
         peaks = np.asarray(info['PPG_Peaks'], dtype=float)
         peak_times = peaks / fs
+        return hr, quality, clean, peak_times
+
+    def _cardiac_aggregate(self, hr, quality, clean, peak_times, fs, n_seconds, step):
+        """Per-second windowed cardiac features from already-derived hr/
+        quality/clean/peak_times. Only ever reads these up to the current
+        second `t` (via `end`) -- online-safe regardless of how the inputs
+        were derived."""
         ibi = np.diff(peak_times)  # inter-beat intervals, seconds
         hr_sample_deltas = np.abs(np.diff(hr))  # sample-to-sample HR change, for max_acceleration
 
         # PPG waveform amplitude (peak-to-trough of the pulse itself, distinct
         # from heart RATE) -- not given directly by nk.ppg_process, so find
         # the trough preceding each peak in the cleaned signal.
-        pulse_amplitude = np.full(len(peaks), np.nan)
+        peaks_int = np.round(peak_times * fs).astype(int)
+        pulse_amplitude = np.full(len(peak_times), np.nan)
         pulse_amp_times = peak_times.copy()
-        for j, p in enumerate(peaks.astype(int)):
-            lo = int(peaks[j - 1]) if j > 0 else max(0, p - int(1.5 * fs))
+        for j, p in enumerate(peaks_int):
+            lo = int(peaks_int[j - 1]) if j > 0 else max(0, p - int(1.5 * fs))
             segment = clean[lo:p + 1]
             if len(segment):
                 pulse_amplitude[j] = clean[p] - segment.min()
@@ -295,6 +328,16 @@ class BatchFeatureExtractor:
     # Respiratory
     # ------------------------------------------------------------------
     def _respiratory_features(self, resp, fs, n_seconds, step):
+        amplitude, rvt, symmetry, phase, troughs = self._respiratory_derive_signals(resp, fs)
+        return self._respiratory_aggregate(len(resp), amplitude, rvt, symmetry, phase,
+                                            troughs, fs, n_seconds, step)
+
+    def _respiratory_derive_signals(self, resp, fs):
+        """Offline cleaning, amplitude/RVT/symmetry/phase, and trough
+        detection via NeuroKit2 -- sees the whole session at once. Override
+        point for an online-safe equivalent (see OnlineFeatureExtractor).
+        Trough de-duplication (below) is intentionally shared with any
+        override -- it's a generic safety net, not NeuroKit-specific."""
         signals, info = nk.rsp_process(resp, sampling_rate=fs)
         amplitude = signals['RSP_Amplitude'].values
         rvt = signals['RSP_RVT'].values
@@ -303,19 +346,27 @@ class BatchFeatureExtractor:
         # NaN before the first detected cycle.
         phase = signals['RSP_Phase'].values
         troughs = np.asarray(info['RSP_Troughs'], dtype=float)
+        return amplitude, rvt, symmetry, phase, troughs
 
-        # NeuroKit2's default trough detection over-fires on noisy stretches
-        # of this signal -- found troughs 0.3-0.6s apart (100-200 breaths/min,
-        # not physiologically possible) in a noisy segment. De-duplicate any
-        # trough within min_interval_s of the previous KEPT one (~40/min
-        # ceiling, matching the plausibility-bound pattern already used
-        # elsewhere in this codebase for cardiac R-R and breath intervals),
-        # then rebuild the rate signal from the cleaned troughs rather than
-        # trusting signals['RSP_Rate'] (which is derived from the same
-        # over-detected troughs). This does NOT fix the opposite failure mode
-        # (a missed breath inflating one interval, seen separately) -- that
-        # needs smarter re-detection, not de-duplication, and remains a known
-        # residual limitation of this prototype.
+    def _respiratory_aggregate(self, n_samples, amplitude, rvt, symmetry, phase,
+                                troughs, fs, n_seconds, step):
+        """Per-second windowed respiratory features from already-derived
+        amplitude/RVT/symmetry/phase/troughs. Only ever reads these up to the
+        current second `t` (via `end`) -- online-safe regardless of how the
+        inputs were derived.
+        """
+        # Trough detection (NeuroKit2's default, or any override) can
+        # over-fire on noisy stretches of this signal -- e.g. troughs 0.3-0.6s
+        # apart (100-200 breaths/min, not physiologically possible) observed
+        # in a noisy segment. De-duplicate any trough within min_interval_s of
+        # the previous KEPT one (~40/min ceiling, matching the plausibility-
+        # bound pattern already used elsewhere in this codebase for cardiac
+        # R-R and breath intervals), then rebuild the rate signal from the
+        # cleaned troughs rather than trusting any upstream rate estimate
+        # (which would be derived from the same over-detected troughs). This
+        # does NOT fix the opposite failure mode (a missed breath inflating
+        # one interval, seen separately) -- that needs smarter re-detection,
+        # not de-duplication, and remains a known residual limitation.
         min_interval_s = 1.5
         if len(troughs) > 1:
             keep = [troughs[0]]
@@ -328,10 +379,10 @@ class BatchFeatureExtractor:
         breath_intervals = np.diff(breath_times)
         if len(breath_times) >= 2:
             inst_rate = 60.0 / breath_intervals
-            rate = np.interp(np.arange(len(resp)), troughs[1:], inst_rate,
+            rate = np.interp(np.arange(n_samples), troughs[1:], inst_rate,
                              left=inst_rate[0], right=inst_rate[-1])
         else:
-            rate = np.full(len(resp), np.nan)
+            rate = np.full(n_samples, np.nan)
 
         # Depth of each individual breath cycle (amplitude sampled at each
         # trough), for sigh/spike detection -- distinct from the continuous
