@@ -113,7 +113,10 @@ biodata_regressor:
                          # neighbors at 1Hz -- see assign_time_blocks() docstring
   n_folds: 5             # [blocked] number of shuffled folds
   val_pool: session_4S   # [loso] held-out pool, mirrors Stage 2B's train/val split convention
-  n_visual: 8            # number of validation frames to render for qualitative check
+  n_visual: 16           # number of distinct emotions to render for qualitative check
+                         # (select_diverse_indices spreads across as many different
+                         # emotion_labels as possible, not arbitrary row order)
+  n_visual_cols: 4       # grid width in emotion-pairs; rows = ceil(n_visual / this)
   winsorize_pct: 1.0     # clip each feature to [pct, 100-pct] percentile bounds computed
                          # from TRAINING data only (per-session bounds made things much
                          # worse -- see stage5_train_regressor.py comment); no outlier/

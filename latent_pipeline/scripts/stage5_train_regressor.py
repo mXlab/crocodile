@@ -22,6 +22,7 @@ Usage:
 
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -240,45 +241,61 @@ def select_diverse_indices(val_df, n):
 
 
 @torch.no_grad()
-def save_visual_grid(G, val_df, w_true, w_pred, device, output_path, n=8):
-    """Side-by-side: encoder's ground-truth W vs. biodata-predicted W, both
-    rendered through the frozen StyleGAN2. This is the check that actually
-    matters -- a low regression MSE doesn't guarantee the rendered face looks
-    right, since W-space isn't uniformly perceptual."""
+def save_visual_grid(G, val_df, w_true, w_pred, device, output_path, n=16, ncols=4):
+    """Grid of (original, generated) pairs, one pair per emotion, stacked
+    vertically within each grid cell and arranged ncols-wide -- this is the
+    check that actually matters, since a low regression MSE doesn't
+    guarantee the rendered face looks right (W-space isn't uniformly
+    perceptual). Every image is labeled ORIGINAL/GENERATED directly (not
+    just the leftmost column) since with multiple rows of pairs a shared
+    row label would be ambiguous or easy to miss. select_diverse_indices
+    prioritizes spreading across as many distinct emotions as possible
+    rather than n arbitrary rows."""
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 
     indices = select_diverse_indices(val_df, n)
+    n = len(indices)
+    nrows = math.ceil(n / ncols)
 
-    fig, axes = plt.subplots(2, len(indices), figsize=(2.5 * len(indices), 5.5))
-    if len(indices) == 1:
-        axes = axes[:, None]
+    fig, axes = plt.subplots(nrows * 2, ncols, figsize=(ncols * 2.8, nrows * 2 * 2.8))
+    axes = np.atleast_2d(axes)
+    if axes.shape[1] != ncols:  # single-column edge case
+        axes = axes.reshape(nrows * 2, ncols)
 
-    for col, i in enumerate(indices):
+    for idx, i in enumerate(indices):
+        grid_row, grid_col = idx // ncols, idx % ncols
+        ax_orig = axes[grid_row * 2, grid_col]
+        ax_gen = axes[grid_row * 2 + 1, grid_col]
+
         wt = torch.tensor(w_true[i:i + 1], dtype=torch.float32, device=device)
         wp = torch.tensor(w_pred[i:i + 1], dtype=torch.float32, device=device)
-
         gen_t = generate(G, wt)
         img_t = F.interpolate(gen_t, size=256, mode='bilinear', align_corners=False)
         gen_p = generate(G, wp)
         img_p = F.interpolate(gen_p, size=256, mode='bilinear', align_corners=False)
 
         emotion = val_df.iloc[i]['emotion_label']
-        for row, (img, label) in enumerate([(img_t, 'Encoder W (GT)'),
-                                            (img_p, 'Predicted from biodata')]):
+        for ax, img, label, color in [(ax_orig, img_t, 'ORIGINAL', 'tab:green'),
+                                      (ax_gen, img_p, 'GENERATED', 'tab:orange')]:
             arr = ((img[0].cpu().clamp(-1, 1) + 1) / 2).permute(1, 2, 0).numpy()
-            axes[row, col].imshow(arr)
-            axes[row, col].axis('off')
-            if row == 0:
-                axes[row, col].set_title(emotion, fontsize=7)
-            if col == 0:
-                axes[row, col].set_ylabel(label, fontsize=8)
+            ax.imshow(arr)
+            ax.axis('off')
+            ax.text(0.5, -0.06, label, transform=ax.transAxes, ha='center', va='top',
+                    fontsize=8, fontweight='bold', color=color)
+        ax_orig.set_title(emotion, fontsize=10, fontweight='bold')
+
+    # Blank out unused cells if n isn't a multiple of ncols
+    for idx in range(n, nrows * ncols):
+        grid_row, grid_col = idx // ncols, idx % ncols
+        axes[grid_row * 2, grid_col].axis('off')
+        axes[grid_row * 2 + 1, grid_col].axis('off')
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
     plt.close()
-    print(f"Saved: {output_path}")
+    print(f"Saved: {output_path} ({n} emotions: {sorted(val_df.iloc[indices]['emotion_label'].unique())})")
 
 
 def main():
@@ -439,7 +456,8 @@ def main():
     G = load_stylegan(config, device)
     grid_true = Y_val if cv_mode == 'loso' else val_true_for_grid
     save_visual_grid(G, grid_val_df, grid_true, val_pred, device,
-                     os.path.join(output_dir, 'visual_check.png'), n=rc['n_visual'])
+                     os.path.join(output_dir, 'visual_check.png'),
+                     n=rc['n_visual'], ncols=rc.get('n_visual_cols', 4))
 
 
 if __name__ == '__main__':
