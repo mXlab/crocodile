@@ -5,9 +5,9 @@ don't duplicate them here.
 
 ## The goal
 
-Crocodile is an interactive installation: a participant's physiological signals
+Crocodile is an interactive installation: a user's physiological signals
 (heart rate, EDA, respiration) drive real-time generation of a face — a method
-actress' avatar — via a trained StyleGAN2 model. The participant's
+actress' avatar — via a trained StyleGAN2 model. The user's
 biodata becomes the avatar's emotional state.
 
 This requires a **runtime pipeline** that turns a live user's biodata signals 
@@ -30,11 +30,16 @@ data and models from the actress' own recordings. This pipeline consists in two 
 
 ```
   biodata_pipeline:  raw biodata CSVs ──▶ [feature extraction]
-                                              
+
   latent_pipeline:   video frames ──▶ [actress-image-to-W encoder] ──▶ biodata_w_dataset.csv
                                                                              │
-                     [actress-features-to-W regressor]  ◀────────────────────┘   NOT YET BUILT
+                     [actress-features-to-W regressor]  ◀────────────────────┘
 ```
+
+`[user-actress alignment]` doesn't appear in this diagram: it isn't built from
+the actress' recordings alone, it also needs a calibration recording from a
+second person. That training happens offline too, just not as part of this
+actress-only artifact chain — see `biodata_pipeline/README.md` workflow 3.
 
 ## Where each piece fits
 
@@ -49,9 +54,10 @@ to map a *new* subject's physiological feature space onto the actress'.
   in the extracted features (not on the pipeline's critical path to the avatar).
 - **Cross-subject alignment**: trains a transformer (Ridge / Optimal Transport)
   mapping a new subject's feature space onto the actress' reference space. **This
-  is the runtime pipeline's "alignment" box** — a participant's biodata has to
-  pass through this before anything downstream can make sense of it, since the
-  W-regressor (once built) will only understand biodata shaped like the actress'.
+  is the runtime pipeline's `[user-actress alignment]` step** — a user's biodata
+  has to pass through this before anything downstream can make sense of it,
+  since the actress-features-to-W regressor (once built) will only understand
+  biodata shaped like the actress'.
 
 → Details: `biodata_pipeline/README.md`
 
@@ -71,7 +77,8 @@ correspondence table below).
 | 2B. Real-frame fine-tuning | `scripts/stage2b_train_frames.py` | **The actual encoder training.** Fine-tunes a CNN (face image → 512-dim W vector) on real actress frames, backpropagating through the frozen StyleGAN2 with LPIPS + MSE + diversity + temporal + emotion-contrastive losses. Does **not** auto-load 2A's weights — pass `--pretrained outputs/train_synthetic/best.pt` explicitly, or it starts from random init. |
 | 3. Validation | `scripts/stage3_validate.py` | Compare CNN inversion vs. slow optimization-based inversion |
 | 4. Biodata attachment | `scripts/stage4_assemble.py` | Encode all biodata-pool frames → join with `biodata_pipeline`'s `continuous_features.csv` → `data/biodata_w_dataset.csv` |
-| 5. Biodata→W regressor | — | **Not built.** Next real piece of work once Stage 2B finishes: fit biodata → W on `biodata_w_dataset.csv`. |
+| 5. Biodata→W regressor | `scripts/stage5_train_regressor.py` | Fits biodata → W (MLP, blocked-shuffle CV) on `biodata_w_dataset.csv`. |
+| 6. Offline user-to-latent test | `scripts/stage6_user_to_latent_test.py` | End-to-end test of a *non-actress* subject's pre-recorded biodata → aligned features → predicted W → StyleGAN2 face. Offline/batch only — see terminology note below. |
 
 → Details: `latent_pipeline/PLAN.md` (architecture, directory layout, corrected
 parameters) and `crocodile_pipeline_handoff.md` (original CNN architecture, loss
@@ -100,6 +107,7 @@ reading it, translate:
 | 30fps video, 2160×2160 | 24fps, 500×500 `.mov` (originals were 2160×2160) |
 | StyleGAN2 1024px, 14–18 layers | StyleGAN2 2048px, 20 layers (`num_ws`) |
 | 20 hand-specified biodata features | 73 features from `EnhancedContinuousFeatureExtractor` |
+| "participant" | "user" |
 
 ## Current status (as of this session — 2026-09-04)
 
@@ -121,19 +129,36 @@ time has passed.
   these are two independent, diverging checkpoint lineages by design; compare
   `training_log.json` from both before picking one to continue from. Stage 3
   (validate) and Stage 4 (assemble) are coded but blocked on Stage 2B finishing.
-- **Stage 5 (biodata→W regressor)**: not started — no code anywhere references it.
-- **Runtime pipeline**: not built. The alignment model exists (`biodata_pipeline`)
-  but isn't wired to anything live.
+- **Stage 5 (biodata→W regressor)**: done. `stage5_train_regressor.py` trains a
+  small MLP (256,128) on the NeuroKit2 batch feature set under blocked-shuffle
+  k-fold CV (mean val R²=0.457), saving `regressor.joblib` + a visual
+  original/generated comparison grid.
+- **Offline user-to-latent pipeline**: done and tested end-to-end on a subject
+  other than the actress (Erin) — `apply_transformer.py` (alignment) +
+  `stage6_user_to_latent_test.py` (regressor + StyleGAN2 render). This proves
+  the four offline pieces (feature extraction, cross-subject alignment,
+  regressor, StyleGAN2) compose correctly on non-actress biodata.
+- **Runtime pipeline (live)**: still not built. "Runtime" is reserved
+  specifically for continuously incoming sensor data — causal/online feature
+  extraction, per-sample alignment + regression + render running in a loop.
+  The *offline* user-to-latent pipeline above proves the same four pieces
+  work together, but reads a pre-recorded CSV as a batch; nothing yet wires
+  them to live data.
 
 ## Picking this back up
 
-The critical path to a first end-to-end result is:
-1. Let Stage 2B finish (local + Rorqual runs in progress — see status above);
-   pick the better checkpoint lineage once both have logged results
-2. Run Stage 3 validation, then Stage 4 assembly → `biodata_w_dataset.csv`
-3. Build Stage 5 (biodata→W regressor) — the one genuinely unbuilt piece
-4. Only then does "runtime pipeline" become a real question: wire
-   `biodata_pipeline`'s alignment transformer + the new regressor + the frozen
-   StyleGAN2 into something that runs on live participant data
+With Stages 1–6 and the offline user-to-latent pipeline all working, the
+critical path forward is:
+1. Widen the offline pipeline test beyond Erin's 3 emotion labels
+   (anx/neu/sad) to a subject/recording covering more of the emotion range,
+   to see how the regressor + alignment behave outside that overlap
+2. Decide whether the cross-subject alignment step needs improvement — the
+   generated faces for a new subject show less expression variation than
+   Stage 5's own actress-held-out visual check, which stacks two lossy steps
+   (OT alignment + regression) instead of one
+3. Only once the offline chain is trusted does building the live "runtime
+   pipeline" become a real question: wire causal feature extraction +
+   `apply_transformer.py`'s per-sample equivalent + the regressor + StyleGAN2
+   into something that runs continuously on live user data
 
 `training_gan/` is legacy and sits outside this critical path entirely.
