@@ -87,6 +87,18 @@ validation:
 
 # Stage 5: biodata -> W regressor
 biodata_regressor:
+  model_type: mlp        # 'mlp' (default): under blocked CV, a small (256,128) MLP clearly
+                         # beats Ridge (val R^2 0.457 vs 0.272 on the 51-feature batch
+                         # dataset) -- Ridge's alpha sweep was flat across 5 orders of
+                         # magnitude, meaning the ceiling was the linear model's limited
+                         # expressiveness, not under-regularization. Trade-off: MLP fold-to-
+                         # fold variance is higher (std ~0.04-0.09 vs Ridge's ~0.02). 'ridge'
+                         # reverts to the original, more stable baseline.
+  mlp_hidden_layers: [256, 128]
+  mlp_alpha: 3.0         # MLP L2 regularization -- tuned specifically for this feature set;
+                         # re-sweep if the feature set changes, alpha mattered a lot more
+                         # here than it did for Ridge (too little overfits/destabilizes,
+                         # too much underfits)
   alpha: 10.0            # Ridge regularization strength, matches biodata_pipeline's default
   cv_mode: blocked        # 'blocked' (default): shuffled k-fold over time blocks pooled
                          # across all sessions -- measures interpolation, this regressor's

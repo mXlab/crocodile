@@ -33,6 +33,7 @@ import torch.nn.functional as F
 import yaml
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -143,11 +144,34 @@ def winsorize_with_train_bounds(X_train, X_val, pct):
     return np.clip(X_train, lo, hi), np.clip(X_val, lo, hi)
 
 
-def fit_eval_fold(train_df, val_df, feature_cols, w_cols, alpha, winsorize_pct):
-    """Fit Ridge on one train/val split and return (model, scaler, metrics, val_pred).
+def make_model(model_type, alpha, mlp_hidden_layers):
+    if model_type == 'ridge':
+        return Ridge(alpha=alpha)
+    if model_type == 'mlp':
+        return MLPRegressor(hidden_layer_sizes=tuple(mlp_hidden_layers), alpha=alpha,
+                            max_iter=500, early_stopping=True, n_iter_no_change=15,
+                            random_state=0)
+    raise ValueError(f"Unknown model_type: {model_type}")
+
+
+def fit_eval_fold(train_df, val_df, feature_cols, w_cols, alpha, winsorize_pct,
+                  model_type='ridge', mlp_hidden_layers=(256, 128)):
+    """Fit a model on one train/val split and return (model, scaler, metrics, val_pred, Y_val).
 
     Shared by both CV modes (LOSO and blocked k-fold) so they apply the exact
     same pipeline (NaN drop -> winsorize -> scale -> fit) and stay comparable.
+
+    model_type='mlp': under blocked CV (see assign_time_blocks), a small MLP
+    clearly beats Ridge -- (256,128) hidden layers, alpha=3.0 gave mean val
+    R^2=0.457 vs Ridge's 0.272 on the full 51-feature batch dataset. Ridge's
+    alpha sweep was flat (0.271-0.274 across 5 orders of magnitude), meaning
+    the ceiling wasn't regularization, it was the linear model's limited
+    expressiveness. Note: MLP fold-to-fold variance is much higher than
+    Ridge's (std ~0.04-0.09 vs ~0.02) -- less stable, even though the mean
+    is clearly better; alpha here still matters a lot more for MLP than it
+    did for Ridge (too little -> overfits and destabilizes, too much ->
+    underfits) so don't assume the tuned defaults transfer to a different
+    feature set without re-checking.
     """
     X_train, Y_train = clean_rows(train_df[feature_cols].values, train_df[w_cols].values)
     X_val, Y_val = clean_rows(val_df[feature_cols].values, val_df[w_cols].values)
@@ -159,7 +183,7 @@ def fit_eval_fold(train_df, val_df, feature_cols, w_cols, alpha, winsorize_pct):
     X_train_s = scaler.fit_transform(X_train)
     X_val_s = scaler.transform(X_val)
 
-    model = Ridge(alpha=alpha)
+    model = make_model(model_type, alpha, mlp_hidden_layers)
     model.fit(X_train_s, Y_train)
     val_pred = model.predict(X_val_s)
     train_pred = model.predict(X_train_s)
@@ -221,8 +245,17 @@ def save_visual_grid(G, val_df, w_true, w_pred, device, output_path, n=8):
 def main():
     parser = argparse.ArgumentParser(description='Stage 5: Train biodata -> W regressor')
     parser.add_argument('--config', default='latent_pipeline/configs/default.yaml')
+    parser.add_argument('--model', choices=['ridge', 'mlp'], default=None,
+                        help='ridge (default) or mlp -- under blocked CV a small MLP '
+                             '(256,128) clearly beats Ridge (val R^2 0.457 vs 0.272 on the '
+                             'batch feature set), at the cost of higher fold-to-fold '
+                             'variance (default: from config)')
     parser.add_argument('--alpha', type=float, default=None,
-                        help='Ridge regularization strength (default: from config)')
+                        help='Regularization strength -- Ridge alpha or MLP L2 alpha '
+                             '(default: from config)')
+    parser.add_argument('--mlp-hidden-layers', type=int, nargs='+', default=None,
+                        help='[mlp] Hidden layer sizes, e.g. --mlp-hidden-layers 256 128 '
+                             '(default: from config)')
     parser.add_argument('--cv-mode', choices=['blocked', 'loso'], default=None,
                         help='blocked = shuffled k-fold over time blocks pooled across all '
                              'sessions (default -- measures interpolation, the actual job '
@@ -250,9 +283,15 @@ def main():
     repo_root = config['paths']['repo_root']
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    alpha = args.alpha if args.alpha is not None else rc['alpha']
+    model_type = args.model if args.model is not None else rc.get('model_type', 'ridge')
+    default_alpha = rc.get('mlp_alpha', 3.0) if model_type == 'mlp' else rc['alpha']
+    alpha = args.alpha if args.alpha is not None else default_alpha
+    mlp_hidden_layers = tuple(args.mlp_hidden_layers) if args.mlp_hidden_layers is not None \
+        else tuple(rc.get('mlp_hidden_layers', [256, 128]))
     cv_mode = args.cv_mode if args.cv_mode is not None else rc.get('cv_mode', 'blocked')
     winsorize_pct = args.winsorize_pct if args.winsorize_pct is not None else rc['winsorize_pct']
+    print(f"Model: {model_type}" + (f" hidden={mlp_hidden_layers}" if model_type == 'mlp' else '')
+          + f" alpha={alpha}")
 
     dataset_path = os.path.join(repo_root, 'latent_pipeline', 'data', 'biodata_w_dataset.csv')
     df = pd.read_csv(dataset_path)
@@ -281,7 +320,8 @@ def main():
         print(f"Val:   {len(val_df)} rows ['{val_pool}']")
 
         model, scaler, metrics, val_pred, Y_val = fit_eval_fold(
-            train_df, val_df, feature_cols, w_cols, alpha, winsorize_pct)
+            train_df, val_df, feature_cols, w_cols, alpha, winsorize_pct,
+            model_type, mlp_hidden_layers)
         val_r2_per_dim = r2_score(Y_val, val_pred, multioutput='raw_values')
 
         print(f"Train MSE: {metrics['train_mse']:.4f}  R^2: {metrics['train_r2']:.4f}")
@@ -290,7 +330,7 @@ def main():
               f"median={np.median(val_r2_per_dim):.3f} max={val_r2_per_dim.max():.3f}")
 
         report = {
-            'cv_mode': 'loso', 'val_pool': val_pool, 'alpha': alpha,
+            'cv_mode': 'loso', 'val_pool': val_pool, 'model_type': model_type, 'alpha': alpha,
             'n_features': len(feature_cols), 'winsorize_pct': winsorize_pct,
             'excluded_transitional': not args.keep_transitional,
             **metrics,
@@ -313,7 +353,8 @@ def main():
             train_df = df[fold_ids != fold].reset_index(drop=True)
             val_df = df[fold_ids == fold].reset_index(drop=True)
             model, scaler, metrics, val_pred, Y_val = fit_eval_fold(
-                train_df, val_df, feature_cols, w_cols, alpha, winsorize_pct)
+                train_df, val_df, feature_cols, w_cols, alpha, winsorize_pct,
+                model_type, mlp_hidden_layers)
             fold_metrics.append(metrics)
             print(f"  Fold {fold}: n_train={metrics['n_train']} n_val={metrics['n_val']} "
                   f"train_r2={metrics['train_r2']:.3f} val_r2={metrics['val_r2']:.3f}")
@@ -331,11 +372,13 @@ def main():
         full_train_df = df
         dummy_val_df = df.sample(min(len(df), rc['n_visual'] * 10), random_state=0)
         model, scaler, _, _, _ = fit_eval_fold(
-            full_train_df, dummy_val_df, feature_cols, w_cols, alpha, winsorize_pct)
+            full_train_df, dummy_val_df, feature_cols, w_cols, alpha, winsorize_pct,
+            model_type, mlp_hidden_layers)
 
         report = {
             'cv_mode': 'blocked', 'block_size_s': block_size_s, 'n_folds': n_folds,
-            'alpha': alpha, 'n_features': len(feature_cols), 'winsorize_pct': winsorize_pct,
+            'model_type': model_type, 'alpha': alpha,
+            'n_features': len(feature_cols), 'winsorize_pct': winsorize_pct,
             'excluded_transitional': not args.keep_transitional,
             'val_r2_mean': float(val_r2s.mean()), 'val_r2_std': float(val_r2s.std()),
             'val_r2_per_fold': [float(r) for r in val_r2s],
@@ -345,8 +388,8 @@ def main():
 
     joblib.dump({
         'model': model, 'scaler': scaler, 'feature_cols': feature_cols, 'w_cols': w_cols,
-        'alpha': alpha, 'cv_mode': cv_mode,
-    }, os.path.join(output_dir, 'ridge_baseline.joblib'))
+        'model_type': model_type, 'alpha': alpha, 'cv_mode': cv_mode,
+    }, os.path.join(output_dir, 'regressor.joblib'))
 
     report_path = os.path.join(output_dir, 'report.json')
     with open(report_path, 'w') as f:
