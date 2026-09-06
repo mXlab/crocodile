@@ -79,7 +79,19 @@ validation:
 # Stage 5: biodata -> W regressor
 biodata_regressor:
   alpha: 10.0            # Ridge regularization strength, matches biodata_pipeline's default
-  val_pool: session_4S   # held-out pool, mirrors Stage 2B's train/val split convention
+  cv_mode: blocked        # 'blocked' (default): shuffled k-fold over time blocks pooled
+                         # across all sessions -- measures interpolation, this regressor's
+                         # actual job at deployment (cross-subject alignment handles
+                         # cross-session baseline differences upstream). 'loso': leave-one-
+                         # session-out, measures cross-session extrapolation instead --
+                         # too pessimistic a bar for a small single-subject art dataset,
+                         # kept only for comparison.
+  block_size_s: 10       # [blocked] real emotion segments range 1.8-222.6s (median 56.6s);
+                         # 10s gives the median segment ~5-6 blocks (several per emotion,
+                         # not one) while still being long enough to separate train/val
+                         # neighbors at 1Hz -- see assign_time_blocks() docstring
+  n_folds: 5             # [blocked] number of shuffled folds
+  val_pool: session_4S   # [loso] held-out pool, mirrors Stage 2B's train/val split convention
   n_visual: 8            # number of validation frames to render for qualitative check
   winsorize_pct: 1.0     # clip each feature to [pct, 100-pct] percentile bounds computed
                          # from TRAINING data only (per-session bounds made things much
