@@ -27,7 +27,7 @@ prototypes it does have).
 
 This benchmark only tells you about the closed-set case. For a deployment
 where the calibration set covers a handful of elicited emotions but the
-participant is later observed in states outside that set, the class-blind
+user is later observed in states outside that set, the class-blind
 methods (CORAL, OT global, and — with a caveat — Ridge) have no per-class
 assignment step to fail on unseen states, whereas class-conditional OT
 force-assigns every sample to its nearest *calibrated* prototype and applies
@@ -36,7 +36,7 @@ That trade-off is measured next.
 
 ## Held-out-emotion generalization test
 
-Simulates the deployment scenario where a participant is observed in a state
+Simulates the deployment scenario where a user is observed in a state
 outside the calibrated set (`scripts/validate_heldout_emotion.py`, workflow-3
 Step 4): for each shared emotion, fit every method on the *other* shared
 emotions only, then check how each one handles the emotion it never saw.
@@ -62,7 +62,7 @@ Two things stand out, and they cut in different directions:
 1. **On raw distance (RMSE_norm), Ridge extrapolates far more conservatively than the other three** in every split — consistent with it being the most heavily regularized, lowest-capacity map (fit from just 2 prototype pairs). The OT-based methods and CORAL, which fit full covariance structure from the same 2 calibrated classes, swing much further off target when asked to place data outside what they were fit on (up to 28x the inter-class scale for CORAL on `neu`).
 2. **But no method reliably lands the held-out samples in the correct RF decision region.** Recall is near-zero-to-single-digits for `neu` and exactly 0% for `sad` across all four methods — the transformed points systematically get misclassified as one of the *other* known emotions (`sad`→`neu` almost 100% of the time for three of the four methods; `neu`→`anx`/`sad` for all four). Class-conditional OT's 39.7% on `anx` is the one exception, but it comes from a wilder, higher-RMSE transform that happens to spread samples across all three known buckets rather than concentrating them in one wrong one — not evidence it's actually generalizing.
 
-**Takeaway: none of the four methods generalize reliably to an emotion outside the calibration set** on this data. Ridge's smoothness protects against wild, physiologically-implausible outputs (the safer failure mode for driving a face in real time) but doesn't mean the transformed signal is usable for anything downstream trying to recognize what the participant is actually feeling. With only 3 emotions shared between Erin and the actress, each split calibrates on just 2 classes — a small, noisy test — but the direction of the result (universal failure to generalize, not "method X solves it") is unlikely to be a data-size artifact alone.
+**Takeaway: none of the four methods generalize reliably to an emotion outside the calibration set** on this data. Ridge's smoothness protects against wild, physiologically-implausible outputs (the safer failure mode for driving a face in real time) but doesn't mean the transformed signal is usable for anything downstream trying to recognize what the user is actually feeling. With only 3 emotions shared between Erin and the actress, each split calibrates on just 2 classes — a small, noisy test — but the direction of the result (universal failure to generalize, not "method X solves it") is unlikely to be a data-size artifact alone.
 
 ## Does reducing dimensionality fix it? (ANOVA feature selection)
 

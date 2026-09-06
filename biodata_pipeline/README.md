@@ -170,7 +170,7 @@ Outputs:
 
 See [EXPERIMENTS.md](EXPERIMENTS.md) for a benchmark comparing all four methods on real data.
 
-**Step 4 (optional): Held-out-emotion generalization test.** Checks how each method handles an emotion it wasn't calibrated on — for a deployment where calibration covers a handful of elicited emotions but the participant is later observed in other states. For each shared emotion, fits every method on the *other* shared emotions only, then checks how it handles the one it never saw.
+**Step 4 (optional): Held-out-emotion generalization test.** Checks how each method handles an emotion it wasn't calibrated on — for a deployment where calibration covers a handful of elicited emotions but the user is later observed in other states. For each shared emotion, fits every method on the *other* shared emotions only, then checks how it handles the one it never saw.
 
 ```bash
 python scripts/validate_heldout_emotion.py \

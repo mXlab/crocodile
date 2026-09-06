@@ -43,10 +43,10 @@ flowchart TB
 
     subgraph TRAIN_ENC["latent_pipeline — active preprocessing pipeline"]
         E1[Stage 1: Extract frames\n& build manifests]
-        E2["Stage 2: Train VGG Encoder\nimage → W ∈ ℝ⁵¹²\n(2A synthetic pretrain → 2B real fine-tune,\nsee stage-detail diagram below)"]
+        E2["Stage 2: Train VGG Encoder\n[actress-image-to-W encoder]\nimage → W ∈ ℝ⁵¹²\n(2A synthetic pretrain → 2B real fine-tune,\nsee stage-detail diagram below)"]
         E3[Stage 3: Validate\nEncoder vs Optimization]
         E4[Stage 4: Assemble\nbiodata → W dataset]
-        E5["Stage 5: Biodata→W Regressor\nNOT YET BUILT"]
+        E5["Stage 5: [actress-features-to-W regressor]\nNOT YET BUILT"]
         SG[StyleGAN2 · frozen\nW → face]
         LPIPS[LPIPS + MSE loss]
     end
@@ -57,10 +57,10 @@ flowchart TB
     end
 
     subgraph INFER["Runtime Pipeline — NOT YET BUILT (design only)"]
-        RF[Participant raw signals]
-        FT[Feature Extraction]
-        ALIGN["Alignment\nbiodata_pipeline transformer\nRidge / OT class-conditional\n(model exists — not wired to a live script)"]
-        REG["Biodata → W Regressor\nNOT YET BUILT"]
+        RF[User raw signals]
+        FT["Feature Extraction\n[feature extraction]"]
+        ALIGN["[user-actress alignment]\nbiodata_pipeline transformer\nRidge / OT class-conditional\n(model exists — not wired to a live script)"]
+        REG["[actress-features-to-W regressor]\nNOT YET BUILT"]
         WV[W vector ℝ⁵¹²]
         FACE[StyleGAN2 · frozen\nSynthetic Face]
     end
@@ -122,12 +122,12 @@ flowchart TB
 
 ## Biodata Pipeline (standalone detail)
 
-Two distinct roles: feed `latent_pipeline` Stage 4 (feature extraction), and
-supply the runtime pipeline's alignment step (cross-subject transformer).
+Two distinct roles: feed `latent_pipeline` Stage 4 (`[feature extraction]`), and
+supply the runtime pipeline's `[user-actress alignment]` step (cross-subject transformer).
 
 ```mermaid
 flowchart LR
-    subgraph EXTRACT["Feature Extraction"]
+    subgraph EXTRACT["Feature Extraction [feature extraction]"]
         RAW[Raw sensor CSV\n100Hz: heart · gsr · respiration]
         FE[EnhancedContinuousFeatureExtractor\nenhanced_respiratory_features.py]
         CF[(continuous_features.csv\n73 features/sec)]
@@ -140,9 +140,9 @@ flowchart LR
         CF --> DS --> EVAL
     end
 
-    subgraph ALIGN["Cross-Subject Alignment — feeds the runtime pipeline"]
+    subgraph ALIGN["Cross-Subject Alignment [user-actress alignment] — feeds the runtime pipeline"]
         REF[Actress reference features]
-        NEW[New subject\ncalibration recording]
+        NEW[New user\ncalibration recording]
         XF[Transformer\ntrain_transformer.py\nRidge / OT class-conditional]
         MODEL[("transformer_ot_classconditional.pkl\nbest: NPA 54.2%")]
         REF --> XF
@@ -159,6 +159,9 @@ flowchart LR
 
 ## Latent Pipeline — Stage Detail
 
+Stages 1–4 build the `[actress-image-to-W encoder]`; Stage 5 is the (not yet
+built) `[actress-features-to-W regressor]`.
+
 ```mermaid
 flowchart TD
     S1["Stage 1\nstage1_extract.py\nExtract frames, align timestamps,\nbuild pool manifests"]
@@ -166,7 +169,7 @@ flowchart TD
     S2B["Stage 2B — real-frame fine-tuning\nstage2b_train_frames.py\nLPIPS + MSE + diversity +\ntemporal + emotion-contrastive,\nbackprop through frozen StyleGAN2\n(resuming from epoch 10/20)"]
     S3["Stage 3\nstage3_validate.py\nCompare encoder vs\noptimization-based inversion"]
     S4["Stage 4\nstage4_assemble.py\nRun encoder on all biodata frames\nwrite biodata → W CSV"]
-    S5["Stage 5\nNOT YET BUILT\nFit biodata → W regressor\non biodata_w_dataset.csv"]
+    S5["Stage 5: [actress-features-to-W regressor]\nNOT YET BUILT\nFit biodata → W regressor\non biodata_w_dataset.csv"]
 
     S1 --> S2B
     S2A -->|"--pretrained best.pt\n(not automatic)"| S2B
