@@ -6,10 +6,12 @@ paths:
   stylegan_code: /home/tats/Documents/workspace/stylegan_Autolume
   stylegan_model: models/finalModel_Crocodile.pkl
   # NeuroKit2 batch extractor (modules/batch_feature_extractor.py) -- switched
-  # from the causal continuous_features.csv default after confirming under
-  # blocked-CV evaluation it performs substantially better (mean R^2 0.272 vs
-  # 0.153 for the old extractor's full feature set). The old file and its
-  # causal/real-time-compatible extractor are both still available -- revert
+  # from the online/real-time-compatible continuous_features.csv default
+  # after confirming under blocked-CV evaluation it performs substantially
+  # better (mean R^2 0.272 vs 0.153 for the old extractor's full feature
+  # set; reconfirmed under the stronger MLP model in PIPELINE.md's "Feature
+  # extractor comparison" section, 0.457 vs 0.313). The old file and its
+  # online/real-time-compatible extractor are both still available -- revert
   # this path to continuous_features.csv to switch back (and rebuild
   # biodata_mapping_manifest.csv's continuous_feature_idx against whichever
   # file is active, since the two extractors don't have identical row counts

@@ -11,7 +11,7 @@ in PIPELINE.md:
 "Offline" here is deliberate, not incidental: this reads a pre-recorded
 subject CSV and processes it as a batch, same as every other latent_pipeline
 stage. It is NOT the live "runtime pipeline" from PIPELINE.md (continuously
-incoming sensor data, causal/online feature extraction, per-sample alignment
+incoming sensor data, online feature extraction, per-sample alignment
 + regression + render in a loop) -- that remains unbuilt. What this proves is
 that the four offline pieces (extraction, alignment, regressor, StyleGAN2)
 compose correctly end-to-end on a subject other than the actress; wiring the

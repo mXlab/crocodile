@@ -139,39 +139,44 @@ time has passed.
   the four offline pieces (feature extraction, cross-subject alignment,
   regressor, StyleGAN2) compose correctly on non-actress biodata.
 - **Runtime pipeline (live)**: still not built. "Runtime" is reserved
-  specifically for continuously incoming sensor data — causal/online feature
-  extraction, per-sample alignment + regression + render running in a loop.
-  The *offline* user-to-latent pipeline above proves the same four pieces
-  work together, but reads a pre-recorded CSV as a batch; nothing yet wires
-  them to live data.
+  specifically for continuously incoming sensor data — online feature
+  extraction (each second computed from only that second's and earlier
+  samples, no lookahead), per-sample alignment + regression + render running
+  in a loop. The *offline* user-to-latent pipeline above proves the same
+  four pieces work together, but reads a pre-recorded CSV as a batch;
+  nothing yet wires them to live data.
 
-### Feature extractor comparison: NeuroKit2 batch vs. causal
+### Feature extractor comparison: NeuroKit2 batch vs. continuous
 
-Re-ran the entire offline user-to-latent pipeline with the causal/real-time-
-compatible extractor (`continuous_feature_extractor.py`, 73 features) in
-place of the NeuroKit2 batch extractor, keeping everything else identical
-(same MLP architecture, same blocked-CV protocol, same OT class-conditional
-alignment method, same subject — Erin) to isolate the extractor as the only
-variable. Config: `latent_pipeline/configs/causal_compare.yaml`; outputs in
-`latent_pipeline/outputs/stage5_regressor_causal/`.
+`biodata_pipeline` has two feature extractors: `continuous_feature_extractor.py`
+(the original — "continuous" because it streams sample-by-sample using only
+past/current data, no lookahead, so it can eventually run in a real-time
+installation) and `batch_feature_extractor.py` (added this session — NeuroKit2-
+based, offline-only, sees each session's whole signal at once). Re-ran the
+entire offline user-to-latent pipeline with the continuous extractor (73
+features) in place of the NeuroKit2 batch extractor, keeping everything else
+identical (same MLP architecture, same blocked-CV protocol, same OT
+class-conditional alignment method, same subject — Erin) to isolate the
+extractor as the only variable. Config: `latent_pipeline/configs/continuous_compare.yaml`;
+outputs in `latent_pipeline/outputs/stage5_regressor_continuous/`.
 
 | Extractor | Features | Stage 5 val R² (mean ± std) |
 |---|---|---|
 | NeuroKit2 batch | 51 | **0.457** ± 0.06 |
-| Causal (`continuous_feature_extractor.py`) | 73 | 0.313 ± 0.04 |
+| Continuous (`continuous_feature_extractor.py`) | 73 | 0.313 ± 0.04 |
 
 NeuroKit2 batch features win clearly, consistent with the earlier Ridge-only
 comparison (0.272 vs 0.153) that originally motivated the switch — this
 confirms the gap holds under the stronger MLP model too, not just Ridge.
-Qualitatively, the causal-extractor's generated faces for Erin showed *more*
-dramatic expression swings than the NeuroKit2 version, but that reads as
-noise rather than signal: it's the extractor with the lower R², so the wider
-swings are consistent with a less-constrained, less-accurate regressor
-rather than better emotional expressiveness. The causal extractor remains
-the only real-time-compatible option and isn't going away — this result
-just confirms NeuroKit2 batch processing is the right choice whenever
-offline processing is available (training, and any pre-recorded calibration
-step).
+Qualitatively, the continuous extractor's generated faces for Erin showed
+*more* dramatic expression swings than the NeuroKit2 version, but that reads
+as noise rather than signal: it's the extractor with the lower R², so the
+wider swings are consistent with a less-constrained, less-accurate
+regressor rather than better emotional expressiveness. The continuous
+extractor remains the only real-time-compatible option and isn't going
+away — this result just confirms NeuroKit2 batch processing is the right
+choice whenever offline processing is available (training, and any
+pre-recorded calibration step).
 
 ## Picking this back up
 
@@ -185,8 +190,9 @@ critical path forward is:
    Stage 5's own actress-held-out visual check, which stacks two lossy steps
    (OT alignment + regression) instead of one
 3. Only once the offline chain is trusted does building the live "runtime
-   pipeline" become a real question: wire causal feature extraction +
-   `apply_transformer.py`'s per-sample equivalent + the regressor + StyleGAN2
-   into something that runs continuously on live user data
+   pipeline" become a real question: wire the online/continuous feature
+   extractor + `apply_transformer.py`'s per-sample equivalent + the
+   regressor + StyleGAN2 into something that runs continuously on live
+   user data
 
 `training_gan/` is legacy and sits outside this critical path entirely.

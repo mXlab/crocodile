@@ -1,13 +1,13 @@
 """
 Step 1 (batch variant): Extract Continuous Features via NeuroKit2
 
-Offline/non-causal counterpart to extract_continuous_features.py -- see
+Offline counterpart to extract_continuous_features.py -- see
 modules/batch_feature_extractor.py's module docstring for the full
 rationale (cold-start artifacts, EDA raw-signal normalization gap).
 
 This does NOT overwrite continuous_features.csv. Output goes to a
 separate file (default continuous_features_batch.csv) so both the
-causal/streaming-compatible extractor and this batch one remain available
+online/streaming-compatible extractor and this batch one remain available
 to compare directly -- switching between them for Stage 4/5 is just a
 config path change (paths.continuous_features in latent_pipeline's yaml).
 

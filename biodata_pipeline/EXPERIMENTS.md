@@ -103,15 +103,16 @@ ANOVA ranking of all 73 features on this same reference data.
 
 **Interpretation, and 20 vs. 10 as a choice:** dimensionality is a real contributor to *how unstable* the covariance-based maps are — 20 features already recovers most of that benefit without cutting as aggressively as 10, so it's a reasonable middle ground if you want to keep more physiological detail. But dimensionality isn't the main reason held-out emotions get mapped to the *wrong* known emotion — that misrouting is consistent from 10 through 73 features, which points at a genuine structural relationship in the raw feature space (`sad` and `neu` sit closer to each other physiologically, for this subject pair, than either does to the actress' true `sad`/`neu` targets) rather than a noisy high-dimensional artifact. That's consistent with a valence-arousal reframing of the alignment problem (discrete calibrated emotions replaced by a continuous target space) being a more promising direction than further tuning of these four methods — dimensionality reduction can stabilize the map, but it doesn't give the target space any structure that would tell the model *why* `sad` and `neu` are related and in which direction a truly novel state should be placed relative to them.
 
-## Feature extractor comparison: NeuroKit2 batch vs. causal (Stage 5, latent_pipeline)
+## Feature extractor comparison: NeuroKit2 batch vs. continuous (Stage 5, latent_pipeline)
 
 Different task than the rest of this document (biodata→W regression + face
 generation, not classification/RMSE alignment metrics) so full detail lives
-in [PIPELINE.md](../PIPELINE.md#feature-extractor-comparison-neurokit2-batch-vs-causal)
+in [PIPELINE.md](../PIPELINE.md#feature-extractor-comparison-neurokit2-batch-vs-continuous)
 instead of here — noted for completeness since it's another extractor
 comparison on the same Erin/actress data. Summary: re-running the whole
-biodata→W→face pipeline with the causal extractor (`continuous_feature_extractor.py`,
-73 features) instead of the newer NeuroKit2 batch extractor (51 features),
+biodata→W→face pipeline with the continuous extractor (`continuous_feature_extractor.py`,
+73 features, so named because it streams sample-by-sample from only past/
+current data) instead of the newer NeuroKit2 batch extractor (51 features),
 same MLP + blocked-CV + OT class-conditional alignment throughout, gives
 mean val R²=0.313 vs. 0.457 for NeuroKit2 — the same direction and similar
 margin as this document's own Ridge-based comparisons, now confirmed to

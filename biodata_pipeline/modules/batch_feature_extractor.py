@@ -2,13 +2,14 @@
 EnhancedContinuousFeatureExtractor.
 
 Why this exists as a SEPARATE module (see PIPELINE.md / session discussion):
-continuous_feature_extractor.py was deliberately built as a causal, never-
-resetting streaming processor so the same code could eventually run in a
-real-time installation. That constraint has two costs when used for OFFLINE
-training data (which is all it's used for today -- the runtime pipeline
-doesn't exist yet):
+continuous_feature_extractor.py was deliberately built as an online,
+never-resetting streaming processor -- it computes each second's features
+using only that second's and earlier samples, never looking ahead -- so the
+same code could eventually run in a real-time installation. That constraint
+has two costs when used for OFFLINE training data (which is all it's used
+for today -- the live installation doesn't exist yet):
 
-1. Cold-start artifacts: causal filters/rolling windows have no history at
+1. Cold-start artifacts: online filters/rolling windows have no history at
    the start of a recording, producing statistically unstable (sometimes
    extreme) values in the first several seconds. A batch processor sees the
    whole session at once and has no such warm-up period.
@@ -23,7 +24,8 @@ This module fixes both by using NeuroKit2's validated offline algorithms
 (cvxEDA convex-optimization phasic/tonic decomposition, proper PPG/RSP peak
 detection) run once over a session's full raw signal, then computes
 per-second aggregate features from the result -- no filter state, no
-online/causal constraint.
+look-only-backward constraint (each second's features can use the whole
+recording, past and future).
 
 Explicitly NOT a replacement: continuous_feature_extractor.py is untouched
 and still the one to use if/when a real-time-compatible extractor is needed.
@@ -45,7 +47,9 @@ import neurokit2 as nk
 
 
 class BatchFeatureExtractor:
-    """Offline, non-causal feature extractor using NeuroKit2.
+    """Offline feature extractor using NeuroKit2 -- sees the whole session's
+    signal at once (past and future samples both available), unlike the
+    online/real-time-compatible EnhancedContinuousFeatureExtractor.
 
     Unlike EnhancedContinuousFeatureExtractor, this has no persistent filter
     state across calls -- process_session() is a pure function of the whole
@@ -111,15 +115,24 @@ class BatchFeatureExtractor:
         rise_time = np.asarray(info['SCR_RiseTime'], dtype=float)
         recovery_time = np.asarray(info['SCR_RecoveryTime'], dtype=float)
 
+        # First derivative of the phasic signal, for an instability measure
+        # analogous to the old extractor's eda_instability_10s.
+        phasic_deriv = np.diff(phasic, prepend=phasic[0])
+
         row_times = np.arange(n_seconds)
         feats = {
             'eda.tonic_level': np.zeros(n_seconds),
             'eda.tonic_std_10s': np.zeros(n_seconds),
+            'eda.tonic_range_10s': np.zeros(n_seconds),
             'eda.tonic_trend_10s': np.zeros(n_seconds),
             'eda.tonic_trend_full': np.zeros(n_seconds),
             'eda.phasic_mean_10s': np.zeros(n_seconds),
             'eda.phasic_std_10s': np.zeros(n_seconds),
+            'eda.instability_10s': np.zeros(n_seconds),
             'eda.scr_rate_60s': np.zeros(n_seconds),
+            'eda.scr_event_count_10s': np.zeros(n_seconds),
+            'eda.scr_recent_max_amplitude_5s': np.zeros(n_seconds),
+            'eda.scr_event_clustering_60s': np.zeros(n_seconds),
             'eda.seconds_since_onset': np.zeros(n_seconds),
             'eda.last_onset_amplitude': np.zeros(n_seconds),
             'eda.last_onset_risetime': np.zeros(n_seconds),
@@ -133,13 +146,16 @@ class BatchFeatureExtractor:
 
         for t in row_times:
             end = min((t + 1) * step, len(tonic))
+            start_5s = max(0, end - 5 * fs)
             start_10s = max(0, end - 10 * fs)
             start_60s = max(0, end - 60 * fs)
 
             feats['eda.tonic_level'][t] = tonic[start_10s:end].mean() if end > start_10s else tonic[0]
             feats['eda.tonic_std_10s'][t] = tonic[start_10s:end].std() if end > start_10s else 0.0
+            feats['eda.tonic_range_10s'][t] = np.ptp(tonic[start_10s:end]) if end > start_10s else 0.0
             feats['eda.phasic_mean_10s'][t] = phasic[start_10s:end].mean() if end > start_10s else 0.0
             feats['eda.phasic_std_10s'][t] = phasic[start_10s:end].std() if end > start_10s else 0.0
+            feats['eda.instability_10s'][t] = phasic_deriv[start_10s:end].var() if end > start_10s else 0.0
 
             if end - start_10s > fs:
                 x = np.arange(start_10s, end)
@@ -148,8 +164,17 @@ class BatchFeatureExtractor:
                 x = np.arange(0, end)
                 feats['eda.tonic_trend_full'][t] = np.polyfit(x, tonic[0:end], 1)[0]
 
-            recent_onsets = onset_times[(onset_times >= start_60s / fs) & (onset_times <= t)]
-            feats['eda.scr_rate_60s'][t] = len(recent_onsets) / 1.0  # per-60s-window count
+            onsets_60s = onset_times[(onset_times >= start_60s / fs) & (onset_times <= t)]
+            feats['eda.scr_rate_60s'][t] = len(onsets_60s)
+            onsets_10s = onset_times[(onset_times >= start_10s / fs) & (onset_times <= t)]
+            feats['eda.scr_event_count_10s'][t] = len(onsets_10s)
+            onsets_5s_mask = (onset_times >= start_5s / fs) & (onset_times <= t)
+            if onsets_5s_mask.any():
+                feats['eda.scr_recent_max_amplitude_5s'][t] = np.nanmax(amplitude[onsets_5s_mask])
+            if len(onsets_60s) >= 3:
+                inter_onset = np.diff(onsets_60s)
+                cv = inter_onset.std() / inter_onset.mean() if inter_onset.mean() > 0 else 0.0
+                feats['eda.scr_event_clustering_60s'][t] = 1.0 - min(cv, 1.0)
 
             i = int(idx_of_last[t])
             if i >= 0:
@@ -170,9 +195,22 @@ class BatchFeatureExtractor:
         signals, info = nk.ppg_process(ppg, sampling_rate=fs)
         hr = signals['PPG_Rate'].values
         quality = signals['PPG_Quality'].values
+        clean = signals['PPG_Clean'].values
         peaks = np.asarray(info['PPG_Peaks'], dtype=float)
         peak_times = peaks / fs
         ibi = np.diff(peak_times)  # inter-beat intervals, seconds
+        hr_sample_deltas = np.abs(np.diff(hr))  # sample-to-sample HR change, for max_acceleration
+
+        # PPG waveform amplitude (peak-to-trough of the pulse itself, distinct
+        # from heart RATE) -- not given directly by nk.ppg_process, so find
+        # the trough preceding each peak in the cleaned signal.
+        pulse_amplitude = np.full(len(peaks), np.nan)
+        pulse_amp_times = peak_times.copy()
+        for j, p in enumerate(peaks.astype(int)):
+            lo = int(peaks[j - 1]) if j > 0 else max(0, p - int(1.5 * fs))
+            segment = clean[lo:p + 1]
+            if len(segment):
+                pulse_amplitude[j] = clean[p] - segment.min()
 
         row_times = np.arange(n_seconds)
         feats = {
@@ -182,10 +220,17 @@ class BatchFeatureExtractor:
             'cardiac.hr_trend_10s': np.zeros(n_seconds),
             'cardiac.hr_trend_full': np.zeros(n_seconds),
             'cardiac.hr_delta_10s': np.zeros(n_seconds),
+            'cardiac.hr_recent_max_10s': np.zeros(n_seconds),
+            'cardiac.hr_recent_spike_10s': np.zeros(n_seconds),
+            'cardiac.hr_max_acceleration_full': np.zeros(n_seconds),
             'cardiac.quality_mean_10s': np.zeros(n_seconds),
             'cardiac.hrv_sdnn_60s': np.zeros(n_seconds),
             'cardiac.hrv_rmssd_60s': np.zeros(n_seconds),
+            'cardiac.hrv_pnn50_60s': np.zeros(n_seconds),
+            'cardiac.hrv_cv_60s': np.zeros(n_seconds),
             'cardiac.bpm_cv_60s': np.zeros(n_seconds),
+            'cardiac.ppg_amplitude_mean_10s': np.zeros(n_seconds),
+            'cardiac.ppg_amplitude_cv_10s': np.zeros(n_seconds),
         }
 
         for t in row_times:
@@ -213,6 +258,16 @@ class BatchFeatureExtractor:
             if start_10s > fs:
                 feats['cardiac.hr_delta_10s'][t] = np.nan_to_num(hr[end - 1] - hr[start_10s])
 
+            if len(window_10s) and not np.all(np.isnan(window_10s)):
+                recent_max = np.nanmax(window_10s)
+                feats['cardiac.hr_recent_max_10s'][t] = recent_max
+                session_median_so_far = np.nanmedian(hr[:end]) if end > 0 else np.nan
+                feats['cardiac.hr_recent_spike_10s'][t] = recent_max - session_median_so_far
+
+            if end > 30 * fs:
+                feats['cardiac.hr_max_acceleration_full'][t] = np.nanmax(hr_sample_deltas[:end - 1]) \
+                    if end - 1 > 0 and not np.all(np.isnan(hr_sample_deltas[:end - 1])) else 0.0
+
             window_60s = hr[start_60s:end]
             valid_60 = window_60s[~np.isnan(window_60s)]
             if len(valid_60) > 1 and valid_60.mean() != 0:
@@ -222,7 +277,17 @@ class BatchFeatureExtractor:
             recent_ibi = ibi[ibi_mask]
             if len(recent_ibi) >= 3:
                 feats['cardiac.hrv_sdnn_60s'][t] = recent_ibi.std() * 1000  # ms
-                feats['cardiac.hrv_rmssd_60s'][t] = np.sqrt(np.mean(np.diff(recent_ibi) ** 2)) * 1000
+                diffs_ms = np.diff(recent_ibi) * 1000
+                feats['cardiac.hrv_rmssd_60s'][t] = np.sqrt(np.mean(diffs_ms ** 2))
+                feats['cardiac.hrv_pnn50_60s'][t] = (np.abs(diffs_ms) > 50).mean() * 100
+                feats['cardiac.hrv_cv_60s'][t] = recent_ibi.std() / recent_ibi.mean() * 100 if recent_ibi.mean() > 0 else 0.0
+
+            amp_mask = (pulse_amp_times >= start_10s / fs) & (pulse_amp_times <= t)
+            recent_amp = pulse_amplitude[amp_mask]
+            recent_amp = recent_amp[~np.isnan(recent_amp)]
+            if len(recent_amp) > 1 and recent_amp.mean() != 0:
+                feats['cardiac.ppg_amplitude_mean_10s'][t] = recent_amp.mean()
+                feats['cardiac.ppg_amplitude_cv_10s'][t] = recent_amp.std() / recent_amp.mean() * 100
 
         return feats
 
@@ -234,6 +299,9 @@ class BatchFeatureExtractor:
         amplitude = signals['RSP_Amplitude'].values
         rvt = signals['RSP_RVT'].values
         symmetry = signals['RSP_Symmetry_RiseDecay'].values
+        # RSP_Phase: 1 during inhale, 0 during exhale (NeuroKit2 convention),
+        # NaN before the first detected cycle.
+        phase = signals['RSP_Phase'].values
         troughs = np.asarray(info['RSP_Troughs'], dtype=float)
 
         # NeuroKit2's default trough detection over-fires on noisy stretches
@@ -265,6 +333,12 @@ class BatchFeatureExtractor:
         else:
             rate = np.full(len(resp), np.nan)
 
+        # Depth of each individual breath cycle (amplitude sampled at each
+        # trough), for sigh/spike detection -- distinct from the continuous
+        # amplitude signal used for the *_mean_10s features above.
+        trough_idx = troughs.astype(int)
+        breath_depths = amplitude[trough_idx] if len(trough_idx) else np.array([])
+
         row_times = np.arange(n_seconds)
         feats = {
             'respiratory.rate_mean_10s': np.zeros(n_seconds),
@@ -272,23 +346,39 @@ class BatchFeatureExtractor:
             'respiratory.rate_trend_10s': np.zeros(n_seconds),
             'respiratory.rate_trend_full': np.zeros(n_seconds),
             'respiratory.amplitude_mean_10s': np.zeros(n_seconds),
+            'respiratory.amplitude_median_10s': np.zeros(n_seconds),
             'respiratory.amplitude_std_10s': np.zeros(n_seconds),
+            'respiratory.amplitude_range_10s': np.zeros(n_seconds),
+            'respiratory.amplitude_spike_5s': np.zeros(n_seconds),
             'respiratory.rvt_mean_10s': np.zeros(n_seconds),
             'respiratory.symmetry_risedecay_mean_10s': np.zeros(n_seconds),
+            'respiratory.exhale_ratio_10s': np.zeros(n_seconds),
+            'respiratory.sigh_count_5s': np.zeros(n_seconds),
+            'respiratory.sigh_frequency_5s': np.zeros(n_seconds),
+            'respiratory.pause_detected_5s': np.zeros(n_seconds),
+            'respiratory.gasp_detected_5s': np.zeros(n_seconds),
             'respiratory.cv_60s': np.zeros(n_seconds),
         }
 
         for t in row_times:
             end = min((t + 1) * step, len(rate))
+            start_5s = max(0, end - 5 * fs)
             start_10s = max(0, end - 10 * fs)
             start_60s = max(0, end - 60 * fs)
 
             feats['respiratory.rate_mean_10s'][t] = np.nanmean(rate[start_10s:end]) if end > start_10s else np.nan
             feats['respiratory.rate_std_10s'][t] = np.nanstd(rate[start_10s:end]) if end > start_10s else 0.0
             feats['respiratory.amplitude_mean_10s'][t] = np.nanmean(amplitude[start_10s:end]) if end > start_10s else np.nan
+            feats['respiratory.amplitude_median_10s'][t] = np.nanmedian(amplitude[start_10s:end]) if end > start_10s else np.nan
             feats['respiratory.amplitude_std_10s'][t] = np.nanstd(amplitude[start_10s:end]) if end > start_10s else 0.0
+            feats['respiratory.amplitude_range_10s'][t] = np.ptp(amplitude[start_10s:end]) if end > start_10s else 0.0
             feats['respiratory.rvt_mean_10s'][t] = np.nanmean(rvt[start_10s:end]) if end > start_10s else np.nan
             feats['respiratory.symmetry_risedecay_mean_10s'][t] = np.nanmean(symmetry[start_10s:end]) if end > start_10s else np.nan
+
+            phase_window = phase[start_10s:end]
+            valid_phase = phase_window[~np.isnan(phase_window)]
+            if len(valid_phase):
+                feats['respiratory.exhale_ratio_10s'][t] = (valid_phase == 0).mean()
 
             if end - start_10s > fs:
                 x = np.arange(start_10s, end)
@@ -305,5 +395,32 @@ class BatchFeatureExtractor:
             recent_intervals = breath_intervals[interval_mask]
             if len(recent_intervals) > 1 and recent_intervals.mean() != 0:
                 feats['respiratory.cv_60s'][t] = recent_intervals.std() / recent_intervals.mean() * 100
+
+            # Sigh / pause / gasp: compare recent breaths to the session's
+            # own distribution so far (mirrors the original extractor's
+            # mean +/- k*std plausibility-bound pattern).
+            depths_so_far_mask = breath_times <= t
+            depths_so_far = breath_depths[depths_so_far_mask]
+            if len(depths_so_far) >= 5:
+                d_mean, d_std = depths_so_far.mean(), depths_so_far.std()
+                recent_depth_mask = (breath_times >= start_5s / fs) & (breath_times <= t)
+                recent_depths = breath_depths[recent_depth_mask]
+                n_sighs = int((recent_depths > d_mean + 2 * d_std).sum())
+                feats['respiratory.sigh_count_5s'][t] = n_sighs
+                feats['respiratory.sigh_frequency_5s'][t] = n_sighs / 5.0
+                if len(depths_so_far) >= 3:
+                    feats['respiratory.amplitude_spike_5s'][t] = recent_depths[-3:].max() - d_mean \
+                        if len(recent_depths) else 0.0
+
+            intervals_so_far_mask = breath_times[1:] <= t
+            intervals_so_far = breath_intervals[intervals_so_far_mask]
+            if len(intervals_so_far) >= 5:
+                i_mean, i_std = intervals_so_far.mean(), intervals_so_far.std()
+                recent_interval_mask = (breath_times[1:] >= start_5s / fs) & (breath_times[1:] <= t)
+                recent_int = breath_intervals[recent_interval_mask]
+                if len(recent_int):
+                    feats['respiratory.pause_detected_5s'][t] = float(np.any(recent_int > i_mean + 2 * i_std))
+                    feats['respiratory.gasp_detected_5s'][t] = float(
+                        np.any((recent_int < i_mean - 1.5 * i_std) & (recent_int > 1.0)))
 
         return feats

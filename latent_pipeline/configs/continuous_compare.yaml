@@ -1,10 +1,12 @@
-# Latent Pipeline Configuration -- CAUSAL EXTRACTOR COMPARISON VARIANT
+# Latent Pipeline Configuration -- CONTINUOUS EXTRACTOR COMPARISON VARIANT
 #
-# Copy of default.yaml with paths repointed at the OLD causal/real-time-
+# Copy of default.yaml with paths repointed at the OLD online/real-time-
 # compatible extractor (continuous_feature_extractor.py's continuous_features.csv,
-# 73 features) instead of the NeuroKit2 batch extractor, plus a separate
-# metadata_dir and stage5 checkpoint_dir so this run's manifest/regressor/
-# report/visual-check never overwrite the NeuroKit2 pipeline's outputs.
+# 73 features -- so named because it processes the signal online, sample by
+# sample, using only past/current data, as required for eventual real-time
+# use) instead of the NeuroKit2 batch extractor, plus a separate metadata_dir
+# and stage5 checkpoint_dir so this run's manifest/regressor/report/
+# visual-check never overwrite the NeuroKit2 pipeline's outputs.
 # Purpose: compare the two extractors on the same offline user-to-latent task
 # (see PIPELINE.md, stage6_user_to_latent_test.py). Not meant to become the
 # new default -- delete once the comparison is done, or keep as a reference
@@ -16,7 +18,7 @@ paths:
   stylegan_model: models/finalModel_Crocodile.pkl
   continuous_features: biodata_pipeline/data/processed/continuous_features.csv
   frames_dir: latent_pipeline/data/frames
-  metadata_dir: latent_pipeline/data/metadata_causal
+  metadata_dir: latent_pipeline/data/metadata_continuous
   outputs_dir: latent_pipeline/outputs
   diverse_images: Diverse
   synthetic_dir: latent_pipeline/data/synthetic
@@ -121,7 +123,7 @@ biodata_regressor:
                          # from TRAINING data only (per-session bounds made things much
                          # worse -- see stage5_train_regressor.py comment); no outlier/
                          # glitch rejection exists upstream (confirmed by audit), 0 disables
-  checkpoint_dir: latent_pipeline/outputs/stage5_regressor_causal
+  checkpoint_dir: latent_pipeline/outputs/stage5_regressor_continuous
 
 # Recording start times (seconds from video start to biodata recording start)
 recording_start_times:
