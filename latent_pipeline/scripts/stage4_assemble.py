@@ -52,6 +52,8 @@ def main():
     parser.add_argument('--checkpoint', default=None,
                         help='Encoder checkpoint (default: outputs/best.pt)')
     parser.add_argument('--batch-size', type=int, default=16)
+    parser.add_argument('--output', default=None,
+                        help='Output CSV path (default: latent_pipeline/data/biodata_w_dataset.csv)')
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -177,7 +179,7 @@ def main():
         print(f"  {pool_name} emotions: {sorted(unique_emotions)}")
 
     # Save
-    output_path = os.path.join(repo_root, 'latent_pipeline', 'data', 'biodata_w_dataset.csv')
+    output_path = args.output or os.path.join(repo_root, 'latent_pipeline', 'data', 'biodata_w_dataset.csv')
     result_df.to_csv(output_path, index=False)
     print(f"\nSaved: {output_path}")
     print(f"  Metadata columns: 8")

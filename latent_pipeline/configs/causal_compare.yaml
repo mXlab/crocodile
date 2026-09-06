@@ -1,0 +1,138 @@
+# Latent Pipeline Configuration -- CAUSAL EXTRACTOR COMPARISON VARIANT
+#
+# Copy of default.yaml with paths repointed at the OLD causal/real-time-
+# compatible extractor (continuous_feature_extractor.py's continuous_features.csv,
+# 73 features) instead of the NeuroKit2 batch extractor, plus a separate
+# metadata_dir and stage5 checkpoint_dir so this run's manifest/regressor/
+# report/visual-check never overwrite the NeuroKit2 pipeline's outputs.
+# Purpose: compare the two extractors on the same offline user-to-latent task
+# (see PIPELINE.md, stage6_user_to_latent_test.py). Not meant to become the
+# new default -- delete once the comparison is done, or keep as a reference
+# for re-running it later.
+
+paths:
+  repo_root: /home/tats/Documents/workspace/crocodile
+  stylegan_code: /home/tats/Documents/workspace/stylegan_Autolume
+  stylegan_model: models/finalModel_Crocodile.pkl
+  continuous_features: biodata_pipeline/data/processed/continuous_features.csv
+  frames_dir: latent_pipeline/data/frames
+  metadata_dir: latent_pipeline/data/metadata_causal
+  outputs_dir: latent_pipeline/outputs
+  diverse_images: Diverse
+  synthetic_dir: latent_pipeline/data/synthetic
+
+# StyleGAN2 model parameters (confirmed from model inspection)
+stylegan:
+  img_resolution: 2048
+  w_dim: 512
+  # num_ws: verify after loading model — expected ~20
+
+# Video parameters
+video:
+  fps: 24
+  extract_fps: 1  # extract 1 frame per second
+  frame_size: 256  # resize frames to 256x256
+
+# Phase 2B: train on real video frames with reconstruction loss
+train_frames:
+  train_resolution: 128  # resize images to this before feeding encoder (128 or 256)
+  batch_size: 1
+  gradient_accumulation_steps: 16  # effective batch size = 16
+  lr: 5.0e-4
+  lr_min: 1.0e-6
+  epochs: 20
+  gradient_clip_max_norm: 1.0
+  val_fraction: 0.1  # fraction of all real frames randomly held out for validation
+  num_workers: 0    # 0 = load in main process (avoids DataLoader deadlock)
+
+  # Loss weights
+  loss:
+    lpips_weight: 1.0
+    mse_weight: 2.0            # pixel MSE (clamped to [-1,1]) — direct gradient to prevent collapse
+    diversity_weight: 0.1      # W-diversity (log-based) — gentle push against collapse
+    temporal_weight: 0.1
+    emotion_weight: 0.05
+    feeling_it_multiplier: 3.0  # upweight for feeling_it=True frames
+    emotion_contrastive_margin: 2.0
+
+  # Logging
+  log_every_epoch: 1
+  visual_check_every: 1
+  checkpoint_dir: latent_pipeline/outputs
+
+# Phase 2A: train on synthetic (image, W) pairs
+train_synthetic:
+  train_resolution: 128  # resize 2048 images to this for the encoder
+  batch_size: 32
+  lr: 1.0e-3
+  lr_min: 1.0e-6
+  epochs: 20
+  val_split: 0.1         # fraction of synthetic data held out for validation
+  gradient_clip_max_norm: 1.0
+  checkpoint_dir: latent_pipeline/outputs/train_synthetic
+  visual_check_every: 1  # save recon_epoch_*.png every N epochs (requires StyleGAN2)
+
+# Encoder architecture
+encoder:
+  channels: [32, 64, 128, 256, 512]
+  w_dim: 512
+  dropout: 0.3
+
+# Stage 3 validation
+validation:
+  n_frames: 30
+  optim_lr: 0.01
+  optim_steps: 1000
+  lpips_threshold: 0.1  # accept if CNN within this of optimization
+
+# Stage 5: biodata -> W regressor
+biodata_regressor:
+  model_type: mlp        # 'mlp' (default): under blocked CV, a small (256,128) MLP clearly
+                         # beats Ridge (val R^2 0.457 vs 0.272 on the 51-feature batch
+                         # dataset) -- Ridge's alpha sweep was flat across 5 orders of
+                         # magnitude, meaning the ceiling was the linear model's limited
+                         # expressiveness, not under-regularization. Trade-off: MLP fold-to-
+                         # fold variance is higher (std ~0.04-0.09 vs Ridge's ~0.02). 'ridge'
+                         # reverts to the original, more stable baseline.
+  mlp_hidden_layers: [256, 128]
+  mlp_alpha: 3.0         # MLP L2 regularization -- tuned specifically for this feature set;
+                         # re-sweep if the feature set changes, alpha mattered a lot more
+                         # here than it did for Ridge (too little overfits/destabilizes,
+                         # too much underfits)
+  alpha: 10.0            # Ridge regularization strength, matches biodata_pipeline's default
+  cv_mode: blocked        # 'blocked' (default): shuffled k-fold over time blocks pooled
+                         # across all sessions -- measures interpolation, this regressor's
+                         # actual job at deployment (cross-subject alignment handles
+                         # cross-session baseline differences upstream). 'loso': leave-one-
+                         # session-out, measures cross-session extrapolation instead --
+                         # too pessimistic a bar for a small single-subject art dataset,
+                         # kept only for comparison.
+  block_size_s: 10       # [blocked] real emotion segments range 1.8-222.6s (median 56.6s);
+                         # 10s gives the median segment ~5-6 blocks (several per emotion,
+                         # not one) while still being long enough to separate train/val
+                         # neighbors at 1Hz -- see assign_time_blocks() docstring
+  n_folds: 5             # [blocked] number of shuffled folds
+  val_pool: session_4S   # [loso] held-out pool, mirrors Stage 2B's train/val split convention
+  n_visual: 16           # number of distinct emotions to render for qualitative check
+                         # (select_diverse_indices spreads across as many different
+                         # emotion_labels as possible, not arbitrary row order)
+  n_visual_cols: 4       # grid width in emotion-pairs; rows = ceil(n_visual / this)
+  winsorize_pct: 1.0     # clip each feature to [pct, 100-pct] percentile bounds computed
+                         # from TRAINING data only (per-session bounds made things much
+                         # worse -- see stage5_train_regressor.py comment); no outlier/
+                         # glitch rejection exists upstream (confirmed by audit), 0 disables
+  checkpoint_dir: latent_pipeline/outputs/stage5_regressor_causal
+
+# Recording start times (seconds from video start to biodata recording start)
+recording_start_times:
+  1S: 19.332
+  2S: 17.582
+  3S: 17.127
+  4S: 22.201
+
+# Session to continuous_features.csv session_id mapping
+session_feature_ids:
+  1S: emotion_biodata_laurence_main_1
+  2S: emotion_biodata_laurence_main_2
+  3S: emotion_biodata_laurence_main_3
+  4S: emotion_biodata_laurence_main_4

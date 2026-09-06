@@ -332,6 +332,8 @@ def main():
                         help='Clip each feature to [pct, 100-pct] percentile bounds '
                              'computed from training data only (default: from config; '
                              '0 disables)')
+    parser.add_argument('--dataset', default=None,
+                        help='Path to biodata_w_dataset.csv (default: latent_pipeline/data/biodata_w_dataset.csv)')
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -349,7 +351,7 @@ def main():
     print(f"Model: {model_type}" + (f" hidden={mlp_hidden_layers}" if model_type == 'mlp' else '')
           + f" alpha={alpha}")
 
-    dataset_path = os.path.join(repo_root, 'latent_pipeline', 'data', 'biodata_w_dataset.csv')
+    dataset_path = args.dataset or os.path.join(repo_root, 'latent_pipeline', 'data', 'biodata_w_dataset.csv')
     df = pd.read_csv(dataset_path)
     print(f"Loaded {len(df)} rows from {dataset_path}")
 
