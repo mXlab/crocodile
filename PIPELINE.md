@@ -528,8 +528,26 @@ too.
 - **`session_control.py`** — sends one session-control OSC message and
   exits (`--start-session [ID]`, `--start-calibration`,
   `--stop-calibration`, `--start-live`, `--recalibrate`, `--end-session`).
-  Stands in for a real operator control surface until one exists, and is
-  the actual way to drive a session by hand today.
+  A CLI stand-in for a real control surface, and useful for scripted test
+  sequences.
+- **`crocodile-control-panel.json`** + **`run_control_panel.sh`** — an
+  actual GUI control surface, built with
+  [Open Stage Control](https://openstagecontrol.ammd.net/) (already used
+  for this project's other installations, e.g. Xenolalia's own OSC panel).
+  One button per control message (`Start Calibration`, `Stop Calibration`,
+  `Start Live`, `Recalibrate`, `End Session`), a text field for the
+  optional session ID (sends `/crocodile/session/start` on Enter), and a
+  status display bound to `/crocodile/session/status`. `run_control_panel.sh`
+  launches it pre-wired to `live_pipeline.py`'s default ports (sends to
+  9000, listens on 9001) — run both and the panel's buttons drive the
+  session state machine directly. Verified in this session: the session
+  file loads without error and every widget renders with the correct
+  label/position/wiring (confirmed via a headless Chromium screenshot);
+  real click-through wasn't independently confirmed in that same headless
+  pass (a GPU/compositor limitation of the sandboxed test environment, not
+  a property of the file) — the button interaction pattern (`mode:
+  momentary`) is otherwise standard, documented Open Stage Control
+  behavior also used elsewhere in this project's other panels.
 - **`replay_biodata_as_osc.py`** — runs under `biodata_pipeline/venv`.
   Sends a recorded raw biodata CSV out as OSC at real-time (or faster)
   pace, standing in for real sensor hardware. No hardware/OSC protocol for
@@ -632,10 +650,10 @@ pipeline all working, the remaining path is:
    (serial? OSC? something else — not established anywhere in this repo)
    and either adapt it to match `live_pipeline.py`'s input protocol or
    build a small bridge between the two
-4. Build a real operator control surface (a physical panel, a TouchOSC/
-   Processing app) that sends the session-control OSC messages
-   `session_control.py` currently stands in for, and displays
-   `/crocodile/session/status` broadcasts
+4. Confirm the Open Stage Control panel (`crocodile-control-panel.json`)
+   click-through in a real (non-headless) session against a running
+   `live_pipeline.py`, and refine its layout/status-display formatting
+   once actually seen running
 5. Get Autolume actually running against `live_pipeline.py`'s output
    end-to-end (tested so far only against `w_osc_debug_viewer.py` and
    `--log-only`) and confirm the "project unchecked" configuration note
