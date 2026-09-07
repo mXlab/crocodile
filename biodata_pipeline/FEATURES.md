@@ -1,19 +1,33 @@
 # Feature Glossary
 
-Documents every feature produced by `modules/continuous_feature_extractor.py`'s
-`EnhancedContinuousFeatureExtractor` (Module 3 in the docs below) — the
-extractor used by `scripts/extract_continuous_features.py` and everything
-downstream of it (see [README.md](README.md) workflow 1). Written directly
-from the current source, not from memory or an earlier spec — see the
-"History" note at the bottom for why that distinction matters here. Also
-includes a real ANOVA discriminability ranking of all 73 features (below).
+Two extractor families exist in this pipeline, producing two *different*
+feature schemas (not two implementations of the same one) — see
+[PIPELINE.md](../PIPELINE.md) for the full architecture discussion:
 
-**Total: 73 features** — 17 EDA, 18 cardiac, 33 respiratory, 5 multimodal.
-Sampling rate 100 Hz; one row emitted per `feature_interval_s` (default 1s),
-computed from a rolling 30s context window. Filters and rolling histories
-persist for the entire session (never reset mid-session) — early-session
-values are statistically thinner (fewer history samples feeding the rolling
-stats) than later ones.
+1. **Continuous schema (73 features)** — `modules/continuous_feature_extractor.py`'s
+   `EnhancedContinuousFeatureExtractor` (Module 3 in the docs below), used by
+   `scripts/extract_continuous_features.py`. The original extractor, online/
+   real-time-safe by construction. Documented in full below, including a
+   real ANOVA discriminability ranking of all 73 features.
+2. **NeuroKit2 schema (53 features)** — `modules/batch_feature_extractor.py`
+   (offline, NeuroKit2-based; the current pipeline default) and
+   `modules/online_feature_extractor.py` (online/causal, computes the exact
+   same 53 feature definitions from real-time-safe signal derivation — see
+   its module docstring). Documented in its own section below, including its
+   own ANOVA ranking and a feature-by-feature mapping back to the continuous
+   schema (which features are shared, dropped, or new between the two).
+
+Written directly from the current source, not from memory or an earlier
+spec — see the "History" note at the bottom for why that distinction
+matters here.
+
+## Continuous schema — 73 features (`modules/continuous_feature_extractor.py`)
+
+17 EDA, 18 cardiac, 33 respiratory, 5 multimodal. Sampling rate 100 Hz; one
+row emitted per `feature_interval_s` (default 1s), computed from a rolling
+30s context window. Filters and rolling histories persist for the entire
+session (never reset mid-session) — early-session values are statistically
+thinner (fewer history samples feeding the rolling stats) than later ones.
 
 ## Shared conventions
 
@@ -319,6 +333,197 @@ front; fixed, see `scripts/train_transformer.py`.
   it — worth independent scrutiny before leaning on it for anything
   valence-related (e.g. the valence-arousal reframing discussed in
   [README.md](README.md)).
+
+## NeuroKit2 schema — 53 features (`modules/batch_feature_extractor.py` / `modules/online_feature_extractor.py`)
+
+17 EDA, 17 cardiac, 19 respiratory, no multimodal composites. Sampling rate
+100 Hz, one row per second. Two computation methods produce this *exact*
+same 53-feature schema (same names, same window sizes, same formulas) —
+`BatchFeatureExtractor` derives the underlying signals (tonic/phasic, HR/
+quality, breath amplitude/RVT/symmetry/phase) offline via NeuroKit2 (sees
+the whole session at once); `OnlineFeatureExtractor` subclasses it and
+overrides only that derivation step with real-time-safe causal algorithms.
+See `online_feature_extractor.py`'s module docstring for exactly which
+approximations that involves, and
+[PIPELINE.md](../PIPELINE.md#can-an-online-extractor-match-neurokit2s-51-feature-schema)
+for a feature-by-feature agreement measurement between the two (mean
+correlation 0.52 — strong on smooth aggregate features, weak on anything
+built from exact event timing).
+
+Most `_10s`/`_60s`/`_5s`/`_full` window suffixes and `*_trend_*`/`*_cv_*`
+patterns follow the same conventions as the continuous schema above (see
+"Shared conventions"). Values are in raw sensor units, not physical units
+(µS, ms, etc.) — normalization is deliberately deferred to modeling
+(Stage 5), not baked into extraction (see `batch_feature_extractor.py`'s
+module docstring).
+
+**EDA** — tonic (`EDA_Tonic`) / phasic (`EDA_Phasic`) decomposition, plus a
+per-SCR-onset event history (amplitude, rise time, recovery time):
+
+| Feature | Computation | Intent |
+|---|---|---|
+| `eda.tonic_level` | Mean tonic component, last 10s | Slow arousal baseline |
+| `eda.tonic_std_10s` / `tonic_range_10s` | Std / peak-to-peak of tonic, last 10s | |
+| `eda.tonic_trend_10s` / `tonic_trend_full` | Slope of tonic, last 10s / full session (≥30s) | |
+| `eda.phasic_mean_10s` / `phasic_std_10s` | Mean / std of phasic component, last 10s | Overall phasic activity level |
+| `eda.instability_10s` | Variance of phasic's first derivative, last 10s | Moment-to-moment jaggedness |
+| `eda.scr_rate_60s` / `scr_event_count_10s` | Count of SCR onsets, last 60s / 10s | |
+| `eda.scr_recent_max_amplitude_5s` | Max onset amplitude among onsets in last 5s | |
+| `eda.scr_event_clustering_60s` | `1 - min(CV of inter-onset intervals, 1)`, needs ≥3 onsets in 60s | Near 1 = clustered bursts |
+| `eda.seconds_since_onset` | Time since the most recent SCR onset (session start if none yet) | **See caveat below** |
+| `eda.last_onset_amplitude` / `last_onset_risetime` / `last_onset_recoverytime` | Amplitude / rise time / peak-to-50%-decay time of the most recent onset | Recovery time is a genuinely new measure vs. the continuous schema — NeuroKit2 provides it directly. **See caveat below** |
+| `eda.mean_onset_amplitude_full` | Running mean of all onset amplitudes seen so far this session | **See caveat below** |
+
+**Cardiac** — PPG rate/quality/pulse-amplitude, HRV from inter-beat intervals:
+
+| Feature | Computation | Intent |
+|---|---|---|
+| `cardiac.hr_mean_10s` / `hr_median_10s` / `hr_std_10s` | Instantaneous PPG-derived HR stats, last 10s | |
+| `cardiac.hr_trend_10s` / `hr_trend_full` | Slope of HR, last 10s / full session | |
+| `cardiac.hr_delta_10s` | Latest HR − HR ~10s ago | |
+| `cardiac.hr_recent_max_10s` / `hr_recent_spike_10s` | Max HR in last 10s / that max − session median so far | |
+| `cardiac.hr_max_acceleration_full` | Largest \|sample-to-sample HR change\| across the full session so far (≥30s) | |
+| `cardiac.quality_mean_10s` | Mean PPG signal-quality index, last 10s | NeuroKit2 template-matching SQI (batch) or an IBI-regularity proxy (online — the weakest approximation of the two extractors, see PIPELINE.md) |
+| `cardiac.hrv_sdnn_60s` / `hrv_rmssd_60s` / `hrv_pnn50_60s` / `hrv_cv_60s` | Standard HRV metrics on inter-beat intervals, last 60s (≥3 beats) | Vagal tone / parasympathetic markers |
+| `cardiac.bpm_cv_60s` | CV(%) of instantaneous HR, last 60s | |
+| `cardiac.ppg_amplitude_mean_10s` / `ppg_amplitude_cv_10s` | Mean / CV(%) of peak-to-preceding-trough pulse amplitude, last 10s | Peripheral pulse strength, distinct from rate |
+
+**Respiratory** — breath rate/amplitude/RVT/symmetry/phase from trough-
+peak-trough cycles (troughs de-duplicated at ≥1.5s apart — see
+`_respiratory_aggregate`'s docstring for why):
+
+| Feature | Computation | Intent |
+|---|---|---|
+| `respiratory.rate_mean_10s` / `rate_median_10s` | Mean / median instantaneous breath rate, last 10s | Median added 2026-09 — see schema-unification note below |
+| `respiratory.rate_std_10s` | Std of breath rate, last 10s | |
+| `respiratory.rate_trend_10s` / `rate_trend_full` | Slope of breath rate, last 10s / full session | |
+| `respiratory.amplitude_mean_10s` / `amplitude_median_10s` / `amplitude_std_10s` / `amplitude_range_10s` | Breath-depth stats, last 10s | |
+| `respiratory.amplitude_cv_10s` | CV(%) of breath depth, last 10s | Added 2026-09 — see schema-unification note below |
+| `respiratory.amplitude_spike_5s` | Max of last 3 breath depths − session mean depth so far (≥3 breaths) | Overshoot magnitude (deep breath / gasp / sigh candidate) |
+| `respiratory.rvt_mean_10s` | Mean respiratory volume-per-time, last 10s | NeuroKit2 native measure, no continuous-schema equivalent |
+| `respiratory.symmetry_risedecay_mean_10s` | Mean inhale-duration ÷ cycle-duration ratio, last 10s | NeuroKit2 native measure, no continuous-schema equivalent |
+| `respiratory.exhale_ratio_10s` | Fraction of last 10s spent in exhale phase | |
+| `respiratory.sigh_count_5s` / `sigh_frequency_5s` | Count (/ ÷5s) of breaths deeper than mean+2·std of depths so far, in last 5s (≥5 breaths) | |
+| `respiratory.pause_detected_5s` | 1.0 if any recent (5s) inter-breath interval exceeded mean+2·std of intervals so far | |
+| `respiratory.gasp_detected_5s` | 1.0 if any recent interval was abnormally short (<mean−1.5·std, >1s) | |
+| `respiratory.cv_60s` | CV(%) of inter-breath intervals, last 60s | Consolidates the continuous schema's `resp_variability_cv`/`resp_variability_cv_10s` duplicate-formula bug into one clean feature |
+
+### ANOVA ranking (53 features, same Laurence `anx`/`neu`/`sad` methodology as above)
+
+| Rank | F-score | p-value | Feature |
+|---|---|---|---|
+| 1 | 442767.87 | 0.00e+00 | `eda.last_onset_recoverytime` — **artifact, see caveat below, do not trust this rank** |
+| 2 | 5953.66 | 0.00e+00 | `eda.last_onset_risetime` — **artifact, see caveat below** |
+| 3 | 4528.86 | 0.00e+00 | `eda.mean_onset_amplitude_full` — **artifact, see caveat below** |
+| 4 | 1371.26 | 9.14e-256 | `eda.tonic_trend_full` |
+| 5 | 671.98 | 3.09e-170 | `eda.tonic_level` |
+| 6 | 581.80 | 3.14e-155 | `cardiac.hr_max_acceleration_full` |
+| 7 | 360.46 | 1.63e-111 | `cardiac.hrv_cv_60s` |
+| 8 | 355.92 | 1.73e-110 | `cardiac.bpm_cv_60s` |
+| 9 | 275.92 | 2.71e-91 | `eda.seconds_since_onset` — same caveat, milder |
+| 10 | 246.43 | 1.25e-83 | `cardiac.hrv_pnn50_60s` |
+| 11 | 227.56 | 1.55e-78 | `cardiac.hr_trend_full` |
+| 12 | 223.59 | 1.91e-77 | `eda.last_onset_amplitude` — same caveat, milder |
+| 13 | 222.59 | 3.60e-77 | `cardiac.hrv_sdnn_60s` |
+| 14 | 193.39 | 6.66e-69 | `cardiac.hrv_rmssd_60s` |
+| 15 | 180.31 | 4.57e-65 | `respiratory.symmetry_risedecay_mean_10s` |
+| 16 | 177.00 | 4.40e-64 | `cardiac.ppg_amplitude_mean_10s` |
+| 17 | 117.34 | 2.89e-45 | `respiratory.exhale_ratio_10s` |
+| 18 | 77.70 | 1.72e-31 | `cardiac.hr_std_10s` |
+| 19 | 74.43 | 2.64e-30 | `respiratory.rate_trend_full` |
+| 20 | 70.55 | 6.94e-29 | `eda.tonic_range_10s` |
+| 21 | 70.13 | 9.96e-29 | `respiratory.amplitude_range_10s` |
+| 22 | 69.66 | 1.47e-28 | `cardiac.hr_mean_10s` |
+| 23 | 64.39 | 1.32e-26 | `cardiac.hr_median_10s` |
+| 24 | 64.22 | 1.54e-26 | `eda.tonic_std_10s` |
+| 25 | 63.71 | 2.37e-26 | `respiratory.rvt_mean_10s` |
+| 26 | 62.34 | 7.77e-26 | `respiratory.amplitude_std_10s` |
+| 27 | 60.45 | 3.94e-25 | `cardiac.quality_mean_10s` |
+| 28 | 50.52 | 2.36e-21 | `respiratory.rate_median_10s` |
+| 29 | 47.70 | 2.88e-20 | `cardiac.hr_recent_max_10s` |
+| 30 | 47.08 | 4.98e-20 | `respiratory.rate_mean_10s` |
+| 31 | 46.39 | 9.27e-20 | `cardiac.hr_recent_spike_10s` |
+| 32 | 35.98 | 1.14e-15 | `respiratory.amplitude_spike_5s` |
+| 33 | 23.78 | 9.46e-11 | `respiratory.amplitude_cv_10s` |
+| 34 | 21.27 | 1.02e-09 | `respiratory.amplitude_mean_10s` |
+| 35 | 20.71 | 1.72e-09 | `respiratory.sigh_count_5s` |
+| 36 | 20.71 | 1.72e-09 | `respiratory.sigh_frequency_5s` |
+| 37 | 20.37 | 2.38e-09 | `eda.phasic_std_10s` |
+| 38 | 20.01 | 3.35e-09 | `respiratory.amplitude_median_10s` |
+| 39 | 19.59 | 5.02e-09 | `cardiac.ppg_amplitude_cv_10s` |
+| 40 | 7.15 | 8.35e-04 | `respiratory.cv_60s` |
+| 41 | 6.99 | 9.80e-04 | `eda.instability_10s` |
+| 42 | 5.82 | 3.09e-03 | `respiratory.rate_std_10s` |
+| 43 | 3.36 | 3.51e-02 | `eda.phasic_mean_10s` |
+| 44 | 2.61 | 7.43e-02 | `eda.tonic_trend_10s` |
+| 45 | 1.64 | 1.94e-01 | `eda.scr_event_count_10s` |
+| 46 | 1.64 | 1.94e-01 | `eda.scr_recent_max_amplitude_5s` |
+| 47 | 1.64 | 1.94e-01 | `eda.scr_rate_60s` |
+| 48 | 0.66 | 5.20e-01 | `respiratory.pause_detected_5s` |
+| 49 | 0.36 | 6.98e-01 | `cardiac.hr_trend_10s` |
+| 50 | 0.24 | 7.86e-01 | `cardiac.hr_delta_10s` |
+| 51 | 0.12 | 8.83e-01 | `respiratory.rate_trend_10s` |
+| 52 | constant | n/a | `respiratory.gasp_detected_5s` |
+| 53 | constant | n/a | `eda.scr_event_clustering_60s` |
+
+**Caveat found while building this ranking — the top-3 scores are an
+artifact, not a real result.** `eda.last_onset_recoverytime`'s F-score
+(442767.87 — a ~74x jump over rank 2, itself suspiciously large) comes from
+near-zero *within-class* variance: it's a per-onset attribute that holds
+its value constant until the next SCR onset fires, so during a long quiet
+stretch that happens to fall entirely within one emotion segment, every row
+in that segment gets the exact identical value (confirmed directly: `anx`
+rows are *all* 667.42, std=0.0; `neu` rows are *all* 0.0, std=0.0). ANOVA
+reads this as perfect separation, but it's actually separating *which
+temporal segment of the session* the rows came from, not the emotion itself
+— the same non-independent-samples trap the blocked-vs-LOSO methodology
+work elsewhere in this pipeline (`PIPELINE.md`, `EXPERIMENTS.md`) exists to
+guard against. `last_onset_risetime` and `mean_onset_amplitude_full` (ranks
+2-3) show the identical pattern (confirmed: near-zero within-class std for
+`anx`/`neu`). `last_onset_amplitude` (rank 12) and `seconds_since_onset`
+(rank 9) are milder versions of the same issue — treat all five "last-onset-
+history" features' ranks here as unreliable, not as evidence they
+discriminate emotion. This doesn't affect the schema-unification decision
+below (neither of the two ported features is in this family), but it does
+mean a future feature-selection pass on this schema should exclude or
+specially handle the per-onset-history family rather than trust this
+ranking for them.
+
+### Cross-reference: continuous (73) vs. NeuroKit2 (51→53) schemas
+
+Comparing column names directly, only 4 features match exactly
+(`cardiac.hr_delta_10s`, `cardiac.hr_trend_10s`, `cardiac.hr_trend_full`,
+`eda.scr_event_count_10s`) — but many more are the same underlying quantity
+renamed when this schema was designed. Cross-referencing both feature lists
+against the continuous schema's ANOVA ranking above:
+
+- **41 of 73 continuous features have a NeuroKit2-schema counterpart**
+  (renamed, sometimes with an explicit window size added — e.g.
+  `eda.scl_mean`→`eda.tonic_level`, `cardiac.hrv_rmssd`→`cardiac.hrv_rmssd_60s`).
+- **32 were dropped**: mostly respiratory `*_normalized_*`/`*_scaled_*`/
+  `*_level_indicator` variants and all 5 `multimodal.*` composites (already
+  flagged above as unvalidated / one literally constant).
+- **10 are new to the NeuroKit2 schema**: mostly the EDA onset-history
+  family (`last_onset_*`, `seconds_since_onset`, `mean_onset_amplitude_full`
+  — see the ANOVA caveat above before trusting these) plus
+  `respiratory.rvt_mean_10s` and `respiratory.symmetry_risedecay_mean_10s`.
+
+**Schema-unification decision (2026-09):** of the 32 dropped continuous
+features, `resp_rate_median` (old rank 11/73) and
+`resp_amplitude_coefficient_of_variation` (old rank 10/73) scored highly
+enough and were distinct enough from what's already kept to test. Ported as
+`respiratory.rate_median_10s` and `respiratory.amplitude_cv_10s` (both
+tables above). Re-ranked in the new 53-feature ANOVA above at 28/53 and
+33/53 respectively — still solidly significant, confirming the old ranking
+held up in the new representation. But retraining Stage 5 end-to-end showed
+**no measurable R² improvement** (0.448 vs. 0.457, within fold noise) —
+kept anyway since they're legitimate and cheap, not because they proved
+useful for the regression task. Full discussion:
+[PIPELINE.md](../PIPELINE.md#feature-schema-unification-porting-value-from-the-73-feature-set).
+Other high scorers were considered and rejected: `eda.scl_median` likely
+just remeasures the already-kept `tonic_level`; `resp_scaled`/
+`resp_normalized` would reintroduce pre-normalized features this schema
+deliberately avoids (Stage 5 already rescales everything downstream).
 
 ## History
 

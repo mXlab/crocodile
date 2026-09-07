@@ -16,6 +16,16 @@ paths:
   # biodata_mapping_manifest.csv's continuous_feature_idx against whichever
   # file is active, since the two extractors don't have identical row counts
   # per session -- see stage1_extract.py's build_biodata_manifest).
+  #
+  # 51 -> 53 features: added respiratory.rate_median_10s and
+  # respiratory.amplitude_cv_10s, ported from the continuous extractor's
+  # 73-feature schema after its own ANOVA ranking flagged them as strong
+  # discriminators (see FEATURES.md's schema-unification section). Both
+  # ARE real, ANOVA-significant discriminators in this schema too (ranks
+  # 28/53 and 33/53) but made no measurable difference to Stage 5 R^2
+  # (0.448 vs 0.457 -- within fold-to-fold noise, std ~0.05) -- kept anyway
+  # since they're legitimate, cheap, and harmless, not because they proved
+  # useful for this specific task.
   continuous_features: biodata_pipeline/data/processed/continuous_features_batch.csv
   frames_dir: latent_pipeline/data/frames
   metadata_dir: latent_pipeline/data/metadata

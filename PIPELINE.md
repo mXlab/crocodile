@@ -130,9 +130,10 @@ time has passed.
   `training_log.json` from both before picking one to continue from. Stage 3
   (validate) and Stage 4 (assemble) are coded but blocked on Stage 2B finishing.
 - **Stage 5 (biodata→W regressor)**: done. `stage5_train_regressor.py` trains a
-  small MLP (256,128) on the NeuroKit2 batch feature set under blocked-shuffle
-  k-fold CV (mean val R²=0.457), saving `regressor.joblib` + a visual
-  original/generated comparison grid.
+  small MLP (256,128) on the NeuroKit2 batch feature set (53 features as of
+  the schema-unification work below, was 51; mean val R²=0.448, was 0.457 —
+  within fold-to-fold noise, not a regression) under blocked-shuffle k-fold
+  CV, saving `regressor.joblib` + a visual original/generated comparison grid.
 - **Offline user-to-latent pipeline**: done and tested end-to-end on a subject
   other than the actress (Erin) — `apply_transformer.py` (alignment) +
   `stage6_user_to_latent_test.py` (regressor + StyleGAN2 render). This proves
@@ -239,6 +240,71 @@ pre-recorded calibration step); this result specifically tells us which
 schema were ever computed live -- a live regressor would be safer leaning
 on the smooth/trend features shown here to survive causal computation well,
 not on the event-count/rate ones that don't.
+
+(The numbers above predate the schema-unification work just below, which
+grew the schema to 53 features; re-running the comparison afterward gave
+mean correlation 0.50 — same overall pattern, unchanged conclusion. The
+newly-added `respiratory.amplitude_cv_10s` lands solidly in the weak group,
+corr=0.02, expected since it's a ratio of two quantities the online
+detector already struggles with individually; `rate_median_10s` is
+comparable to the already-weak `rate_mean_10s`, corr=0.29.)
+
+### Feature schema unification: porting value from the 73-feature set
+
+The continuous extractor's 73 features and the NeuroKit2 schema's 51 (now
+53, see below) aren't the same feature set under different names — comparing
+column names directly, only 4 match exactly. But many more are the *same
+underlying quantity*, renamed when the NeuroKit2 schema was designed (e.g.
+`eda.scl_mean`→`eda.tonic_level`, `cardiac.hrv_rmssd`→`cardiac.hrv_rmssd_60s`).
+Cross-referencing both feature lists against `FEATURES.md`'s existing ANOVA
+ranking (computed on the continuous extractor's 73 features, Laurence's
+`anx`/`neu`/`sad` data):
+
+- **41 of the 73 continuous features have a NeuroKit2-schema counterpart**
+  (mostly renamed, sometimes with an explicit window size added).
+- **32 were dropped** in the NeuroKit2 redesign — mostly respiratory
+  `*_normalized_*`/`*_scaled_*`/`*_level_indicator` variants and the 5
+  heuristic `multimodal.*` composites (already flagged in `FEATURES.md` as
+  unvalidated, one of them literally constant on real data).
+- **10 are genuinely new** to the NeuroKit2 schema (mostly the EDA SCR
+  onset-history family — `last_onset_amplitude/risetime/recoverytime`,
+  `seconds_since_onset` — which NeuroKit2 provides directly and the
+  continuous extractor never computed at all).
+
+Of the 32 dropped, two ranked high enough in the old ANOVA (`resp_rate_median`
+rank 11/73, F=107; `resp_amplitude_coefficient_of_variation` rank 10/73,
+F=151) and were distinct enough from what's already kept (not just a
+mean/std pair the model could already derive) to be worth testing. Ported
+as `respiratory.rate_median_10s` and `respiratory.amplitude_cv_10s` into
+`batch_feature_extractor.py`'s respiratory aggregate step — which
+`OnlineFeatureExtractor` inherits automatically, so both extractors gained
+the two features for free. (Other high scorers were rejected: `eda.scl_median`
+is likely just measuring the same slow tonic signal as the already-kept
+`tonic_level`; `resp_scaled`/`resp_normalized` would reintroduce
+pre-normalized features the schema deliberately avoids, since Stage 5
+already rescales everything downstream.)
+
+**Validation, in two steps** (a feature's old rank doesn't guarantee it
+still discriminates once recomputed against the NeuroKit2 tonic/phasic/HR/
+breath-cycle signals, which are numerically different from the continuous
+extractor's own filters):
+1. Re-ran ANOVA on the extended 53-feature set (same Laurence
+   `anx`/`neu`/`sad` methodology): both features remained solidly
+   significant (`rate_median_10s` rank 28/53, F=50.5, p=2.4e-21;
+   `amplitude_cv_10s` rank 33/53, F=23.8, p=9.5e-11) — the old ranking's
+   hypothesis held up in the new representation.
+2. Retrained Stage 5 (MLP, same config) on the 53-feature dataset: mean val
+   R²=0.448 vs. 0.457 at 51 features — **no measurable improvement**, well
+   within the ~0.05 fold-to-fold std. Despite being real, significant
+   univariate discriminators, they added no marginal value to a model that
+   already had 51 correlated features to work with -- the ANOVA-vs-actual-
+   task gap this project has run into before (see the alignment-method
+   comparisons in `EXPERIMENTS.md`).
+
+**Decision: kept both anyway** — legitimate, cheap, harmless (difference is
+noise, not regression), and documents the honest null result rather than
+hiding it. Not evidence to keep porting further down the ANOVA list without
+similarly validating on the actual task each time.
 
 ## Picking this back up
 
