@@ -321,21 +321,26 @@ not just on paper? Ran the same offline user-to-latent pipeline a third way:
 | Extractor | Features | Real-time-safe? | Stage 5 val R² (mean ± std) |
 |---|---|---|---|
 | NeuroKit2 batch | 53 | No (offline) | **0.448** ± 0.02 |
-| NeuroKit2 online | 53 | Yes | 0.431 ± 0.02 |
+| NeuroKit2 online | 53 | Yes | 0.417 ± 0.04 |
 | Continuous | 73 | Yes | 0.313 ± n/a |
 
-**The online extractor nearly matches full offline NeuroKit2 quality (0.431
-vs. 0.448, well inside the fold-to-fold std) while being real-time-safe, and
-clearly beats the continuous extractor by a wide margin (0.431 vs. 0.313).**
-This is a meaningfully different conclusion than looking only at the
-feature-by-feature correlation comparison above would suggest (mean
-correlation ~0.5, split sharply by feature type) -- on the metric that
-actually matters, the aggregate effect of the weak features is small enough
-that the online extractor is a legitimate candidate to become the extractor
-the eventual live installation actually uses, without the offline/online
-train-serve mismatch that would come from training Stage 5 on NeuroKit2
-batch features and hoping the causal approximation is close enough at
-inference time.
+(NeuroKit2 online's number was 0.431 when first measured here; revised
+down slightly to 0.417 after the live-readiness work below fixed a small
+look-ahead leak in how `process_session()` computed its output — see that
+section for why the revision is expected and small, not a sign something
+broke.)
+
+**The online extractor stays reasonably close to full offline NeuroKit2
+quality (0.417 vs. 0.448) while being real-time-safe, and clearly beats the
+continuous extractor by a wide margin (0.417 vs. 0.313).** This is a
+meaningfully different conclusion than looking only at the feature-by-
+feature correlation comparison above would suggest (mean correlation ~0.5,
+split sharply by feature type) -- on the metric that actually matters, the
+aggregate effect of the weak features is small enough that the online
+extractor is a legitimate candidate to become the extractor the eventual
+live installation actually uses, without the offline/online train-serve
+mismatch that would come from training Stage 5 on NeuroKit2 batch features
+and hoping the causal approximation is close enough at inference time.
 
 **A real bug was caught and fixed getting here, not just tuning**: the first
 online run only kept 2264/4296 rows (47% dropped to NaN) and crashed
@@ -364,6 +369,83 @@ causal computation equally well. If a future model change leans harder on
 those specific weak features (e.g. explicit feature selection favoring
 them), the online/batch gap could reopen.
 
+### Live-readiness: making OnlineFeatureExtractor actually callable on live data
+
+The three-way comparison above was measured by calling
+`process_session(whole_recorded_session_df)` once per session — the whole
+recording handed over in a single Python call. Asked directly ("if we send
+live raw data to this, will it work?") and checked empirically rather than
+assumed, the honest answer at the time was **no**, for two separate reasons,
+both now fixed:
+
+1. **No incremental API / unbounded per-call cost.** `process_session()`
+   required the whole array up front, with no way to feed new samples as
+   they arrive. The two components that did real forward-scanning work --
+   the EDA SCR state machine and the peak/trough detector -- held no state
+   between calls, so any attempt to call them repeatedly on a growing
+   buffer would reprocess everything from scratch each time.
+2. **A real "backdating" bug**, found by feeding the same extractor a 500s
+   prefix and the full ~1030s session and diffing the overlapping rows --
+   a genuinely causal system must produce identical output there, and it
+   didn't (up to ~2.5 bpm on `cardiac.hr_delta_10s`). A peak/onset can only
+   be confirmed ~0.2s after it physically occurs (correct, unavoidable
+   latency), but once confirmed, its effect was attributed back to the
+   peak's own timestamp -- letting a row's features benefit from data that
+   arrived *after* that row's own moment, which a live query at that exact
+   moment would not have had.
+
+**Fix**: `online_feature_extractor.py` was rewritten around two new
+persistent-state primitives -- `_CausalFilterState` (carries `sosfilt`'s
+`zi` across calls) and `_PeakDetectorState`/`_ScrDetectorState` (carry
+`last_idx`/state-machine variables across calls, so each new second's worth
+of samples is processed exactly once, not re-scanned from session start
+every time) -- plus a one-row extraction of `BatchFeatureExtractor`'s three
+aggregate functions (`_eda_aggregate_one_row` etc., verified bit-identical
+to the multi-row versions on real data before anything else changed) so a
+new row's features can be computed without redoing every prior row. On top
+of these, `OnlineFeatureExtractor` now exposes:
+
+- **`calibrate(calibration_df)`**: primes filter state and the SCR
+  amplitude threshold from a separate calibration recording, per the
+  exhibition's per-visitor calibration period (see memory) -- instead of
+  process_session()'s fallback of using the live session's own first 30s.
+- **`push(chunk_df) -> list[dict]`**: feed new raw samples (any chunk
+  size, no alignment requirement), get back zero or more newly-finalized
+  feature rows. Each row is finalized using state that has seen precisely
+  up to that row's own sample boundary and is never revisited afterward --
+  this discipline is what fixes the backdating bug, not a special-cased
+  timestamp correction.
+- **`process_session()` is now implemented on top of `push()`**, not a
+  separate code path -- offline replay and live use can never drift apart,
+  and the fix applies to both. This was a deliberate design decision
+  (confirmed before implementation): the alternative, keeping
+  `process_session()` untouched and adding `push()`/`calibrate()`
+  alongside it, would have been lower-risk but left two parallel
+  implementations to keep in sync and left the backdating bug in the
+  numbers used for training data.
+
+**Verified, not assumed** (`scripts/test_online_causality.py`, all passing):
+prefix-vs-full now gives exactly zero difference on overlapping rows (was
+~2.5); feeding `push()` 37-sample chunks (deliberately not aligned to the
+100-sample feature step) gives byte-identical output to `process_session()`
+on the same data; the fixed detector components' per-row cost stays roughly
+flat across a session (0.17ms → 0.37ms first-10-rows vs. last-10-rows on a
+~1030s session, 2.1x growth) rather than growing with session length.
+End-to-end `push()` cost does still grow somewhat with session length
+(measured up to ~46ms/row by the end of a ~1788s session) because several
+features are inherently full-history quantities (`*_trend_full`,
+`hr_max_acceleration_full`, the zero-order-hold reconstruction of hr/
+quality/amplitude arrays) that this work deliberately did not optimize
+further -- acceptable given this project's realistic session lengths are
+minutes, not hours, and 46ms is still far under the 1Hz feature-interval
+budget (see "out of scope" below).
+
+**Explicitly out of scope for this work** (so it doesn't sprawl further):
+wiring `push()` to actual live sensor/OSC/serial input (this only makes the
+extractor *class* itself callable incrementally -- a real acquisition loop
+is separate future work); bounded-memory ring buffers (growing arrays are
+fine at exhibition session lengths); adaptive re-calibration mid-session.
+
 ## Picking this back up
 
 With Stages 1–6 and the offline user-to-latent pipeline all working, the
@@ -379,11 +461,17 @@ critical path forward is:
    pipeline" become a real question: wire a real-time-safe feature
    extractor + `apply_transformer.py`'s per-sample equivalent + the
    regressor + StyleGAN2 into something that runs continuously on live
-   user data. `OnlineFeatureExtractor` is the current best candidate for
-   that extractor (see the three-way comparison above) — if adopted,
-   Stage 5's regressor should be retrained on its output specifically
-   (`biodata_w_dataset_online.csv`/`online_compare.yaml` are the working
-   scaffolding for this), not on the NeuroKit2 batch features, to avoid an
-   offline/online train-serve mismatch
+   user data. `OnlineFeatureExtractor` is both the best-performing
+   candidate (see the three-way comparison above) and, as of the live-
+   readiness work above, genuinely callable incrementally via
+   `calibrate()`/`push()` — the extractor class itself is no longer the
+   blocker. If adopted, Stage 5's regressor should be retrained on its
+   output specifically (`biodata_w_dataset_online.csv`/`online_compare.yaml`
+   are the working scaffolding for this), not on the NeuroKit2 batch
+   features, to avoid an offline/online train-serve mismatch. What's still
+   missing is everything *around* the extractor: an actual live sensor
+   acquisition loop calling `push()`, `apply_transformer.py`'s per-sample
+   equivalent, and wiring the regressor + StyleGAN2 to run continuously off
+   `push()`'s output
 
 `training_gan/` is legacy and sits outside this critical path entirely.
