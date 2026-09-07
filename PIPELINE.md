@@ -472,19 +472,54 @@ too.
 
 - **`live_pipeline.py`** — the core program. Runs under
   `biodata_pipeline/venv` (needs `OnlineFeatureExtractor` + the alignment
-  transformer; no torch). OSC server for biodata in
-  (`[heart, gsr, respiration]`, one message per raw sample), OSC client for
-  W out. Loads a pre-trained alignment transformer + Stage 5 regressor,
-  runs `OnlineFeatureExtractor.calibrate()`/`push()`, and sends each
-  finalized row's 512-float W vector to **Autolume** — a separate live
-  StyleGAN performance app (`/home/tats/Documents/workspace/autolume`, not
-  part of this repo; distinct from `stylegan_Autolume`, the bare synthesis
-  library `latent_pipeline` imports directly). Autolume owns rendering and
-  display entirely — this script never touches StyleGAN2. Autolume's
-  latent-vector OSC handler expects exactly 512 floats and treats them as
-  W directly only if its "project" checkbox is left unchecked (it defaults
-  to Z-space with an optional Z→W mapping step, which our output must
-  bypass).
+  transformer; no torch). A **persistent OSC server**, not a one-shot
+  script — loads the alignment transformer + Stage 5 regressor once, then
+  handles any number of visitors in sequence through an explicit session
+  state machine (`SessionState`, one instance for the process's lifetime):
+  ```
+  IDLE --session/start--> READY --calibration/start--> CALIBRATING
+                            |                                |
+                            |                       calibration/stop
+                            |                                v
+                            |                           CALIBRATED
+                            |                                |
+                            +-----------live/start------------+
+                                         |
+                                         v
+                                       LIVE --calibration/recalibrate--> (stays LIVE)
+                                         |
+                              (any state) session/end
+                                         v
+                                       IDLE
+  ```
+  `session/start` creates a fresh `OnlineFeatureExtractor` per visitor (no
+  state leaks between sessions); once `calibration/start` fires, every
+  incoming biodata sample is pushed through `extractor.push()`
+  continuously for the rest of the session (through CALIBRATING,
+  CALIBRATED, and LIVE) — only what happens to the *returned* finalized
+  rows differs (discarded until LIVE, then aligned + regressed + sent as
+  W). Biodata arriving in IDLE/READY is ignored. An invalid transition
+  (e.g. `live/start` while IDLE) is logged and ignored, never crashes the
+  server — see the module docstring for the full OSC control-address
+  table and the reasoning for keeping everything (biodata + control) on
+  one synchronous `BlockingOSCUDPServer` (serializes control and data
+  handling for free, no locks needed). Sends each finalized row's
+  512-float W vector to **Autolume** — a separate live StyleGAN
+  performance app (`/home/tats/Documents/workspace/autolume`, not part of
+  this repo; distinct from `stylegan_Autolume`, the bare synthesis library
+  `latent_pipeline` imports directly). Autolume owns rendering and display
+  entirely — this script never touches StyleGAN2. Autolume's latent-vector
+  OSC handler expects exactly 512 floats and treats them as W directly
+  only if its "project" checkbox is left unchecked (it defaults to
+  Z-space with an optional Z→W mapping step, which our output must
+  bypass). Also broadcasts `[state, session_id]` to a separate
+  `/crocodile/session/status` address after every transition, for an
+  operator control surface to confirm actual server state.
+- **`session_control.py`** — sends one session-control OSC message and
+  exits (`--start-session [ID]`, `--start-calibration`,
+  `--stop-calibration`, `--start-live`, `--recalibrate`, `--end-session`).
+  Stands in for a real operator control surface until one exists, and is
+  the actual way to drive a session by hand today.
 - **`replay_biodata_as_osc.py`** — runs under `biodata_pipeline/venv`.
   Sends a recorded raw biodata CSV out as OSC at real-time (or faster)
   pace, standing in for real sensor hardware. No hardware/OSC protocol for
@@ -506,6 +541,33 @@ too.
   segment.csv` (first 60s of Erin's recording) / `erin_live_segment.csv`
   (the non-overlapping remainder), split so calibration and "live" replay
   never reuse the same data (see bug 1 below for why that matters).
+
+**Recording sessions (`--record-dir`)**: optional. If given,
+`session/start` opens `{record-dir}/{session_id}.csv` and appends every
+biodata sample from `calibration/start` onward (`heart, gsr, respiration,
+session_phase, timestamp` — `session_phase` is `calibration` or `live`,
+`timestamp` is wall-clock, both ignored by every existing offline tool,
+which only reads `heart`/`gsr`/`respiration`). Row-by-row flush, so a
+crash mid-session doesn't lose the recording. Directly reusable by the
+existing offline toolchain (`extract_continuous_features_batch.py`,
+`train_transformer.py`, etc.) unchanged, for later retraining/analysis.
+
+**Recalibration during LIVE**: of the three things calibration primes,
+two (the causal filters, the cardiac/respiratory peak detectors) are
+already continuously self-adapting for the rest of the session and need
+no explicit action. The exception is the EDA/SCR amplitude threshold
+(`_ScrDetectorState.amplitude_min`), computed once from the first ~30s
+pushed through it and then frozen — so a visitor's EDA baseline drifting
+over a long session leaves the SCR detector calibrated to stale
+conditions. `OnlineFeatureExtractor.recalibrate()` resets just that
+threshold (the rise/decline state machine and onset history are
+untouched), triggered on demand via `/crocodile/calibration/recalibrate`
+(LIVE only) — deliberately **on-demand, not continuous/rolling**: a naive
+rolling threshold would fold real SCR events into its own baseline-noise
+estimate, inflating the threshold right after a genuine response burst (a
+feedback loop suppressing detection exactly when it matters). It also
+doesn't pause W output or change `phase` — interrupting the visuals for
+~30s every recalibration would be worse than a briefly stale threshold.
 
 **Two real bugs were caught building this, both against the same
 mechanism** (an artificially fast `--speed` in `replay_biodata_as_osc.py`
@@ -540,11 +602,10 @@ needed isolating before either was clearly diagnosed):
 
 **Explicitly out of scope, still**: wiring to actual sensor hardware (the
 real protocol isn't confirmed); any change to Autolume itself; multi-
-visitor/concurrent-session handling; the exhibition calibration-period
-*workflow* (how an operator actually triggers/records a visitor's
-calibration data before the live portion starts — `live_pipeline.py`
-assumes a calibration CSV already exists and is passed via
-`--calibration-csv`).
+visitor/concurrent-session handling (one global session at a time); an
+actual operator GUI/control-surface app (only the OSC protocol +
+`session_control.py`'s CLI stand-in exist); automatic/periodic
+recalibration (on-demand only, see above).
 
 ## Picking this back up
 
@@ -561,9 +622,10 @@ pipeline all working, the remaining path is:
    (serial? OSC? something else — not established anywhere in this repo)
    and either adapt it to match `live_pipeline.py`'s input protocol or
    build a small bridge between the two
-4. Build the exhibition calibration-period *workflow* itself (recording
-   trigger, storage, handing the resulting CSV to `live_pipeline.py`) —
-   currently assumed to already exist as a file
+4. Build a real operator control surface (a physical panel, a TouchOSC/
+   Processing app) that sends the session-control OSC messages
+   `session_control.py` currently stands in for, and displays
+   `/crocodile/session/status` broadcasts
 5. Get Autolume actually running against `live_pipeline.py`'s output
    end-to-end (tested so far only against `w_osc_debug_viewer.py` and
    `--log-only`) and confirm the "project unchecked" configuration note
