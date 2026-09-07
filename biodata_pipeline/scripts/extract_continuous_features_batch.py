@@ -1,19 +1,23 @@
 """
-Step 1 (batch variant): Extract Continuous Features via NeuroKit2
+Step 1 (batch/online variant): Extract the NeuroKit2-schema (51/53) features
 
-Offline counterpart to extract_continuous_features.py -- see
-modules/batch_feature_extractor.py's module docstring for the full
-rationale (cold-start artifacts, EDA raw-signal normalization gap).
+Counterpart to extract_continuous_features.py (the 73-feature continuous
+schema) -- see modules/batch_feature_extractor.py's module docstring for the
+full rationale (cold-start artifacts, EDA raw-signal normalization gap), and
+modules/online_feature_extractor.py's docstring for what "online" means here
+(same feature schema, computed via real-time-safe signal derivation instead
+of NeuroKit2's offline algorithms).
 
-This does NOT overwrite continuous_features.csv. Output goes to a
-separate file (default continuous_features_batch.csv) so both the
-online/streaming-compatible extractor and this batch one remain available
-to compare directly -- switching between them for Stage 4/5 is just a
-config path change (paths.continuous_features in latent_pipeline's yaml).
+This does NOT overwrite continuous_features.csv. Output goes to a separate
+file per --extractor (default continuous_features_batch.csv /
+continuous_features_online.csv) so all three schemas/computation methods
+remain available to compare directly -- switching between them for Stage
+4/5 is just a config path change (paths.continuous_features in
+latent_pipeline's yaml).
 
 Usage:
     python scripts/extract_continuous_features_batch.py
-    python scripts/extract_continuous_features_batch.py --output continuous_features_batch.csv
+    python scripts/extract_continuous_features_batch.py --extractor online --output continuous_features_online.csv
 """
 
 import argparse
@@ -28,10 +32,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import pandas as pd
 
 from modules.batch_feature_extractor import BatchFeatureExtractor
+from modules.online_feature_extractor import OnlineFeatureExtractor
+
+EXTRACTORS = {'batch': BatchFeatureExtractor, 'online': OnlineFeatureExtractor}
 
 
-def extract_features_from_session(session_path, sampling_rate=100, feature_interval_s=1.0,
-                                   signal_cols=None):
+def extract_features_from_session(session_path, extractor_cls, sampling_rate=100,
+                                   feature_interval_s=1.0, signal_cols=None):
     if signal_cols is None:
         signal_cols = {'eda': 'gsr', 'ppg': 'heart', 'resp': 'respiration'}
 
@@ -48,7 +55,7 @@ def extract_features_from_session(session_path, sampling_rate=100, feature_inter
         print(f"  Missing columns: {missing_cols}")
         return None
 
-    extractor = BatchFeatureExtractor(sampling_rate=sampling_rate)
+    extractor = extractor_cls(sampling_rate=sampling_rate)
     features_df = extractor.process_session(session_df, feature_interval_s=feature_interval_s,
                                              signal_cols=signal_cols)
     print(f"  Extracted {len(features_df)} feature rows, "
@@ -59,16 +66,22 @@ def extract_features_from_session(session_path, sampling_rate=100, feature_inter
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Step 1 (batch): NeuroKit2-based feature extraction')
+    parser = argparse.ArgumentParser(description='Step 1 (batch/online): NeuroKit2-schema feature extraction')
+    parser.add_argument('--extractor', choices=['batch', 'online'], default='batch',
+                        help='batch = NeuroKit2 offline algorithms; online = same schema, '
+                             'real-time-safe signal derivation (see online_feature_extractor.py)')
     parser.add_argument('--feature-interval', type=float, default=1.0)
-    parser.add_argument('--output', type=str, default='continuous_features_batch.csv')
+    parser.add_argument('--output', type=str, default=None,
+                        help='default: continuous_features_batch.csv or _online.csv, matching --extractor')
     parser.add_argument('--data-dir', type=str, default='data/raw')
     parser.add_argument('--input', type=str, nargs='+',
                         help='File patterns relative to --data-dir (default: laurence sessions only)')
     args = parser.parse_args()
+    output_name = args.output or f'continuous_features_{args.extractor}.csv'
+    extractor_cls = EXTRACTORS[args.extractor]
 
     print("=" * 80)
-    print("STEP 1 (BATCH): NEUROKIT2-BASED FEATURE EXTRACTION")
+    print(f"STEP 1 ({args.extractor.upper()}): NEUROKIT2-SCHEMA FEATURE EXTRACTION")
     print("=" * 80)
 
     data_dir = PROJECT_ROOT / args.data_dir
@@ -97,7 +110,8 @@ def main():
     for session_path in csv_files:
         try:
             features_df = extract_features_from_session(
-                session_path, sampling_rate=100, feature_interval_s=args.feature_interval,
+                session_path, extractor_cls, sampling_rate=100,
+                feature_interval_s=args.feature_interval,
             )
             if features_df is not None:
                 all_features.append(features_df)
@@ -121,7 +135,7 @@ def main():
     print(f"Features extracted: {len(feature_cols)}")
     print(f"NaN values: {combined[feature_cols].isna().sum().sum()}")
 
-    output_path = output_dir / args.output
+    output_path = output_dir / output_name
     combined.to_csv(output_path, index=False)
     print(f"\nSaved: {output_path}")
 
