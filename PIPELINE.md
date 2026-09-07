@@ -446,10 +446,80 @@ extractor *class* itself callable incrementally -- a real acquisition loop
 is separate future work); bounded-memory ring buffers (growing arrays are
 fine at exhibition session lengths); adaptive re-calibration mid-session.
 
+## Live pipeline: biodata (OSC) → W (OSC) → Autolume
+
+The runtime pipeline mentioned throughout this doc is now built, in
+`biodata_pipeline/scripts/`:
+
+- **`live_pipeline.py`** — the core program. OSC server for biodata in
+  (`[heart, gsr, respiration]`, one message per raw sample), OSC client for
+  W out. Loads a pre-trained alignment transformer + Stage 5 regressor,
+  runs `OnlineFeatureExtractor.calibrate()`/`push()`, and sends each
+  finalized row's 512-float W vector to **Autolume** — a separate live
+  StyleGAN performance app (`/home/tats/Documents/workspace/autolume`, not
+  part of this repo; distinct from `stylegan_Autolume`, the bare synthesis
+  library `latent_pipeline` imports directly). Autolume owns rendering and
+  display entirely — this script never touches StyleGAN2. Autolume's
+  latent-vector OSC handler expects exactly 512 floats and treats them as
+  W directly only if its "project" checkbox is left unchecked (it defaults
+  to Z-space with an optional Z→W mapping step, which our output must
+  bypass).
+- **`replay_biodata_as_osc.py`** — sends a recorded raw biodata CSV out as
+  OSC at real-time (or faster) pace, standing in for real sensor hardware.
+  No hardware/OSC protocol for how biodata will actually arrive live is
+  confirmed anywhere in this repo (legacy Arduino OSC code was removed in
+  the newest firmware iteration in favor of serial-only, and the exact
+  serial format isn't documented either) — `live_pipeline.py`'s input
+  protocol is this project's own design, documented in both scripts'
+  docstrings, for a future hardware bridge to match.
+- **`latent_pipeline/scripts/w_osc_debug_viewer.py`** — optional, separate
+  process that listens to the same W-over-OSC stream and renders it
+  locally via this project's own StyleGAN2 code, for visual sanity-
+  checking without Autolume running.
+
+**Two real bugs were caught building this, both against the same
+mechanism** (an artificially fast `--speed` in `replay_biodata_as_osc.py`
+made a slow, systemic bug look like fast-UDP packet loss at first, so both
+needed isolating before either was clearly diagnosed):
+
+1. **`calibrate()` never stepped the cardiac/respiratory peak detectors
+   through the calibration recording** — it only extended the causal
+   filters, so a visitor's calibration-period heartbeats/breaths were
+   invisible to the HRV/HR features for a while after the live portion
+   began (their confirmed-peaks history picked up only a `lookback_s`-sized
+   tail of calibration on the very first live row, not the full
+   incrementally-built history `push()` would have accumulated). Fixed by
+   making `calibrate()` a thin wrapper around `push()` (discarding the
+   returned rows) instead of a separate, bespoke priming path — the two
+   can no longer drift apart, structurally. Caught by a new fourth check in
+   `scripts/test_online_causality.py` (`calibrate-then-push consistency`,
+   now 4/4 passing), which exists specifically because building
+   `live_pipeline.py` surfaced it — none of the first three checks
+   exercised `calibrate()` at all.
+2. **Testing methodology, not a code bug**: replaying a session at 50-80x
+   speed over `replay_biodata_as_osc.py` can overwhelm
+   `live_pipeline.py`'s synchronous `BlockingOSCUDPServer`, silently
+   dropping/reordering UDP packets — confirmed by reproducing clean output
+   for the identical data and code path with the OSC layer bypassed
+   entirely (direct in-process `push()` calls), while the OSC-mediated run
+   at 80x showed ~25% of rows with wildly implausible W norms (hundreds to
+   thousands, vs. the normal ~10). At real-time (1x) speed, matching actual
+   sensor rate, this doesn't occur — confirmed clean end-to-end. Documented
+   prominently in `replay_biodata_as_osc.py`'s docstring so a future
+   high-speed test result isn't mistaken for a pipeline defect.
+
+**Explicitly out of scope, still**: wiring to actual sensor hardware (the
+real protocol isn't confirmed); any change to Autolume itself; multi-
+visitor/concurrent-session handling; the exhibition calibration-period
+*workflow* (how an operator actually triggers/records a visitor's
+calibration data before the live portion starts — `live_pipeline.py`
+assumes a calibration CSV already exists and is passed via
+`--calibration-csv`).
+
 ## Picking this back up
 
-With Stages 1–6 and the offline user-to-latent pipeline all working, the
-critical path forward is:
+With Stages 1–6, the offline user-to-latent pipeline, and now the live OSC
+pipeline all working, the remaining path is:
 1. Widen the offline pipeline test beyond Erin's 3 emotion labels
    (anx/neu/sad) to a subject/recording covering more of the emotion range,
    to see how the regressor + alignment behave outside that overlap
@@ -457,21 +527,16 @@ critical path forward is:
    generated faces for a new subject show less expression variation than
    Stage 5's own actress-held-out visual check, which stacks two lossy steps
    (OT alignment + regression) instead of one
-3. Only once the offline chain is trusted does building the live "runtime
-   pipeline" become a real question: wire a real-time-safe feature
-   extractor + `apply_transformer.py`'s per-sample equivalent + the
-   regressor + StyleGAN2 into something that runs continuously on live
-   user data. `OnlineFeatureExtractor` is both the best-performing
-   candidate (see the three-way comparison above) and, as of the live-
-   readiness work above, genuinely callable incrementally via
-   `calibrate()`/`push()` — the extractor class itself is no longer the
-   blocker. If adopted, Stage 5's regressor should be retrained on its
-   output specifically (`biodata_w_dataset_online.csv`/`online_compare.yaml`
-   are the working scaffolding for this), not on the NeuroKit2 batch
-   features, to avoid an offline/online train-serve mismatch. What's still
-   missing is everything *around* the extractor: an actual live sensor
-   acquisition loop calling `push()`, `apply_transformer.py`'s per-sample
-   equivalent, and wiring the regressor + StyleGAN2 to run continuously off
-   `push()`'s output
+3. Confirm the real sensor hardware's actual live communication protocol
+   (serial? OSC? something else — not established anywhere in this repo)
+   and either adapt it to match `live_pipeline.py`'s input protocol or
+   build a small bridge between the two
+4. Build the exhibition calibration-period *workflow* itself (recording
+   trigger, storage, handing the resulting CSV to `live_pipeline.py`) —
+   currently assumed to already exist as a file
+5. Get Autolume actually running against `live_pipeline.py`'s output
+   end-to-end (tested so far only against `w_osc_debug_viewer.py` and
+   `--log-only`) and confirm the "project unchecked" configuration note
+   above in practice
 
 `training_gan/` is legacy and sits outside this critical path entirely.
