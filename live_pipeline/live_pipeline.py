@@ -18,15 +18,18 @@ section; no established hardware protocol existed to match):
        leave its "project" checkbox UNCHECKED (our W is already W-space,
        not Z-space, so it must not be re-mapped).
 
-Usage:
-    python scripts/live_pipeline.py \
-        --regressor ../latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
-        --transformer models/transformer_ot_classconditional_online.pkl \
-        --calibration-csv data/raw/emotion_biodata_erin_2026-02-09_labeled.csv
+Usage (from the repo root):
+    python live_pipeline/live_pipeline.py \
+        --regressor latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
+        --transformer biodata_pipeline/models/transformer_ot_classconditional_online.pkl \
+        --calibration-csv live_pipeline/data/erin_calibration_segment.csv
 
-Test without real hardware or Autolume: run scripts/replay_biodata_as_osc.py
-in another process to feed this script, and pass --log-only to print
-outgoing W vectors instead of (or alongside) sending OSC.
+Test without real hardware or Autolume: run replay_biodata_as_osc.py (same
+folder) in another process to feed this script, and pass --log-only to
+print outgoing W vectors instead of (or alongside) sending OSC.
+
+Run with biodata_pipeline/venv's interpreter -- needs OnlineFeatureExtractor
+and the alignment transformer (sklearn), not torch/StyleGAN.
 """
 
 import argparse
@@ -41,13 +44,12 @@ from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import BlockingOSCUDPServer
 from pythonosc.udp_client import SimpleUDPClient
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(SCRIPT_DIR))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+BIODATA_PIPELINE_DIR = REPO_ROOT / 'biodata_pipeline'
+sys.path.insert(0, str(BIODATA_PIPELINE_DIR))
 
 from modules.online_feature_extractor import OnlineFeatureExtractor
-from train_transformer import load_transformer
+from modules.alignment_transformer import load_transformer
 
 
 def build_arg_parser():

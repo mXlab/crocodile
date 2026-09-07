@@ -1,8 +1,8 @@
 """Debug viewer: listens for the same W-over-OSC stream sent to Autolume by
-biodata_pipeline/scripts/live_pipeline.py, renders each vector via this
-project's own StyleGAN2 loading code, and shows a live-updating preview
-window -- for visually sanity-checking the live pipeline without needing
-Autolume running or configured.
+live_pipeline.py (same folder), renders each vector via this project's own
+StyleGAN2 loading code, and shows a live-updating preview window -- for
+visually sanity-checking the live pipeline without needing Autolume running
+or configured.
 
 Runs in latent_pipeline/.venv (needs torch/StyleGAN2) -- separate from
 live_pipeline.py, which runs in biodata_pipeline/venv and never touches
@@ -14,9 +14,9 @@ message arrival rate, always using only the MOST RECENT W received --
 messages that arrive faster than rendering keeps up are simply superseded,
 never queued, so the preview never falls behind.
 
-Usage:
-    python scripts/w_osc_debug_viewer.py --config configs/default.yaml
-    python scripts/w_osc_debug_viewer.py --in-port 1338 --in-address /crocodile/w
+Usage (from the repo root):
+    python live_pipeline/w_osc_debug_viewer.py --config latent_pipeline/configs/default.yaml
+    python live_pipeline/w_osc_debug_viewer.py --in-port 1338 --in-address /crocodile/w
 """
 
 import argparse
@@ -33,11 +33,9 @@ import yaml
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-PIPELINE_DIR = SCRIPT_DIR.parent
-REPO_ROOT = PIPELINE_DIR.parent
-sys.path.insert(0, PIPELINE_DIR.as_posix())
-sys.path.insert(0, REPO_ROOT.as_posix())
+REPO_ROOT = Path(__file__).resolve().parent.parent
+LATENT_PIPELINE_DIR = REPO_ROOT / 'latent_pipeline'
+sys.path.insert(0, str(LATENT_PIPELINE_DIR))
 
 from models.stylegan import load_stylegan, generate
 

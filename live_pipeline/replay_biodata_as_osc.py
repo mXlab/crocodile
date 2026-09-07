@@ -2,13 +2,13 @@
 
 Stands in for real sensor hardware -- no confirmed hardware/OSC protocol
 exists yet for how biodata will actually arrive live (see PIPELINE.md's
-live-readiness section), so this and scripts/live_pipeline.py define and
-test against a protocol of our own: one OSC message per raw sample, 3
+live-readiness section), so this and live_pipeline.py (same folder) define
+and test against a protocol of our own: one OSC message per raw sample, 3
 floats [heart, gsr, respiration].
 
 Usage:
-    python scripts/replay_biodata_as_osc.py --input data/raw/emotion_biodata_erin_2026-02-09_labeled.csv
-    python scripts/replay_biodata_as_osc.py --input <file> --speed 5  # faster, for quicker testing
+    python live_pipeline/replay_biodata_as_osc.py --input live_pipeline/data/erin_live_segment.csv
+    python live_pipeline/replay_biodata_as_osc.py --input <file> --speed 5  # faster, for quicker testing
 
 CAUTION on --speed: this sends 100Hz * speed OSC messages/sec over a local
 UDP socket, and live_pipeline.py's OSC server (BlockingOSCUDPServer)
@@ -24,15 +24,10 @@ just "does it run."
 """
 
 import argparse
-import sys
 import time
-from pathlib import Path
 
 import pandas as pd
 from pythonosc.udp_client import SimpleUDPClient
-
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
 
 
 def main():
