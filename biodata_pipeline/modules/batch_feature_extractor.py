@@ -393,12 +393,14 @@ class BatchFeatureExtractor:
         row_times = np.arange(n_seconds)
         feats = {
             'respiratory.rate_mean_10s': np.zeros(n_seconds),
+            'respiratory.rate_median_10s': np.zeros(n_seconds),
             'respiratory.rate_std_10s': np.zeros(n_seconds),
             'respiratory.rate_trend_10s': np.zeros(n_seconds),
             'respiratory.rate_trend_full': np.zeros(n_seconds),
             'respiratory.amplitude_mean_10s': np.zeros(n_seconds),
             'respiratory.amplitude_median_10s': np.zeros(n_seconds),
             'respiratory.amplitude_std_10s': np.zeros(n_seconds),
+            'respiratory.amplitude_cv_10s': np.zeros(n_seconds),
             'respiratory.amplitude_range_10s': np.zeros(n_seconds),
             'respiratory.amplitude_spike_5s': np.zeros(n_seconds),
             'respiratory.rvt_mean_10s': np.zeros(n_seconds),
@@ -418,10 +420,15 @@ class BatchFeatureExtractor:
             start_60s = max(0, end - 60 * fs)
 
             feats['respiratory.rate_mean_10s'][t] = np.nanmean(rate[start_10s:end]) if end > start_10s else np.nan
+            feats['respiratory.rate_median_10s'][t] = np.nanmedian(rate[start_10s:end]) if end > start_10s else np.nan
             feats['respiratory.rate_std_10s'][t] = np.nanstd(rate[start_10s:end]) if end > start_10s else 0.0
             feats['respiratory.amplitude_mean_10s'][t] = np.nanmean(amplitude[start_10s:end]) if end > start_10s else np.nan
             feats['respiratory.amplitude_median_10s'][t] = np.nanmedian(amplitude[start_10s:end]) if end > start_10s else np.nan
             feats['respiratory.amplitude_std_10s'][t] = np.nanstd(amplitude[start_10s:end]) if end > start_10s else 0.0
+            amp_window = amplitude[start_10s:end]
+            amp_valid = amp_window[~np.isnan(amp_window)]
+            if len(amp_valid) > 1 and amp_valid.mean() != 0:
+                feats['respiratory.amplitude_cv_10s'][t] = amp_valid.std() / amp_valid.mean() * 100
             feats['respiratory.amplitude_range_10s'][t] = np.ptp(amplitude[start_10s:end]) if end > start_10s else 0.0
             feats['respiratory.rvt_mean_10s'][t] = np.nanmean(rvt[start_10s:end]) if end > start_10s else np.nan
             feats['respiratory.symmetry_risedecay_mean_10s'][t] = np.nanmean(symmetry[start_10s:end]) if end > start_10s else np.nan
