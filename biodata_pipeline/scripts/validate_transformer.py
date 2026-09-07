@@ -29,8 +29,9 @@ from sklearn.metrics import classification_report, accuracy_score
 
 # Allow importing PrototypeAlignmentTransformer when run from biodata_pipeline/
 SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
-from train_transformer import load_transformer, METADATA_COLS
+PROJECT_ROOT = SCRIPT_DIR.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+from modules.alignment_transformer import load_transformer, METADATA_COLS
 
 
 def validate(transformer, subject_df):

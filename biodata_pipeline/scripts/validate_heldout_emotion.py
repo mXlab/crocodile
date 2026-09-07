@@ -45,8 +45,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import f_classif
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
-from train_transformer import (
+PROJECT_ROOT = SCRIPT_DIR.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+from modules.alignment_transformer import (
     PrototypeAlignmentTransformer,
     LinearOTTransformer,
     ClassConditionalOTTransformer,
