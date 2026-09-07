@@ -493,8 +493,18 @@ too.
                                        IDLE
   ```
   `session/start` creates a fresh `OnlineFeatureExtractor` per visitor (no
-  state leaks between sessions); once `calibration/start` fires, every
-  incoming biodata sample is pushed through `extractor.push()`
+  state leaks between sessions) and, if `--calibration-csv` was given at
+  server startup, immediately primes it from that file (`extractor.
+  calibrate()`) before returning to READY — for when a suitable
+  calibration recording already exists (e.g. a generic baseline, or
+  reusing a visitor's own earlier recording) and the live calibration
+  phase can be skipped entirely. The live `calibration/start`/`stop` phase
+  is still available afterward too, and composes cleanly on top if used —
+  `calibrate()` is just a `push()` call with the rows discarded, same as
+  what the live phase does, so CSV-priming and live-priming stack rather
+  than conflict. From `calibration/start` onward (or from `live/start`
+  directly, if the operator skips the live calibration phase entirely),
+  every incoming biodata sample is pushed through `extractor.push()`
   continuously for the rest of the session (through CALIBRATING,
   CALIBRATED, and LIVE) — only what happens to the *returned* finalized
   rows differs (discarded until LIVE, then aligned + regressed + sent as
