@@ -23,6 +23,15 @@ Checks:
    optimized further, see online_feature_extractor.py's module docstring
    and PIPELINE.md's scoping) as long as it stays well under the 1Hz
    feature-interval budget for realistic (minutes-scale) session lengths.
+4. Calibrate-then-push consistency: calling calibrate(prefix) then
+   push(remainder) must give the same features as process_session() on
+   the whole [prefix + remainder] session -- calibrate() extends the
+   growing signal arrays but (until fixed) didn't advance the row counter
+   those arrays are indexed against, silently reading calibration data as
+   if it were the live tail for the first several rows after calibration.
+   Caught by scripts/live_pipeline.py's own end-to-end testing (very large,
+   implausible W-vector norms), not by the first three checks above, since
+   none of them exercise calibrate().
 
 Usage (from biodata_pipeline/):
     python scripts/test_online_causality.py
@@ -133,11 +142,37 @@ def test_detector_boundedness(growth_factor_limit=5.0):
     return growth < growth_factor_limit
 
 
+def test_calibrate_then_push_consistency(calib_len=6000, live_len=10000):
+    df = pd.read_csv(SESSION_PATH)
+    calib_df = df.iloc[:calib_len].reset_index(drop=True)
+    live_df = df.iloc[calib_len:calib_len + live_len].reset_index(drop=True)
+    combined_df = df.iloc[:calib_len + live_len].reset_index(drop=True)
+
+    out_combined = OnlineFeatureExtractor(sampling_rate=100).process_session(combined_df)
+
+    ext = OnlineFeatureExtractor(sampling_rate=100)
+    ext.calibrate(calib_df)
+    rows = ext.push(live_df)
+    out_live = pd.DataFrame(rows)
+
+    # Rows finalized during push() correspond to the tail of out_combined
+    # (calibration doesn't itself finalize rows) -- compare that overlap.
+    n_live_rows = len(out_live)
+    tail = out_combined.iloc[-n_live_rows:].reset_index(drop=True)
+    feature_cols = [c for c in out_combined.columns if '.' in c]
+    max_diff = max(np.nanmax(np.abs(out_live[c].values - tail[c].values)) for c in feature_cols)
+    status = "PASS" if max_diff == 0.0 else "FAIL"
+    print(f"[{status}] calibrate-then-push consistency: {n_live_rows} live rows vs "
+          f"process_session() on the combined session -- max abs diff = {max_diff}")
+    return max_diff == 0.0
+
+
 if __name__ == '__main__':
     results = [
         test_strict_causality(),
         test_live_simulation_equivalence(),
         test_detector_boundedness(),
+        test_calibrate_then_push_consistency(),
     ]
     print(f"\n{sum(results)}/{len(results)} checks passed")
     sys.exit(0 if all(results) else 1)

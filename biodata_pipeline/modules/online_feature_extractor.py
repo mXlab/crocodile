@@ -129,13 +129,16 @@ class _ScrDetectorState:
     the whole point being this is O(new samples), not O(session so far),
     unlike calling the equivalent whole-array loop fresh every time.
 
-    The amplitude threshold is calibrated once, from either an explicit
-    `set_threshold_from()` call (a separate calibration recording) or,
-    failing that, the first `calib_s` seconds of whatever is pushed through
-    `.extend()` -- buffered until enough samples arrive, then replayed
-    through the state machine now that the threshold is known (matching
-    process_session()'s existing behavior of using each session's own first
-    30s when no separate calibration is available)."""
+    The amplitude threshold is calibrated once, from the first `calib_s`
+    seconds of whatever is pushed through `.extend()` -- buffered until
+    enough samples arrive, then replayed through the state machine now that
+    the threshold is known (`set_threshold_from()` does the actual
+    computation). Whether those first `calib_s` seconds come from a
+    dedicated calibration recording or the live session's own start is
+    entirely up to the caller -- OnlineFeatureExtractor.calibrate() is just
+    a `push()` call over calibration data with the returned rows discarded,
+    not a separate priming path, so this buffer-then-compute logic is the
+    only place the threshold ever gets set either way."""
 
     def __init__(self, fs, calib_s=30, k_amplitude=3.0, rise_start_frac=0.3,
                  decline_confirm_s=0.3):
@@ -326,31 +329,29 @@ class OnlineFeatureExtractor(BatchFeatureExtractor):
     # Live API
     # ------------------------------------------------------------------
     def calibrate(self, calibration_df: pd.DataFrame, signal_cols: dict = None):
-        """Prime filter state and the SCR amplitude threshold from a
-        separate calibration recording, instead of using the live session's
-        own first 30s (process_session()'s default when this isn't called).
-        Emits no feature rows -- only readies state. Call once, before the
-        first `push()`."""
+        """Prime filter state, the SCR amplitude threshold, and cardiac/
+        respiratory peak-detector history from a separate calibration
+        recording, instead of using the live session's own first 30s
+        (process_session()'s default when this isn't called). Emits no
+        feature rows to the caller -- only readies state. Call once, before
+        the first `push()`.
+
+        Implemented as a plain `push()` call over the calibration data with
+        the returned rows discarded -- not a separate, bespoke priming path.
+        An earlier version only extended the causal filters here, which left
+        the cardiac/respiratory peak detectors never having been stepped
+        through the calibration period at all: their first live-triggered
+        `.step()` call would catch only the last `lookback_s` seconds of
+        calibration in one lookback rescan, not the properly incremental,
+        one-row-at-a-time history `push()` builds. That mismatch showed up
+        as real discrepancies in HRV/HR features between calibrate()+push()
+        and an equivalent process_session() call -- caught by
+        scripts/test_online_causality.py's calibrate-then-push consistency
+        check. Delegating to push() here removes the possibility of the two
+        paths diverging again."""
         if signal_cols is None:
             signal_cols = DEFAULT_SIGNAL_COLS
-        gsr = calibration_df[signal_cols['eda']].values.astype(float)
-        ppg = calibration_df[signal_cols['ppg']].values.astype(float)
-        resp = calibration_df[signal_cols['resp']].values.astype(float)
-
-        gsr_clean = self._eda_clean_filter.extend(gsr)
-        self._gsr_clean = np.concatenate([self._gsr_clean, gsr_clean])
-        tonic = self._eda_tonic_filter.extend(gsr_clean)
-        self._tonic = np.concatenate([self._tonic, tonic])
-        phasic = gsr_clean - tonic
-        self._phasic = np.concatenate([self._phasic, phasic])
-        self._scr_detector.set_threshold_from(phasic)
-        self._scr_detector.extend(phasic)
-
-        ppg_clean = self._ppg_filter.extend(ppg)
-        self._ppg_clean = np.concatenate([self._ppg_clean, ppg_clean])
-        resp_clean = self._resp_filter.extend(resp)
-        self._resp_clean = np.concatenate([self._resp_clean, resp_clean])
-
+        self.push(calibration_df, signal_cols=signal_cols, feature_interval_s=1.0)
         self._calibrated = True
 
     def push(self, chunk_df: pd.DataFrame, signal_cols: dict = None,
