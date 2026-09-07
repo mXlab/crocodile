@@ -306,6 +306,64 @@ noise, not regression), and documents the honest null result rather than
 hiding it. Not evidence to keep porting further down the ANOVA list without
 similarly validating on the actual task each time.
 
+### Online extractor vs. continuous: a three-way comparison
+
+Two comparisons existed before this one: NeuroKit2 batch vs. online
+(feature-by-feature correlation, above) and NeuroKit2 batch vs. continuous
+(Stage 5 R², earlier in this doc). Missing was the comparison that actually
+matters for deciding the online extractor's future: **does its real-time-
+safe approximation of the NeuroKit2 schema actually beat the continuous
+extractor** — the only other real-time-safe option — **on the real task**,
+not just on paper? Ran the same offline user-to-latent pipeline a third way:
+`OnlineFeatureExtractor` output → `latent_pipeline/configs/online_compare.yaml`
+→ Stage 4/5, identical MLP + blocked-CV setup as the other two.
+
+| Extractor | Features | Real-time-safe? | Stage 5 val R² (mean ± std) |
+|---|---|---|---|
+| NeuroKit2 batch | 53 | No (offline) | **0.448** ± 0.02 |
+| NeuroKit2 online | 53 | Yes | 0.431 ± 0.02 |
+| Continuous | 73 | Yes | 0.313 ± n/a |
+
+**The online extractor nearly matches full offline NeuroKit2 quality (0.431
+vs. 0.448, well inside the fold-to-fold std) while being real-time-safe, and
+clearly beats the continuous extractor by a wide margin (0.431 vs. 0.313).**
+This is a meaningfully different conclusion than looking only at the
+feature-by-feature correlation comparison above would suggest (mean
+correlation ~0.5, split sharply by feature type) -- on the metric that
+actually matters, the aggregate effect of the weak features is small enough
+that the online extractor is a legitimate candidate to become the extractor
+the eventual live installation actually uses, without the offline/online
+train-serve mismatch that would come from training Stage 5 on NeuroKit2
+batch features and hoping the causal approximation is close enough at
+inference time.
+
+**A real bug was caught and fixed getting here, not just tuning**: the first
+online run only kept 2264/4296 rows (47% dropped to NaN) and crashed
+rendering the visual grid, driven almost entirely by `respiratory.amplitude_spike_5s`
+(1967 NaN rows). Root cause: `_respiratory_aggregate`'s sigh/spike threshold
+computed `d_mean, d_std = depths_so_far.mean(), depths_so_far.std()` (plain,
+not NaN-safe) over `breath_depths`, which for the online extractor legitimately
+contains a leading NaN (amplitude is only known from a cycle's *closing*
+trough onward — see `_respiratory_cycle_signals` — so the very first trough
+in any session precedes the first known amplitude value). That one NaN
+poisoned `d_mean`/`d_std` for the *entire rest of the session*, not just the
+first few seconds. Fixed by switching to `np.nanmean`/`np.nanstd` in
+`batch_feature_extractor.py` (verified as a no-op for the batch path itself,
+since NeuroKit2's amplitude signal rarely has this gap) — NaN dropout fell
+from 47% to ~1%, val R² rose from 0.340 to 0.431, and the visual grid
+rendered cleanly. Worth remembering next time an online-extractor result
+looks suspiciously weak: check for NaN propagation before concluding the
+approximation itself is the problem.
+
+**Caveat carried over from the feature-by-feature comparison above still
+applies**: the online extractor's weakest features are still the
+event-count/rate ones (SCR onsets, HR short-window derivatives, breath
+rate/variability) — this three-way result says the *aggregate* effect on
+the downstream task is small, not that every individual feature survived
+causal computation equally well. If a future model change leans harder on
+those specific weak features (e.g. explicit feature selection favoring
+them), the online/batch gap could reopen.
+
 ## Picking this back up
 
 With Stages 1–6 and the offline user-to-latent pipeline all working, the
@@ -318,9 +376,14 @@ critical path forward is:
    Stage 5's own actress-held-out visual check, which stacks two lossy steps
    (OT alignment + regression) instead of one
 3. Only once the offline chain is trusted does building the live "runtime
-   pipeline" become a real question: wire the online/continuous feature
+   pipeline" become a real question: wire a real-time-safe feature
    extractor + `apply_transformer.py`'s per-sample equivalent + the
    regressor + StyleGAN2 into something that runs continuously on live
-   user data
+   user data. `OnlineFeatureExtractor` is the current best candidate for
+   that extractor (see the three-way comparison above) — if adopted,
+   Stage 5's regressor should be retrained on its output specifically
+   (`biodata_w_dataset_online.csv`/`online_compare.yaml` are the working
+   scaffolding for this), not on the NeuroKit2 batch features, to avoid an
+   offline/online train-serve mismatch
 
 `training_gan/` is legacy and sits outside this critical path entirely.
