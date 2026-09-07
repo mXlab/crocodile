@@ -354,6 +354,33 @@ class OnlineFeatureExtractor(BatchFeatureExtractor):
         self.push(calibration_df, signal_cols=signal_cols, feature_interval_s=1.0)
         self._calibrated = True
 
+    def recalibrate(self):
+        """Reset just the EDA/SCR amplitude threshold so the next `calib_s`
+        seconds of pushed phasic data recompute it -- the same buffer-then-
+        compute logic `_ScrDetectorState.set_threshold_from()` already uses
+        on first calibration, just re-armed. Lets a long-running live
+        session adapt to EDA baseline drift (temperature, sweat, electrode
+        contact) without discarding the extractor entirely.
+
+        Only the SCR threshold needs this: the causal filters (IIR state
+        carried forward forever) and the cardiac/respiratory peak detectors
+        (rolling lookback-window re-scan on every `.step()`) are already
+        continuously self-adapting and don't need an explicit reset. The
+        SCR detector's rise/decline state machine and onset history are
+        untouched here -- only `amplitude_min`/`rise_start_thresh` and the
+        re-buffering flag reset, so no detector state or in-flight SCR
+        event is lost.
+
+        A naive rolling threshold (recomputed continuously from a trailing
+        window) was deliberately not used instead: it would fold real SCR
+        events into its own baseline-noise estimate, inflating the
+        threshold right after a genuine response burst -- a feedback loop
+        that suppresses detection when it matters most. Calling this
+        on-demand, ideally during another calm moment, avoids that."""
+        self._scr_detector.amplitude_min = None
+        self._scr_detector.rise_start_thresh = None
+        self._scr_detector._calib_buffer = []
+
     def push(self, chunk_df: pd.DataFrame, signal_cols: dict = None,
              feature_interval_s: float = 1.0) -> list:
         """Feed new raw samples (any chunk size). Returns a list of zero or
