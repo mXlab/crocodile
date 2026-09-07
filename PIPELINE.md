@@ -448,10 +448,31 @@ fine at exhibition session lengths); adaptive re-calibration mid-session.
 
 ## Live pipeline: biodata (OSC) → W (OSC) → Autolume
 
-The runtime pipeline mentioned throughout this doc is now built, in
-`biodata_pipeline/scripts/`:
+The runtime pipeline mentioned throughout this doc is now built, in its own
+top-level **`live_pipeline/`** folder — separate from `biodata_pipeline/`
+and `latent_pipeline/`, which hold reusable modules (`modules/`, `models/`)
+plus their own offline scripts/experiments (`scripts/`). `live_pipeline/`'s
+scripts import those modules as a library (`sys.path`-inserting the
+relevant pipeline directory, same pattern those pipelines' own scripts
+already use for their `modules/`/`models/`) rather than living inside
+either one, so the "live runtime" layer isn't tangled up with training/
+analysis code. It has no venv of its own — each script still runs under
+whichever of the two existing venvs it needs (see below), via wrapper
+scripts (`run_live.sh`, `run_replay.sh`, `run_debug_viewer.sh`) that pin
+the right interpreter so you don't have to remember which is which.
 
-- **`live_pipeline.py`** — the core program. OSC server for biodata in
+One extraction happened as part of this split: `live_pipeline.py` needs
+`load_transformer()`, which used to live in `biodata_pipeline/scripts/
+train_transformer.py` (a script, not a module) — moved into a new
+`biodata_pipeline/modules/alignment_transformer.py` (the transformer
+classes + `load_transformer`), leaving `train_transformer.py` as just its
+training CLI. `apply_transformer.py`, `validate_transformer.py`, and
+`validate_heldout_emotion.py` were updated to import from the new module
+too.
+
+- **`live_pipeline.py`** — the core program. Runs under
+  `biodata_pipeline/venv` (needs `OnlineFeatureExtractor` + the alignment
+  transformer; no torch). OSC server for biodata in
   (`[heart, gsr, respiration]`, one message per raw sample), OSC client for
   W out. Loads a pre-trained alignment transformer + Stage 5 regressor,
   runs `OnlineFeatureExtractor.calibrate()`/`push()`, and sends each
@@ -464,18 +485,27 @@ The runtime pipeline mentioned throughout this doc is now built, in
   W directly only if its "project" checkbox is left unchecked (it defaults
   to Z-space with an optional Z→W mapping step, which our output must
   bypass).
-- **`replay_biodata_as_osc.py`** — sends a recorded raw biodata CSV out as
-  OSC at real-time (or faster) pace, standing in for real sensor hardware.
-  No hardware/OSC protocol for how biodata will actually arrive live is
-  confirmed anywhere in this repo (legacy Arduino OSC code was removed in
-  the newest firmware iteration in favor of serial-only, and the exact
-  serial format isn't documented either) — `live_pipeline.py`'s input
-  protocol is this project's own design, documented in both scripts'
-  docstrings, for a future hardware bridge to match.
-- **`latent_pipeline/scripts/w_osc_debug_viewer.py`** — optional, separate
-  process that listens to the same W-over-OSC stream and renders it
+- **`replay_biodata_as_osc.py`** — runs under `biodata_pipeline/venv`.
+  Sends a recorded raw biodata CSV out as OSC at real-time (or faster)
+  pace, standing in for real sensor hardware. No hardware/OSC protocol for
+  how biodata will actually arrive live is confirmed anywhere in this repo
+  (legacy Arduino OSC code was removed in the newest firmware iteration in
+  favor of serial-only, and the exact serial format isn't documented
+  either) — `live_pipeline.py`'s input protocol is this project's own
+  design, documented in both scripts' docstrings, for a future hardware
+  bridge to match. Also logs the recording's `emotion`/`feeling_it`
+  ground-truth columns to stdout whenever they change, if present, for
+  eyeballing the pipeline's output against what the subject was actually
+  feeling during testing.
+- **`w_osc_debug_viewer.py`** — optional, separate process. Runs under
+  `latent_pipeline/.venv` (needs torch/StyleGAN2 — the only one of the
+  three that does). Listens to the same W-over-OSC stream and renders it
   locally via this project's own StyleGAN2 code, for visual sanity-
   checking without Autolume running.
+- **`live_pipeline/data/`** — reusable test fixtures: `erin_calibration_
+  segment.csv` (first 60s of Erin's recording) / `erin_live_segment.csv`
+  (the non-overlapping remainder), split so calibration and "live" replay
+  never reuse the same data (see bug 1 below for why that matters).
 
 **Two real bugs were caught building this, both against the same
 mechanism** (an artificially fast `--speed` in `replay_biodata_as_osc.py`

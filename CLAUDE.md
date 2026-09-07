@@ -22,6 +22,7 @@ See [PIPELINE.md](PIPELINE.md) for how `biodata_pipeline` and `latent_pipeline` 
 | `notebooks/` | Exploratory Jupyter notebooks (v3 is latest, uses NeuroKit2) | `biodata_features-v3.ipynb` |
 | `data/` | Emotion-labeled physiological recordings (ANG, ARO, FEA, HAP) | `csv/`, `raw/`, `timestamps.csv` |
 | `latent_pipeline/` | W-space encoder: synthetic pre-training + real frame fine-tuning | `scripts/stage2a_train_synthetic.py`, `scripts/stage2b_train_frames.py` |
+| `live_pipeline/` | Runtime layer: biodata (OSC) → W (OSC) → Autolume; imports `biodata_pipeline`/`latent_pipeline` modules as libraries, runs under their venvs (see wrapper scripts) | `live_pipeline.py`, `run_live.sh` |
 
 Each subdirectory has its own README.md with detailed documentation.
 
