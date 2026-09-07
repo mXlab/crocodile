@@ -54,14 +54,25 @@ def main():
     print(f"Loaded {len(df):,} samples ({len(df) / args.sampling_rate:.1f}s at {args.sampling_rate}Hz) "
           f"from {args.input}")
 
+    has_labels = 'emotion' in df.columns and 'feeling_it' in df.columns
+    if has_labels:
+        print("Ground-truth 'emotion'/'feeling_it' columns found -- will log on change")
+
     client = SimpleUDPClient(args.host, args.port)
     interval = 1.0 / args.sampling_rate / args.speed
     print(f"Sending to {args.host}:{args.port}{args.address} at {args.speed}x speed "
           f"({interval * 1000:.2f}ms/sample)")
 
+    last_emotion, last_feeling_it = None, None
     start = time.perf_counter()
     for i, row in enumerate(df.itertuples(index=False)):
         client.send_message(args.address, [float(row.heart), float(row.gsr), float(row.respiration)])
+
+        if has_labels and (row.emotion != last_emotion or row.feeling_it != last_feeling_it):
+            t_s = i / args.sampling_rate
+            print(f"  [{t_s:8.1f}s] emotion={row.emotion} feeling_it={row.feeling_it}")
+            last_emotion, last_feeling_it = row.emotion, row.feeling_it
+
         target = start + (i + 1) * interval
         sleep_s = target - time.perf_counter()
         if sleep_s > 0:
