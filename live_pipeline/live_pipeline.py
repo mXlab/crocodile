@@ -261,7 +261,7 @@ class SessionState:
             return  # IDLE/READY: no session active yet, or visitor not yet ready to be measured
 
         if self._record_writer is not None:
-            record_phase = 'live' if self.phase == 'LIVE' else 'calibration'
+            record_phase = 'live' if self.phase == 'LIVE' else 'calib'
             self._record_writer.writerow([heart, gsr, respiration, record_phase, time.time()])
 
         row_df = pd.DataFrame([{'heart': heart, 'gsr': gsr, 'respiration': respiration}])

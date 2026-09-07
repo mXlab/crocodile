@@ -573,7 +573,7 @@ too.
 **Recording sessions (`--record-dir`)**: optional. If given,
 `session/start` opens `{record-dir}/{session_id}.csv` and appends every
 biodata sample from `calibration/start` onward (`heart, gsr, respiration,
-session_phase, timestamp` — `session_phase` is `calibration` or `live`,
+session_phase, timestamp` — `session_phase` is `calib` or `live`,
 `timestamp` is wall-clock, both ignored by every existing offline tool,
 which only reads `heart`/`gsr`/`respiration`). Row-by-row flush, so a
 crash mid-session doesn't lose the recording. Directly reusable by the
