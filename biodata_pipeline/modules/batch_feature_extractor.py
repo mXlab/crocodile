@@ -460,7 +460,15 @@ class BatchFeatureExtractor:
             depths_so_far_mask = breath_times <= t
             depths_so_far = breath_depths[depths_so_far_mask]
             if len(depths_so_far) >= 5:
-                d_mean, d_std = depths_so_far.mean(), depths_so_far.std()
+                # nanmean/nanstd (not plain mean/std): breath_depths can carry
+                # a single leading NaN when amplitude is only known from a
+                # cycle's *closing* trough onward (true for the online
+                # extractor -- its very first trough precedes any completed
+                # cycle). A plain .mean() would let that one NaN poison
+                # d_mean/d_std -- and therefore amplitude_spike_5s -- for the
+                # rest of the session. NeuroKit2's own amplitude signal
+                # rarely has this gap, so this is a no-op for the batch path.
+                d_mean, d_std = np.nanmean(depths_so_far), np.nanstd(depths_so_far)
                 recent_depth_mask = (breath_times >= start_5s / fs) & (breath_times <= t)
                 recent_depths = breath_depths[recent_depth_mask]
                 n_sighs = int((recent_depths > d_mean + 2 * d_std).sum())
