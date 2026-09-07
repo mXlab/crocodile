@@ -124,6 +124,18 @@ def build_arg_parser():
                              'Columns: heart, gsr, respiration, session_phase, timestamp. Reusable '
                              'directly by the existing offline toolchain (extra columns are ignored '
                              'by scripts that only read heart/gsr/respiration). If omitted, no recording.')
+    parser.add_argument('--calibration-csv', default=None,
+                        help='Optional pre-recorded calibration CSV (heart/gsr/respiration columns) '
+                             'to prime every fresh session\'s extractor with immediately at '
+                             'session/start, before the state machine even starts (session stays in '
+                             'READY afterward, same as without this flag). Use when a suitable '
+                             'calibration recording already exists (e.g. a generic baseline, or '
+                             'reusing a visitor\'s own earlier recording) and the live calibration/ '
+                             'start-stop phase can be skipped entirely -- or still run it afterward '
+                             'to layer live-recorded priming on top; calibrate() and push() are the '
+                             'same underlying operation, so the two compose cleanly. NOT the same '
+                             'recording you then replay as "live" for testing -- reusing it creates a '
+                             'filter-state discontinuity (see replay_biodata_as_osc.py\'s docstring).')
     parser.add_argument('--log-only', action='store_true',
                         help='Print outgoing W vectors instead of sending OSC (no Autolume needed)')
     return parser
@@ -146,10 +158,11 @@ class SessionState:
         'recalibrate': {'LIVE'},
     }
 
-    def __init__(self, sampling_rate, record_dir, status_client, status_address,
+    def __init__(self, sampling_rate, record_dir, calibration_df, status_client, status_address,
                  model, scaler, feature_cols, w_cols, transformer, osc_client, out_address, log_only):
         self.sampling_rate = sampling_rate
         self.record_dir = Path(record_dir) if record_dir else None
+        self.calibration_df = calibration_df
         self.status_client = status_client
         self.status_address = status_address
 
@@ -185,6 +198,9 @@ class SessionState:
             return
         self.session_id = session_id or datetime.now().strftime('session_%Y%m%d_%H%M%S')
         self.extractor = OnlineFeatureExtractor(sampling_rate=self.sampling_rate)
+        if self.calibration_df is not None:
+            print("  Priming from --calibration-csv")
+            self.extractor.calibrate(self.calibration_df)
         self.n_rows_sent = 0
         self.n_rows_skipped = 0
         if self.record_dir:
@@ -291,11 +307,16 @@ def main():
     if missing:
         raise ValueError(f"Transformer is missing regressor's expected features: {missing}")
 
+    calibration_df = None
+    if args.calibration_csv:
+        print(f"Loading calibration CSV from {args.calibration_csv}")
+        calibration_df = pd.read_csv(args.calibration_csv)
+
     osc_client = None if args.log_only else SimpleUDPClient(args.out_host, args.out_port)
     status_client = SimpleUDPClient(args.status_out_host, args.status_out_port)
 
     session = SessionState(
-        sampling_rate=args.sampling_rate, record_dir=args.record_dir,
+        sampling_rate=args.sampling_rate, record_dir=args.record_dir, calibration_df=calibration_df,
         status_client=status_client, status_address=args.status_out_address,
         model=model, scaler=scaler, feature_cols=feature_cols, w_cols=w_cols,
         transformer=transformer, osc_client=osc_client, out_address=args.out_address,
