@@ -58,15 +58,21 @@ Live per-visitor alignment fit (new, optional -- needs --reference-features):
   session's "current calibration emotion" (default 'neu', changeable via
   calibration/set_emotion) and buffered. At calibration/stop (or on
   calibration/refit), that buffer is used to fit a fresh alignment
-  transformer against --reference-features -- ClassConditionalOTTransformer
-  if the buffer has >=2 emotion labels with enough samples each
-  (--min-samples-per-emotion), otherwise ZScoreTransformer (needs no
-  labels, robust from a short single-label baseline recording, but can
-  produce visually glitchy output -- see its docstring in
+  transformer against --reference-features. --live-transformer-method auto
+  (the default) picks, in order: ClassConditionalOTTransformer if the
+  buffer has >=2 emotion labels with enough samples each
+  (--min-samples-per-emotion) -- a guided, multi-emotion calibration;
+  CORALTransformer if it has enough total rows regardless of labels
+  (--min-samples-for-covariance) -- a single, class-blind but still
+  covariance-aware fit; otherwise ZScoreTransformer (needs no labels,
+  robust from very little data, but no covariance correction -- can
+  produce visually glitchy output; see its docstring in
   biodata_pipeline/modules/alignment_transformer.py and PIPELINE.md's
-  "Live per-visitor alignment fit" section). Fit failures are logged and
-  never crash the server; the previous transformer (the --transformer
-  startup fallback, until a live fit first succeeds) stays active. If
+  "Live per-visitor alignment fit" section). Any of zscore/coral/ot_global
+  can be forced explicitly to always pool class-blind regardless of how
+  much labeled data is available. Fit failures are logged and never crash
+  the server; the previous transformer (the --transformer startup
+  fallback, until a live fit first succeeds) stays active. If
   --reference-features is omitted, this is disabled entirely and every
   session just uses --transformer, unchanged from before.
 
@@ -174,16 +180,30 @@ def build_arg_parser():
                              'reference at calibration/stop (and on-demand via calibration/refit), '
                              'replacing the --transformer fallback for that session. If omitted, '
                              'this is disabled entirely and every session just uses --transformer.')
-    parser.add_argument('--live-transformer-method', choices=['auto', 'zscore', 'ot_classconditional'],
+    parser.add_argument('--live-transformer-method',
+                        choices=['auto', 'zscore', 'coral', 'ot_global', 'ot_classconditional'],
                         default='auto',
-                        help='Method for the live per-visitor fit above. auto picks '
+                        help='Method for the live per-visitor fit above. auto picks, in order: '
                              'ot_classconditional if the calibration buffer has >=2 emotion labels '
-                             'with >=--min-samples-per-emotion rows each, else zscore (needs no '
-                             'labels, robust from very little data -- see alignment_transformer.py).')
+                             'with >=--min-samples-per-emotion rows each (guided multi-emotion '
+                             'calibration); else coral if it has >=--min-samples-for-covariance '
+                             'rows total, regardless of labels (enough for a well-conditioned '
+                             'covariance estimate even class-blind); else zscore (robust from very '
+                             'little data, but no covariance/cross-feature correction -- see '
+                             'ZScoreTransformer\'s docstring on the resulting glitch risk). Force '
+                             'coral/ot_global/zscore explicitly to always pool class-blind '
+                             'regardless of how much labeled data is available -- see '
+                             'alignment_transformer.py.')
     parser.add_argument('--min-samples-per-emotion', type=int, default=30,
-                        help='Minimum rows for an emotion label to count toward the auto method '
-                             'selection above. A starting value, not rigorously derived -- tune '
-                             'once tested against real induced-emotion calibration data.')
+                        help='Minimum rows for an emotion label to count toward auto\'s '
+                             'ot_classconditional selection above. A starting value, not rigorously '
+                             'derived -- tune once tested against real induced-emotion calibration '
+                             'data.')
+    parser.add_argument('--min-samples-for-covariance', type=int, default=300,
+                        help='Minimum total calibration rows (any/no labels) for auto\'s coral '
+                             'selection above -- a rule-of-thumb multiple of the 53-feature count '
+                             'for a well-conditioned covariance estimate (roughly 5-6x), not a '
+                             'rigorously derived number. Below this, auto falls back to zscore.')
     return parser
 
 
@@ -208,7 +228,8 @@ class SessionState:
 
     def __init__(self, sampling_rate, record_dir, calibration_df, status_client, status_address,
                  model, scaler, feature_cols, w_cols, static_transformer, reference_df,
-                 live_transformer_method, min_samples_per_emotion, osc_client, out_address, log_only):
+                 live_transformer_method, min_samples_per_emotion, min_samples_for_covariance,
+                 osc_client, out_address, log_only):
         self.sampling_rate = sampling_rate
         self.record_dir = Path(record_dir) if record_dir else None
         self.calibration_df = calibration_df
@@ -223,6 +244,7 @@ class SessionState:
         self.reference_df = reference_df
         self.live_transformer_method = live_transformer_method
         self.min_samples_per_emotion = min_samples_per_emotion
+        self.min_samples_for_covariance = min_samples_for_covariance
         self.osc_client = osc_client
         self.out_address = out_address
         self.log_only = log_only
@@ -315,14 +337,20 @@ class SessionState:
 
         method = self.live_transformer_method
         if method == 'auto':
-            method = 'ot_classconditional' if len(viable_emotions) >= 2 else 'zscore'
+            if len(viable_emotions) >= 2:
+                method = 'ot_classconditional'
+            elif len(subject_df) >= self.min_samples_for_covariance:
+                method = 'coral'
+            else:
+                method = 'zscore'
 
         try:
             new_transformer = create_transformer(method)
-            if method == 'zscore':
+            if method in ('zscore', 'coral', 'ot_global'):
                 # Single dominant label (usually just 'neu' from an un-cued
-                # calibration) -- match reference rows with that same label
-                # specifically; pool the whole reference otherwise.
+                # calibration, or any pooled/forced class-blind fit) --
+                # match reference rows with that same label specifically;
+                # pool the whole reference if multiple/no labels present.
                 emotion = subject_df['emotion'].mode().iloc[0] if len(counts) == 1 else None
                 new_transformer.fit(self.reference_df, subject_df, emotion=emotion)
             else:
@@ -462,6 +490,7 @@ def main():
         static_transformer=static_transformer, reference_df=reference_df,
         live_transformer_method=args.live_transformer_method,
         min_samples_per_emotion=args.min_samples_per_emotion,
+        min_samples_for_covariance=args.min_samples_for_covariance,
         osc_client=osc_client, out_address=args.out_address, log_only=args.log_only)
 
     def on_biodata(unused_address, *osc_args):

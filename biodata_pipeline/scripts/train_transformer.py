@@ -54,8 +54,11 @@ def main():
     )
     parser.add_argument(
         '--emotion', default=None,
-        help='zscore only: restrict --reference rows to this single emotion label '
-             '(e.g. neu) instead of pooling all of --reference. Ignored by other methods.'
+        help='zscore/ot_global/coral only, and only when --subject has fewer than 2 common '
+             'emotion labels with --reference (forcing class-blind pooled mode): restrict '
+             '--reference rows to this single emotion label (e.g. neu) instead of pooling all '
+             'of --reference. Ignored by ridge/ot_classconditional, and by ot_global/coral when '
+             '--subject has >=2 common labels (normal per-emotion-pooled mode is used instead).'
     )
     parser.add_argument(
         '--alpha', type=float, default=10.0,
@@ -89,7 +92,7 @@ def main():
     transformer = create_transformer(
         args.method, alpha=args.alpha, n_features=args.n_features, reg=args.reg)
 
-    if args.method == 'zscore':
+    if args.method in ('zscore', 'ot_global', 'coral'):
         transformer.fit(ref_df, sub_df, emotion=args.emotion)
     else:
         transformer.fit(ref_df, sub_df)

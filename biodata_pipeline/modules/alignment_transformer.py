@@ -215,6 +215,49 @@ def _common_setup(reference_df, subject_df):
     return feature_cols, common_emotions
 
 
+def _common_setup_or_pool(reference_df, subject_df, emotion=None):
+    """Like _common_setup(), but falls back to class-blind pooling instead
+    of raising when subject_df doesn't have >=2 common emotion labels with
+    reference_df (e.g. an unlabeled or single-label live calibration
+    recording -- see live_pipeline.py's live per-visitor calibration fit).
+    Used by LinearOTTransformer/CORALTransformer, whose actual covariance
+    fit pools all rows together regardless of label anyway -- the
+    per-emotion loop in their normal path only computes diagnostic
+    prototypes, so dropping it in pooled mode changes nothing about the
+    fitted map itself, just skips those diagnostics.
+
+    Returns (feature_cols, common_emotions, pooled). pooled=False means
+    normal behavior: common_emotions has >=2 labels, caller restricts both
+    dataframes to rows with one of those labels. pooled=True means: use
+    ALL of subject_df regardless of label, and use reference_df restricted
+    to `emotion` if given and present (common_emotions == [emotion]) or
+    all of reference_df otherwise (common_emotions == [])."""
+    ref_features = set(c for c in reference_df.columns if c not in METADATA_COLS)
+    sub_features = set(c for c in subject_df.columns if c not in METADATA_COLS)
+    feature_cols = sorted(ref_features & sub_features)
+
+    if ref_features != sub_features:
+        print(f"  Note: using {len(feature_cols)} common features "
+              f"(reference has {len(ref_features)}, subject has {len(sub_features)})")
+
+    ref_emotions = set(reference_df['emotion'].dropna().unique()) if 'emotion' in reference_df.columns else set()
+    sub_emotions = set(subject_df['emotion'].dropna().unique()) if 'emotion' in subject_df.columns else set()
+    common_emotions = sorted(ref_emotions & sub_emotions)
+
+    if len(common_emotions) >= 2:
+        print(f"Common emotions: {common_emotions}")
+        return feature_cols, common_emotions, False
+
+    if emotion is not None and emotion in ref_emotions:
+        print(f"Pooling class-blind ({len(common_emotions)} common emotion(s) with reference "
+              f"-- reference restricted to '{emotion}')")
+        return feature_cols, [emotion], True
+
+    print(f"Pooling class-blind ({len(common_emotions)} common emotion(s) with reference "
+          f"-- using all of reference)")
+    return feature_cols, [], True
+
+
 def _sym_sqrt(M):
     """Symmetric PSD matrix square root via eigendecomposition."""
     eigvals, eigvecs = np.linalg.eigh(M)
@@ -253,32 +296,49 @@ class LinearOTTransformer:
         self.reference_prototypes = {}
         self.trained = False
 
-    def fit(self, reference_df, subject_df):
+    def fit(self, reference_df, subject_df, emotion=None):
+        """Standard usage (emotion unused): reference_df/subject_df both
+        have >=2 common 'emotion' labels -- computes per-emotion
+        prototypes (diagnostics only) then fits one global OT map on the
+        pooled common-emotion data, same as before. Class-blind fallback:
+        if subject_df has <2 common emotion labels with reference_df (e.g.
+        unlabeled or single-label live calibration data), pools ALL of
+        subject_df against reference_df instead of raising -- optionally
+        restricted to a single reference `emotion` label. The OT map
+        itself never used per-emotion structure either way, only the
+        (skipped, in this case) diagnostic prototypes did."""
         import ot as pot
 
-        self.feature_cols, self.common_emotions = _common_setup(reference_df, subject_df)
+        self.feature_cols, self.common_emotions, pooled = _common_setup_or_pool(
+            reference_df, subject_df, emotion)
 
-        ref_all = _clean(reference_df.loc[
-            reference_df['emotion'].isin(self.common_emotions), self.feature_cols
-        ].values)
-        sub_all = _clean(subject_df.loc[
-            subject_df['emotion'].isin(self.common_emotions), self.feature_cols
-        ].values)
+        if pooled:
+            ref_rows = reference_df[reference_df['emotion'] == self.common_emotions[0]] \
+                if self.common_emotions else reference_df
+            sub_rows = subject_df
+        else:
+            ref_rows = reference_df[reference_df['emotion'].isin(self.common_emotions)]
+            sub_rows = subject_df[subject_df['emotion'].isin(self.common_emotions)]
+
+        ref_all = _clean(ref_rows[self.feature_cols].values)
+        sub_all = _clean(sub_rows[self.feature_cols].values)
 
         self.ref_scaler.fit(ref_all)
         self.sub_scaler.fit(sub_all)
 
-        for emotion in self.common_emotions:
-            r = _clean(reference_df.loc[reference_df['emotion'] == emotion, self.feature_cols].values)
-            s = _clean(subject_df.loc[subject_df['emotion'] == emotion, self.feature_cols].values)
-            self.reference_prototypes[emotion] = np.mean(self.ref_scaler.transform(r), axis=0)
-            self.subject_prototypes[emotion] = np.mean(self.sub_scaler.transform(s), axis=0)
-            print(f"  {emotion}: reference n={len(r)}, subject n={len(s)}")
+        if not pooled:
+            for e in self.common_emotions:
+                r = _clean(reference_df.loc[reference_df['emotion'] == e, self.feature_cols].values)
+                s = _clean(subject_df.loc[subject_df['emotion'] == e, self.feature_cols].values)
+                self.reference_prototypes[e] = np.mean(self.ref_scaler.transform(r), axis=0)
+                self.subject_prototypes[e] = np.mean(self.sub_scaler.transform(s), axis=0)
+                print(f"  {e}: reference n={len(r)}, subject n={len(s)}")
 
         X_ref_sc = self.ref_scaler.transform(ref_all)
         X_sub_sc = self.sub_scaler.transform(sub_all)
 
-        print(f"\nFitting Linear OT on {len(X_sub_sc)} subject → {len(X_ref_sc)} reference samples")
+        print(f"\nFitting Linear OT on {len(X_sub_sc)} subject -> {len(X_ref_sc)} reference samples"
+              + (" (pooled, class-blind)" if pooled else ""))
         self.ot = pot.da.LinearTransport(reg=self.reg)
         self.ot.fit(Xs=X_sub_sc, Xt=X_ref_sc)
         self.trained = True
@@ -485,32 +545,49 @@ class CORALTransformer:
         self.reference_prototypes = {}
         self.trained = False
 
-    def fit(self, reference_df, subject_df):
-        self.feature_cols, self.common_emotions = _common_setup(reference_df, subject_df)
+    def fit(self, reference_df, subject_df, emotion=None):
+        """Standard usage (emotion unused): reference_df/subject_df both
+        have >=2 common 'emotion' labels -- computes per-emotion
+        prototypes (diagnostics only) then fits the whitening/recoloring
+        map on the pooled common-emotion data, same as before. Class-blind
+        fallback: if subject_df has <2 common emotion labels with
+        reference_df (e.g. unlabeled or single-label live calibration
+        data), pools ALL of subject_df against reference_df instead of
+        raising -- optionally restricted to a single reference `emotion`
+        label. The covariance estimate itself never used per-emotion
+        structure either way, only the (skipped, in this case) diagnostic
+        prototypes did."""
+        self.feature_cols, self.common_emotions, pooled = _common_setup_or_pool(
+            reference_df, subject_df, emotion)
 
-        ref_all = _clean(reference_df.loc[
-            reference_df['emotion'].isin(self.common_emotions), self.feature_cols
-        ].values)
-        sub_all = _clean(subject_df.loc[
-            subject_df['emotion'].isin(self.common_emotions), self.feature_cols
-        ].values)
+        if pooled:
+            ref_rows = reference_df[reference_df['emotion'] == self.common_emotions[0]] \
+                if self.common_emotions else reference_df
+            sub_rows = subject_df
+        else:
+            ref_rows = reference_df[reference_df['emotion'].isin(self.common_emotions)]
+            sub_rows = subject_df[subject_df['emotion'].isin(self.common_emotions)]
+
+        ref_all = _clean(ref_rows[self.feature_cols].values)
+        sub_all = _clean(sub_rows[self.feature_cols].values)
 
         self.ref_scaler.fit(ref_all)
         self.sub_scaler.fit(sub_all)
 
-        for emotion in self.common_emotions:
-            r = _clean(reference_df.loc[reference_df['emotion'] == emotion, self.feature_cols].values)
-            s = _clean(subject_df.loc[subject_df['emotion'] == emotion, self.feature_cols].values)
-            self.reference_prototypes[emotion] = np.mean(self.ref_scaler.transform(r), axis=0)
-            self.subject_prototypes[emotion] = np.mean(self.sub_scaler.transform(s), axis=0)
-            print(f"  {emotion}: reference n={len(r)}, subject n={len(s)}")
+        if not pooled:
+            for e in self.common_emotions:
+                r = _clean(reference_df.loc[reference_df['emotion'] == e, self.feature_cols].values)
+                s = _clean(subject_df.loc[subject_df['emotion'] == e, self.feature_cols].values)
+                self.reference_prototypes[e] = np.mean(self.ref_scaler.transform(r), axis=0)
+                self.subject_prototypes[e] = np.mean(self.sub_scaler.transform(s), axis=0)
+                print(f"  {e}: reference n={len(r)}, subject n={len(s)}")
 
         X_ref_sc = self.ref_scaler.transform(ref_all)
         X_sub_sc = self.sub_scaler.transform(sub_all)
         n_features = X_sub_sc.shape[1]
 
         print(f"\nFitting CORAL on {len(X_sub_sc)} subject -> {len(X_ref_sc)} reference samples "
-              f"(class-blind, {n_features} features)")
+              f"(class-blind, {n_features} features" + (", pooled" if pooled else "") + ")")
 
         Cs = np.cov(X_sub_sc, rowvar=False) + self.reg * np.eye(n_features)
         Ct = np.cov(X_ref_sc, rowvar=False) + self.reg * np.eye(n_features)
