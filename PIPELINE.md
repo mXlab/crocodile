@@ -637,6 +637,55 @@ feedback loop suppressing detection exactly when it matters). It also
 doesn't pause W output or change `phase` — interrupting the visuals for
 ~30s every recalibration would be worse than a briefly stale threshold.
 
+**Live per-visitor alignment fit (`--reference-features`)**: optional.
+Until this, every session reused one static, pre-trained
+`[user-actress alignment]` transformer (`--transformer`) regardless of
+visitor — a poor personalization story given the whole point of that step
+is correcting for each visitor's own physiological baseline. If
+`--reference-features` is given (Erin's online-schema feature CSV, e.g.
+`biodata_pipeline/data/processed/erin_features_online.csv`), each
+session's own calibration recording is used to fit a fresh transformer
+against it at `calibration/stop` (and on demand via
+`/crocodile/calibration/refit`, which re-fits from the same stored
+calibration buffer without re-recording it) — replacing `--transformer`
+for that session only; a fresh session always starts back on the static
+fallback. Building this surfaced two constraints on what "live fit" can
+actually mean:
+
+- **A passive calibration recording has no emotion ground truth**, but
+  the previously-only method, `ClassConditionalOTTransformer`, needs
+  per-emotion labels on both sides (`_common_setup()` in
+  `alignment_transformer.py` requires ≥2 common emotion labels, or raises
+  `ValueError`). The live protocol can go either way: an un-cued
+  calibration tags every row `neu` by default; an operator can call
+  `/crocodile/calibration/set_emotion <label>` between induced-emotion
+  segments during a longer, scripted multi-emotion calibration (the
+  intended richer path — a few minutes, ~3 induced emotions) to produce
+  real per-emotion labels instead.
+- **Even the "class-blind" methods (`ot_global`/`coral`) still need
+  enough samples to fit a full feature covariance matrix** (53×53, ~1400
+  off-diagonal terms) — badly underdetermined from a short, single-label
+  calibration window (tens of samples). A new fifth transformer,
+  `ZScoreTransformer`, was added for exactly this case: diagonal-only —
+  matches each feature's mean *and* variance independently (a per-feature
+  translation *and* scale correction, not just the former), reusing the
+  same `StandardScaler`-based `sub_scaler`/`ref_scaler` pattern the other
+  four already use, minus the covariance/OT step in between. Variance is
+  still a univariate per-feature statistic (53 independent scalars, not a
+  53×53 matrix), so it stays well-conditioned from the same small window
+  that breaks full-covariance methods, and needs no emotion labels on the
+  subject side at all.
+
+`live_pipeline.py` auto-selects between the two (`--live-transformer-method
+auto`, the default): `ClassConditionalOTTransformer` if the calibration
+buffer has ≥2 emotion labels with ≥`--min-samples-per-emotion` rows each,
+else `ZScoreTransformer` — the same underlying mechanism (the optional
+per-row emotion tag) naturally produces either the short unlabeled case or
+the longer scripted multi-emotion case, matching however that particular
+visitor was actually calibrated. A failed fit (still-insufficient data, a
+linalg error) is logged and never crashes the server — the previous
+transformer just stays active.
+
 **Two real bugs were caught building this, both against the same
 mechanism** (an artificially fast `--speed` in `replay_biodata_as_osc.py`
 made a slow, systemic bug look like fast-UDP packet loss at first, so both

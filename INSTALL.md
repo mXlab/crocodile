@@ -20,6 +20,7 @@ private storage, or generate synthetic stand-ins where noted below.
 |---|---|---|
 | `live_pipeline.py` (**required**) | Trained regressor (`latent_pipeline/outputs/stage5_regressor_online/regressor.joblib`) | Private — ask a teammate, or train your own (`latent_pipeline/PLAN.md`, Stage 5) |
 | `live_pipeline.py` (**required**) | Trained alignment transformer (`biodata_pipeline/models/transformer_ot_classconditional_online.pkl`) | Private — ask a teammate, or train your own (`biodata_pipeline/scripts/train_transformer.py`) |
+| `live_pipeline.py` (optional — enables live per-visitor alignment fitting) | Erin's online-schema reference features (`biodata_pipeline/data/processed/erin_features_online.csv`), passed as `--reference-features` | Private — ask a teammate. Without it, every session just uses the static transformer above (unchanged behavior) — see PIPELINE.md's "Live per-visitor alignment fit" |
 | Feeding the pipeline data | Real biodata recordings, or `--calibration-csv` priming | Private — optional; §5 generates synthetic data as a substitute |
 | `w_osc_debug_viewer.py` (visual check only) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) + the `stylegan_Autolume` code repo | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `w_osc_debug_receiver.py` (§6) |
 | Real deployment only | Autolume, the separate live performance app | Private/separate project — not needed to install or test this repo |
