@@ -26,6 +26,37 @@ See [PIPELINE.md](PIPELINE.md) for how `biodata_pipeline` and `latent_pipeline` 
 
 Each subdirectory has its own README.md with detailed documentation.
 
+## Privacy: Biodata and Trained Models Are NEVER Committed
+
+Raw biodata (any CSV/recording with real heart/EDA/respiration signal from
+a real person — the actress or a visitor), the actress' feature/reference
+datasets, trained models derived from them (regressors, alignment
+transformers), and the StyleGAN2 checkpoint are all **private** and must
+never be committed to this repo, regardless of format or how small/
+innocuous a file looks (a timestamps-only CSV with no raw signal is still
+a real recording session and still private).
+
+- `.gitignore` already blanket-excludes `*.csv`, `*.pkl`, `*.joblib`,
+  `models/`, `biodata_pipeline/models/`, `biodata_pipeline/data/{raw,
+  processed,features,metadata}/`, and `latent_pipeline/outputs/` — trust
+  it, don't work around it (no `git add -f` on these paths).
+- **Before any `git add`/commit touching a new data or model file**,
+  double check it isn't a real recording or a model trained on one — this
+  has slipped through before: `cnn_emotion_classifier/sensor_data.csv`
+  and two `timestamps.csv` files were tracked from before the `*.csv`
+  rule existed, and `.gitignore` only blocks *new* files, not already-
+  tracked ones. If you ever find a tracked file like this, `git rm
+  --cached` it (keep the local file, just untrack it) and flag to the
+  user that it's already in git history / possibly already pushed — that
+  needs a separate, explicit decision (history rewrite + force-push),
+  never done unprompted.
+- For testing/development without real data, use synthetic data
+  (`live_pipeline/generate_synthetic_biodata.py`, NeuroKit2-based) instead
+  of real recordings. See [INSTALL.md](INSTALL.md)'s "What's public vs.
+  private" table for exactly which assets are private and where to get
+  them (ask a teammate — never commit a copy into the repo to "fix" a
+  missing-file error).
+
 ## Environment
 
 Use the modern pip environment (Python 3.10 exactly -- `requirements/biodata_features.txt`
