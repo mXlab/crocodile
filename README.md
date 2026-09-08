@@ -29,6 +29,7 @@ crocodile/
 ├── conda/                  # Legacy conda environment (PyTorch 1.5.0, Python 3.7)
 ├── data/                   # Emotion-labeled physiological recordings (raw + CSV)
 ├── latent_pipeline/        # W-space encoder: invert video frames into StyleGAN2 latent space, attach biodata
+├── live_pipeline/          # Runtime layer: biodata (OSC) -> W (OSC) -> Autolume
 ├── lib/                    # Core Python library (datasets, models, signal processing, evaluation)
 ├── notebooks/              # Exploratory Jupyter notebooks for biodata feature engineering
 ├── requirements/           # Modern pip dependencies (PyTorch 2.1, Python 3.10+)
@@ -94,10 +95,54 @@ python latent_pipeline/scripts/stage3_validate.py --config latent_pipeline/confi
 python latent_pipeline/scripts/stage4_assemble.py --config latent_pipeline/configs/default.yaml
 ```
 
-See [latent_pipeline/PLAN.md](latent_pipeline/PLAN.md) for stage detail. Stage
-5 (biodata→W regressor, needed for the runtime pipeline) is not yet built.
+See [latent_pipeline/PLAN.md](latent_pipeline/PLAN.md) for stage detail,
+including Stage 5 (biodata→W regressor, `stage5_train_regressor.py`).
 
-### 3. Train an emotion classifier
+### 3. Run the live pipeline (biodata → W → Autolume)
+
+Once a regressor (Stage 5) and an alignment transformer exist, `live_pipeline/`
+runs the runtime layer as a persistent OSC session server. Everything below
+runs from the repo root; `live_pipeline/` has no venv of its own — the wrapper
+scripts pin the right interpreter (`biodata_pipeline/venv` or
+`latent_pipeline/.venv`) for you.
+
+```bash
+# 1. Start the core server (biodata_pipeline/venv) -- loads the regressor +
+#    transformer once, then handles sessions via an OSC state machine
+#    (IDLE -> READY -> CALIBRATING -> CALIBRATED -> LIVE).
+live_pipeline/run_live.sh \
+    --regressor latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
+    --transformer biodata_pipeline/models/transformer_ot_classconditional_online.pkl \
+    --record-dir recordings/            # optional: save sessions to disk
+    # --calibration-csv path/to/calib.csv   # optional: prime a session at start
+
+# 2. Drive the session state machine -- either the GUI panel or the CLI.
+live_pipeline/run_control_panel.sh          # Open Stage Control GUI, port 8090
+# or, one message per call (biodata_pipeline/venv):
+SC="biodata_pipeline/venv/bin/python3 live_pipeline/session_control.py"
+$SC --start-session [ID]
+$SC --start-calibration
+$SC --stop-calibration
+$SC --start-live
+$SC --recalibrate   # LIVE only
+$SC --end-session
+
+# 3. Feed it biodata -- real sensor hardware (protocol not yet finalized), or
+#    replay a recording at real-time speed to stand in for it:
+live_pipeline/run_replay.sh --input live_pipeline/data/erin_live_segment.csv --speed 1.0
+
+# 4. Consume the W output -- point Autolume at the server's OSC output
+#    (default port 1338, address /crocodile/w; uncheck Autolume's "project"
+#    box, since the output is already W-space), or sanity-check without
+#    Autolume via the local debug viewer (needs latent_pipeline/.venv):
+live_pipeline/run_debug_viewer.sh
+```
+
+See [PIPELINE.md](PIPELINE.md#live-pipeline-biodata-osc--w-osc--autolume) for
+the full state machine, OSC address table, recording format, and
+recalibration design.
+
+### 4. Train an emotion classifier
 
 ```bash
 cd cnn_emotion_classifier
@@ -106,7 +151,7 @@ python train.py --path_to_dataset PATH --epochs 3 --batch_size_train 128
 
 See [cnn_emotion_classifier/README.md](cnn_emotion_classifier/README.md) for details.
 
-### 4. (Legacy) train a from-scratch biodata-conditioned GAN
+### 5. (Legacy) train a from-scratch biodata-conditioned GAN
 
 Superseded by the pipeline above — kept for reference, not on the active path.
 
