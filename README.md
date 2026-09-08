@@ -41,6 +41,7 @@ crocodile/
 Each major subdirectory has its own README with detailed documentation:
 
 - [PIPELINE.md](PIPELINE.md) -- How biodata_pipeline and latent_pipeline fit together, current status
+- [INSTALL.md](INSTALL.md) -- Step-by-step install and test instructions for the live pipeline
 - [biodata_pipeline/README.md](biodata_pipeline/README.md) -- Emotion recognition pipeline status and documentation
 - [latent_pipeline/PLAN.md](latent_pipeline/PLAN.md) -- W-space encoder pipeline architecture and implementation plan
 - [cnn_emotion_classifier/README.md](cnn_emotion_classifier/README.md) -- Emotion classifier training
@@ -104,7 +105,10 @@ Once a regressor (Stage 5) and an alignment transformer exist, `live_pipeline/`
 runs the runtime layer as a persistent OSC session server. Everything below
 runs from the repo root; `live_pipeline/` has no venv of its own — the wrapper
 scripts pin the right interpreter (`biodata_pipeline/venv` or
-`latent_pipeline/.venv`) for you.
+`latent_pipeline/.venv`) for you. **See [INSTALL.md](INSTALL.md) for full,
+step-by-step setup** (including what's private and needs to come from a
+teammate rather than this repo, and how to generate synthetic test data if
+you don't have a real recording) — this is just the command summary.
 
 ```bash
 # 1. Start the core server (biodata_pipeline/venv) -- loads the regressor +
@@ -127,14 +131,20 @@ $SC --start-live
 $SC --recalibrate   # LIVE only
 $SC --end-session
 
-# 3. Feed it biodata -- real sensor hardware (protocol not yet finalized), or
-#    replay a recording at real-time speed to stand in for it:
-live_pipeline/run_replay.sh --input live_pipeline/data/erin_live_segment.csv --speed 1.0
+# 3. Feed it biodata -- real sensor hardware (protocol not yet finalized), a
+#    real recording replayed at real-time speed, or -- since real biodata
+#    can't be shared on GitHub -- synthetic data generated with NeuroKit2:
+live_pipeline/run_generate_synthetic.sh --duration 60 --seed 1 \
+    --output live_pipeline/data/synthetic_live.csv
+live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_live.csv --speed 1.0
 
 # 4. Consume the W output -- point Autolume at the server's OSC output
 #    (default port 1338, address /crocodile/w; uncheck Autolume's "project"
-#    box, since the output is already W-space), or sanity-check without
-#    Autolume via the local debug viewer (needs latent_pipeline/.venv):
+#    box, since the output is already W-space); or sanity-check the OSC
+#    plumbing alone, no StyleGAN2 model needed:
+live_pipeline/run_debug_receiver.sh
+#    or, for an actual visual preview (needs latent_pipeline/.venv AND the
+#    private StyleGAN2 checkpoint -- see INSTALL.md):
 live_pipeline/run_debug_viewer.sh
 ```
 

@@ -1,7 +1,9 @@
 # Crocodile Pipeline: How the Pieces Fit Together
 
 This is the map. For implementation depth on any one piece, follow the links —
-don't duplicate them here.
+don't duplicate them here. For step-by-step install/test instructions for the
+live pipeline specifically (including what's private and needs to come from a
+teammate rather than this repo), see [INSTALL.md](INSTALL.md).
 
 ## The goal
 
@@ -561,14 +563,31 @@ too.
   eyeballing the pipeline's output against what the subject was actually
   feeling during testing.
 - **`w_osc_debug_viewer.py`** — optional, separate process. Runs under
-  `latent_pipeline/.venv` (needs torch/StyleGAN2 — the only one of the
-  three that does). Listens to the same W-over-OSC stream and renders it
-  locally via this project's own StyleGAN2 code, for visual sanity-
-  checking without Autolume running.
+  `latent_pipeline/.venv` (needs torch/StyleGAN2 — the only script here
+  that does, and the only one needing the private StyleGAN2 checkpoint).
+  Listens to the same W-over-OSC stream and renders it locally via this
+  project's own StyleGAN2 code, for visual sanity-checking without
+  Autolume running.
+- **`w_osc_debug_receiver.py`** — optional, separate process. Runs under
+  `biodata_pipeline/venv` — no torch/StyleGAN2/checkpoint needed at all,
+  unlike the viewer above. Listens to the same W-over-OSC stream and just
+  reports receipt stats (count, rate, vector norm), for confirming the OSC
+  plumbing works before the private StyleGAN2 checkpoint is even available
+  (see INSTALL.md).
+- **`generate_synthetic_biodata.py`** — optional. Runs under
+  `biodata_pipeline/venv`. Uses NeuroKit2's own signal simulators
+  (`ppg_simulate`/`eda_simulate`/`rsp_simulate`) to produce a CSV with the
+  same columns `replay_biodata_as_osc.py` expects, as a stand-in when no
+  real biodata recording is available (real recordings, like the StyleGAN2
+  checkpoint, aren't shared on GitHub — see INSTALL.md). The resulting W
+  vectors aren't physiologically meaningful (no real subject/emotion signal
+  underlies them) — this only tests that data flows correctly end-to-end.
 - **`live_pipeline/data/`** — reusable test fixtures: `erin_calibration_
   segment.csv` (first 60s of Erin's recording) / `erin_live_segment.csv`
   (the non-overlapping remainder), split so calibration and "live" replay
-  never reuse the same data (see bug 1 below for why that matters).
+  never reuse the same data (see bug 1 below for why that matters). Not
+  tracked in git (real biodata) — generate synthetic equivalents with
+  `generate_synthetic_biodata.py` instead if you don't have them.
 
 **Recording sessions (`--record-dir`)**: optional. If given,
 `session/start` opens `{record-dir}/{session_id}.csv` and appends every
