@@ -118,10 +118,13 @@ def build_arg_parser():
         description='Live biodata -> W pipeline server: OSC session control, OSC out to Autolume',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--regressor', required=True, help='Path to regressor.joblib')
-    parser.add_argument('--transformer', required=True,
-                        help='Path to alignment transformer .pkl -- the startup fallback every '
-                             'fresh session uses until/unless a live per-visitor fit succeeds '
-                             '(see --reference-features)')
+    parser.add_argument('--transformer', default=None,
+                        help='Path to alignment transformer .pkl -- optional startup fallback a '
+                             'session uses only until/unless a live per-visitor fit succeeds (see '
+                             '--reference-features). If omitted, a session simply sends no W output '
+                             'at all until its own calibration produces a fit (rows are skipped with '
+                             'a warning, never crash) -- the right choice when simulating a genuinely '
+                             'new visitor with no pre-existing model to fall back to.')
     parser.add_argument('--sampling-rate', type=int, default=100, help='Hz')
     parser.add_argument('--in-host', default='127.0.0.1')
     parser.add_argument('--in-port', type=int, default=9000,
@@ -382,6 +385,11 @@ class SessionState:
 
         for row in rows:
             transformer = self.active_transformer
+            if transformer is None:
+                self.n_rows_skipped += 1
+                print(f"  Skipping row {self.n_rows_sent + self.n_rows_skipped}: no transformer yet "
+                      f"(no --transformer fallback and no live fit has succeeded for this session)")
+                continue
             aligned = transformer.transform(pd.DataFrame([row])[transformer.feature_cols])
             aligned_df = pd.DataFrame(aligned, columns=transformer.feature_cols)
             X = aligned_df[self.feature_cols].values
@@ -410,13 +418,18 @@ def main():
     feature_cols, w_cols = reg_data['feature_cols'], reg_data['w_cols']
     print(f"  {reg_data['model_type']}, {len(feature_cols)} features -> {len(w_cols)} W dims")
 
-    print(f"Loading alignment transformer from {args.transformer}")
-    static_transformer = load_transformer(args.transformer)
-    print(f"  {static_transformer.__class__.__name__}, emotions: {static_transformer.common_emotions}")
+    static_transformer = None
+    if args.transformer:
+        print(f"Loading alignment transformer from {args.transformer}")
+        static_transformer = load_transformer(args.transformer)
+        print(f"  {static_transformer.__class__.__name__}, emotions: {static_transformer.common_emotions}")
 
-    missing = [c for c in feature_cols if c not in static_transformer.feature_cols]
-    if missing:
-        raise ValueError(f"Transformer is missing regressor's expected features: {missing}")
+        missing = [c for c in feature_cols if c not in static_transformer.feature_cols]
+        if missing:
+            raise ValueError(f"Transformer is missing regressor's expected features: {missing}")
+    else:
+        print("--transformer not given: sessions send no W output until their own "
+              "calibration produces a live fit (see --reference-features)")
 
     calibration_df = None
     if args.calibration_csv:
@@ -430,7 +443,12 @@ def main():
         reference_df = pd.read_csv(args.reference_features)
     else:
         print("--reference-features not given: live per-visitor transformer fitting disabled, "
-              "every session uses --transformer as-is")
+              "every session uses --transformer as-is" if static_transformer is not None else
+              "--reference-features not given: live per-visitor transformer fitting disabled")
+
+    if static_transformer is None and reference_df is None:
+        print("WARNING: neither --transformer nor --reference-features given -- no session will "
+              "ever produce W output (every LIVE row will be skipped)")
 
     osc_client = None if args.log_only else SimpleUDPClient(args.out_host, args.out_port)
     status_client = SimpleUDPClient(args.status_out_host, args.status_out_port)
