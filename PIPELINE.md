@@ -669,29 +669,103 @@ actually mean:
   segments during a longer, scripted multi-emotion calibration (the
   intended richer path — a few minutes, ~3 induced emotions) to produce
   real per-emotion labels instead.
-- **Even the "class-blind" methods (`ot_global`/`coral`) still need
-  enough samples to fit a full feature covariance matrix** (53×53, ~1400
-  off-diagonal terms) — badly underdetermined from a short, single-label
-  calibration window (tens of samples). A new fifth transformer,
-  `ZScoreTransformer`, was added for exactly this case: diagonal-only —
+- **Even the "class-blind" methods (`ot_global`/`coral`) still hard-required
+  ≥2 emotion labels**, purely as an artifact of `_common_setup()` — even
+  though their actual covariance fit pools all rows together regardless of
+  label (only the diagnostic per-emotion prototypes used the split). Fixed
+  by adding a class-blind pooled fallback (`_common_setup_or_pool()`) to
+  both: below 2 common labels, pool all of `subject_df` (optionally
+  restricted to one reference `emotion`) instead of raising. They still
+  need enough *total* samples for a well-conditioned 53×53 covariance
+  estimate (~1400 off-diagonal terms) though — badly underdetermined from
+  a very short window (tens of samples). For that shorter-window case, a
+  fifth transformer, `ZScoreTransformer`, covers it: diagonal-only —
   matches each feature's mean *and* variance independently (a per-feature
   translation *and* scale correction, not just the former), reusing the
   same `StandardScaler`-based `sub_scaler`/`ref_scaler` pattern the other
   four already use, minus the covariance/OT step in between. Variance is
   still a univariate per-feature statistic (53 independent scalars, not a
-  53×53 matrix), so it stays well-conditioned from the same small window
-  that breaks full-covariance methods, and needs no emotion labels on the
+  53×53 matrix), so it stays well-conditioned from a much smaller window
+  than full-covariance methods need, and needs no emotion labels on the
   subject side at all.
 
-`live_pipeline.py` auto-selects between the two (`--live-transformer-method
-auto`, the default): `ClassConditionalOTTransformer` if the calibration
-buffer has ≥2 emotion labels with ≥`--min-samples-per-emotion` rows each,
-else `ZScoreTransformer` — the same underlying mechanism (the optional
-per-row emotion tag) naturally produces either the short unlabeled case or
-the longer scripted multi-emotion case, matching however that particular
-visitor was actually calibrated. A failed fit (still-insufficient data, a
+`live_pipeline.py` auto-selects between all three (`--live-transformer-method
+auto`, the default), in order: `ClassConditionalOTTransformer` if the
+calibration buffer has ≥2 emotion labels with ≥`--min-samples-per-emotion`
+rows each (a guided, multi-emotion calibration); else `CORALTransformer` if
+the buffer has ≥`--min-samples-for-covariance` rows *total*, regardless of
+labels (a single-baseline calibration long enough for a real covariance
+fit); else `ZScoreTransformer` (short and/or unlabeled). The same
+underlying mechanism (the optional per-row emotion tag, plus how much data
+was collected) naturally produces whichever tier matches how that
+particular visitor was actually calibrated — see "Three usage scenarios"
+below. Any method can also be forced explicitly regardless of what the
+data would otherwise justify. A failed fit (still-insufficient data, a
 linalg error) is logged and never crashes the server — the previous
 transformer just stays active.
+
+### Three usage scenarios
+
+The same calibration mechanism (a `CALIBRATING` phase, optionally tagged
+with `calibration/set_emotion`) naturally supports three different ways of
+running a session, differing only in how the calibration phase is used —
+`live_pipeline.py` doesn't need to be told which one you're doing, `auto`
+figures it out from the resulting data:
+
+1. **Just send data, no guided calibration** (what most of this project's
+   own testing has used). A short, un-cued calibration — replay some
+   baseline biodata with no `calibration/set_emotion` calls — lands every
+   row on the default `neu` tag, one implicit "class." With too little
+   data for a covariance estimate (below `--min-samples-for-covariance`,
+   default 300 rows ≈ 5 minutes at 1Hz), `auto` picks `ZScoreTransformer`.
+   ```bash
+   run_session_control.sh --start-session visitor-1
+   run_session_control.sh --start-calibration
+   # replay ~30-90s of raw baseline biodata here, no set-calibration-emotion calls
+   run_session_control.sh --stop-calibration
+   run_session_control.sh --start-live
+   ```
+   Cheapest calibration, but see "Known limitation" below — `zscore`'s
+   lack of covariance correction can produce visually glitchy output.
+
+2. **Calibrate a real (covariance-aware) model, still without emotion
+   classes.** Same un-cued calibration as above, just a *longer* one — once
+   the buffer passes `--min-samples-for-covariance`, `auto` upgrades
+   automatically to `CORALTransformer`: a single global map, still no
+   per-emotion split, but one that corrects cross-feature correlation too,
+   avoiding `zscore`'s out-of-distribution risk.
+   ```bash
+   run_session_control.sh --start-session visitor-2
+   run_session_control.sh --start-calibration
+   # replay several minutes of raw baseline biodata here (>= --min-samples-for-covariance
+   # seconds' worth, at 1Hz -- default 300s/5min), no set-calibration-emotion calls
+   run_session_control.sh --stop-calibration
+   run_session_control.sh --start-live
+   ```
+   Or force it regardless of duration: `--live-transformer-method coral`
+   (useful to compare against `zscore` on the exact same short recording,
+   or to always skip `zscore` even if the window ends up short).
+
+3. **Guide the visitor through N emotions, then calibrate per-emotion.**
+   The richest option: cue each induced-emotion segment during calibration,
+   then `auto` picks `ClassConditionalOTTransformer` once ≥2 labels have
+   enough samples each (`--min-samples-per-emotion`, default 30).
+   ```bash
+   run_session_control.sh --start-session visitor-3
+   run_session_control.sh --start-calibration
+   run_session_control.sh --set-calibration-emotion anx
+   # replay/collect biodata while the visitor is guided into anxiety
+   run_session_control.sh --set-calibration-emotion sad
+   # replay/collect biodata while guided into sadness
+   # ... repeat for however many emotions the exhibition protocol induces
+   run_session_control.sh --stop-calibration
+   run_session_control.sh --start-live
+   ```
+   Needs the longest calibration (a few minutes total, split across N
+   emotions) and the richest fit (a separate map per emotion), but doesn't
+   have `zscore`'s out-of-distribution risk either — see "Known
+   limitation" below for why covariance-aware methods (this one and
+   scenario 2's) don't have that problem.
 
 **Known limitation of `zscore`: can produce visually glitchy output** —
 observed in real testing (a `zscore`-fit session's generated faces showed
