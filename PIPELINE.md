@@ -607,12 +607,18 @@ kept sequential on purpose.
   checkpoint, aren't shared on GitHub — see INSTALL.md). The resulting W
   vectors aren't physiologically meaningful (no real subject/emotion signal
   underlies them) — this only tests that data flows correctly end-to-end.
-- **`live_pipeline/data/`** — reusable test fixtures: `erin_calibration_
-  segment.csv` (first 60s of Erin's recording) / `erin_live_segment.csv`
-  (the non-overlapping remainder), split so calibration and "live" replay
-  never reuse the same data (see bug 1 below for why that matters). Not
-  tracked in git (real biodata) — generate synthetic equivalents with
-  `generate_synthetic_biodata.py` instead if you don't have them.
+- **`live_pipeline/data/`** — reusable test fixtures, all sliced from
+  Erin's raw recording (`biodata_pipeline/data/raw/
+  emotion_biodata_erin_2026-02-09_labeled.csv`) so calibration and "live"
+  replay never reuse the same raw samples (see bug 1 below for why that
+  matters): `erin_calibration_segment.csv`/`erin_live_segment.csv` (first
+  60s / the non-overlapping remainder — general-purpose), and the
+  scenario-specific slices used in "Three usage scenarios" above
+  (`erin_calibration_long_neu.csv`/`erin_live_after_long_neu.csv`,
+  `erin_calibration_anx.csv`, `erin_calibration_sad.csv`,
+  `erin_live_scenario3.csv`). Not tracked in git (real biodata) — generate
+  synthetic equivalents with `generate_synthetic_biodata.py`, or re-slice
+  from the raw recording, if you don't have them.
 
 **Recording sessions (`--record-dir`)**: optional. If given,
 `session/start` opens `{record-dir}/{session_id}.csv` and appends every
@@ -710,61 +716,100 @@ The same calibration mechanism (a `CALIBRATING` phase, optionally tagged
 with `calibration/set_emotion`) naturally supports three different ways of
 running a session, differing only in how the calibration phase is used —
 `live_pipeline.py` doesn't need to be told which one you're doing, `auto`
-figures it out from the resulting data:
+figures it out from the resulting data. All three below are simulated with
+real data — Erin's raw recording
+(`biodata_pipeline/data/raw/emotion_biodata_erin_2026-02-09_labeled.csv`,
+134,744 samples: a clean 345s `neu` block, then 345s `anx`, 326s `sad`,
+then another 331s `neu`) sliced into the fixtures used, all already in
+`live_pipeline/data/` — and all three were verified end-to-end while
+writing this (75/75 W vectors received across the three sessions below,
+`auto` picking the method named in each case).
 
-1. **Just send data, no guided calibration** (what most of this project's
-   own testing has used). A short, un-cued calibration — replay some
-   baseline biodata with no `calibration/set_emotion` calls — lands every
-   row on the default `neu` tag, one implicit "class." With too little
-   data for a covariance estimate (below `--min-samples-for-covariance`,
-   default 300 rows ≈ 5 minutes at 1Hz), `auto` picks `ZScoreTransformer`.
+Start the server once, shared by all three (no `--transformer` needed —
+each scenario's live fit is what actually produces output; add
+`--record-dir` too if you want each session's raw biodata/fit saved):
+```bash
+live_pipeline/run_live.sh \
+    --regressor latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
+    --reference-features biodata_pipeline/data/processed/continuous_features_online.csv
+```
+
+1. **Just send data, no guided calibration → `zscore`.** A short, un-cued
+   calibration — `erin_calibration_segment.csv` is 60s of real `neu`
+   baseline (the first 6,000 raw samples) — lands every row on the default
+   `neu` tag, one implicit "class." Well under
+   `--min-samples-for-covariance` (default 300), so `auto` picks
+   `ZScoreTransformer`.
    ```bash
-   run_session_control.sh --start-session visitor-1
-   run_session_control.sh --start-calibration
-   # replay ~30-90s of raw baseline biodata here, no set-calibration-emotion calls
-   run_session_control.sh --stop-calibration
-   run_session_control.sh --start-live
+   live_pipeline/run_session_control.sh --start-session visitor-1
+   live_pipeline/run_session_control.sh --start-calibration
+   live_pipeline/run_replay.sh --input live_pipeline/data/erin_calibration_segment.csv --speed 1.0
+   live_pipeline/run_session_control.sh --stop-calibration
+   live_pipeline/run_session_control.sh --start-live
+   live_pipeline/run_replay.sh --input live_pipeline/data/erin_live_segment.csv --speed 1.0 --limit 2000
+   live_pipeline/run_session_control.sh --end-session
    ```
-   Cheapest calibration, but see "Known limitation" below — `zscore`'s
-   lack of covariance correction can produce visually glitchy output.
+   Confirmed: `Fitting z-score alignment on 39 subject -> 356 reference
+   samples ... Live transformer fit: zscore on 60 calibration rows
+   ({'neu': 60})`. Cheapest calibration, but see "Known limitation" below
+   — `zscore`'s lack of covariance correction can produce visually glitchy
+   output.
 
 2. **Calibrate a real (covariance-aware) model, still without emotion
-   classes.** Same un-cued calibration as above, just a *longer* one — once
-   the buffer passes `--min-samples-for-covariance`, `auto` upgrades
-   automatically to `CORALTransformer`: a single global map, still no
-   per-emotion split, but one that corrects cross-feature correlation too,
-   avoiding `zscore`'s out-of-distribution risk.
+   classes → `coral`.** Same un-cued calibration as above, just a *longer*
+   one — `erin_calibration_long_neu.csv` is 320s of real `neu` (raw
+   samples 0-32,000), just past the 300-row threshold.
+   `erin_live_after_long_neu.csv` is the 25s immediately following
+   (samples 32,000-34,500, still all `neu`, non-overlapping with the
+   calibration slice — reusing overlapping raw samples between calibration
+   and live creates a filter-state discontinuity, see the two-bugs section
+   below).
    ```bash
-   run_session_control.sh --start-session visitor-2
-   run_session_control.sh --start-calibration
-   # replay several minutes of raw baseline biodata here (>= --min-samples-for-covariance
-   # seconds' worth, at 1Hz -- default 300s/5min), no set-calibration-emotion calls
-   run_session_control.sh --stop-calibration
-   run_session_control.sh --start-live
+   live_pipeline/run_session_control.sh --start-session visitor-2
+   live_pipeline/run_session_control.sh --start-calibration
+   live_pipeline/run_replay.sh --input live_pipeline/data/erin_calibration_long_neu.csv --speed 1.0
+   live_pipeline/run_session_control.sh --stop-calibration
+   live_pipeline/run_session_control.sh --start-live
+   live_pipeline/run_replay.sh --input live_pipeline/data/erin_live_after_long_neu.csv --speed 1.0
+   live_pipeline/run_session_control.sh --end-session
    ```
-   Or force it regardless of duration: `--live-transformer-method coral`
-   (useful to compare against `zscore` on the exact same short recording,
-   or to always skip `zscore` even if the window ends up short).
+   Confirmed: `Pooling class-blind (1 common emotion(s) with reference --
+   reference restricted to 'neu') ... Fitting CORAL on 299 subject -> 356
+   reference samples ... Live transformer fit: coral on 320 calibration
+   rows ({'neu': 320})`. Or force it regardless of duration:
+   `--live-transformer-method coral` (useful to compare against `zscore`
+   on the exact same short recording from scenario 1).
 
-3. **Guide the visitor through N emotions, then calibrate per-emotion.**
-   The richest option: cue each induced-emotion segment during calibration,
-   then `auto` picks `ClassConditionalOTTransformer` once ≥2 labels have
-   enough samples each (`--min-samples-per-emotion`, default 30).
+3. **Guide the visitor through N emotions, then calibrate per-emotion →
+   `ot_classconditional`.** The richest option, using Erin's real
+   `anx`/`neu`/`sad` blocks directly:
+   `erin_calibration_segment.csv` (60s `neu`, reused from scenario 1),
+   `erin_calibration_anx.csv` (60s `anx`, raw samples 34,522-40,522) and
+   `erin_calibration_sad.csv` (60s `sad`, raw samples 69,044-75,044) — each
+   a clean single-emotion block from Erin's actual recording, cued to
+   match with `calibration/set_emotion` before replaying it.
+   `erin_live_scenario3.csv` (60s `neu`, from the *second* `neu` block,
+   samples 101,644-104,644) is disjoint from every calibration chunk used.
    ```bash
-   run_session_control.sh --start-session visitor-3
-   run_session_control.sh --start-calibration
-   run_session_control.sh --set-calibration-emotion anx
-   # replay/collect biodata while the visitor is guided into anxiety
-   run_session_control.sh --set-calibration-emotion sad
-   # replay/collect biodata while guided into sadness
-   # ... repeat for however many emotions the exhibition protocol induces
-   run_session_control.sh --stop-calibration
-   run_session_control.sh --start-live
+   live_pipeline/run_session_control.sh --start-session visitor-3
+   live_pipeline/run_session_control.sh --start-calibration
+   live_pipeline/run_session_control.sh --set-calibration-emotion neu
+   live_pipeline/run_replay.sh --input live_pipeline/data/erin_calibration_segment.csv --speed 1.0
+   live_pipeline/run_session_control.sh --set-calibration-emotion anx
+   live_pipeline/run_replay.sh --input live_pipeline/data/erin_calibration_anx.csv --speed 1.0
+   live_pipeline/run_session_control.sh --set-calibration-emotion sad
+   live_pipeline/run_replay.sh --input live_pipeline/data/erin_calibration_sad.csv --speed 1.0
+   live_pipeline/run_session_control.sh --stop-calibration
+   live_pipeline/run_session_control.sh --start-live
+   live_pipeline/run_replay.sh --input live_pipeline/data/erin_live_scenario3.csv --speed 1.0
+   live_pipeline/run_session_control.sh --end-session
    ```
-   Needs the longest calibration (a few minutes total, split across N
-   emotions) and the richest fit (a separate map per emotion), but doesn't
-   have `zscore`'s out-of-distribution risk either — see "Known
-   limitation" below for why covariance-aware methods (this one and
+   Confirmed: `Common emotions: ['anx', 'neu', 'sad'] ... Live transformer
+   fit: ot_classconditional on 180 calibration rows ({'neu': 60, 'anx': 60,
+   'sad': 60})`. Needs the longest calibration (here, 3 minutes total
+   across 3 emotions) and the richest fit (a separate map per emotion),
+   but doesn't have `zscore`'s out-of-distribution risk either — see
+   "Known limitation" below for why covariance-aware methods (this one and
    scenario 2's) don't have that problem.
 
 **Known limitation of `zscore`: can produce visually glitchy output** —
