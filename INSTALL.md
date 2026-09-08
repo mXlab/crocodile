@@ -35,8 +35,15 @@ debug receiver.
 ```bash
 git clone <this repo's URL> crocodile
 cd crocodile
+git checkout pipeline_develop
 git submodule update --init --recursive   # BioDataFeatureExtract/libraries/ — not needed for live_pipeline, but harmless
 ```
+
+**Note the branch checkout above is required, not optional**: `master`
+predates the entire `biodata_pipeline`/`latent_pipeline`/`live_pipeline`
+restructuring this doc describes — none of the directories or files
+referenced anywhere in this guide exist on `master`. All active work,
+including everything the live pipeline needs, lives on `pipeline_develop`.
 
 ## 2. Set up the two Python environments
 
