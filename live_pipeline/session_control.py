@@ -10,9 +10,11 @@ session by hand.
 Usage:
     python live_pipeline/session_control.py --start-session [ID]
     python live_pipeline/session_control.py --start-calibration
+    python live_pipeline/session_control.py --set-calibration-emotion anx
     python live_pipeline/session_control.py --stop-calibration
     python live_pipeline/session_control.py --start-live
     python live_pipeline/session_control.py --recalibrate
+    python live_pipeline/session_control.py --refit-transformer
     python live_pipeline/session_control.py --end-session
 """
 
@@ -32,10 +34,17 @@ def main():
     action.add_argument('--start-session', nargs='?', const='', metavar='ID',
                         help='Start a new session. Optional session ID; auto-generated if omitted.')
     action.add_argument('--start-calibration', action='store_true')
+    action.add_argument('--set-calibration-emotion', metavar='LABEL',
+                        help='Tag subsequent calibration rows with this emotion label '
+                             '(CALIBRATING only) -- e.g. cue anx/neu/sad in turn during a '
+                             'longer scripted calibration')
     action.add_argument('--stop-calibration', action='store_true')
     action.add_argument('--start-live', action='store_true')
     action.add_argument('--recalibrate', action='store_true',
                         help='Refresh the SCR threshold in place, without interrupting LIVE output')
+    action.add_argument('--refit-transformer', action='store_true',
+                        help='Re-fit the live alignment transformer from the stored calibration '
+                             'buffer, without re-running calibration (CALIBRATED or LIVE)')
     action.add_argument('--end-session', action='store_true')
     args = parser.parse_args()
 
@@ -45,12 +54,16 @@ def main():
         address, osc_args = '/crocodile/session/start', ([args.start_session] if args.start_session else [])
     elif args.start_calibration:
         address, osc_args = '/crocodile/calibration/start', []
+    elif args.set_calibration_emotion is not None:
+        address, osc_args = '/crocodile/calibration/set_emotion', [args.set_calibration_emotion]
     elif args.stop_calibration:
         address, osc_args = '/crocodile/calibration/stop', []
     elif args.start_live:
         address, osc_args = '/crocodile/live/start', []
     elif args.recalibrate:
         address, osc_args = '/crocodile/calibration/recalibrate', []
+    elif args.refit_transformer:
+        address, osc_args = '/crocodile/calibration/refit', []
     elif args.end_session:
         address, osc_args = '/crocodile/session/end', []
 
