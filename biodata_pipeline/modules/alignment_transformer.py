@@ -606,7 +606,7 @@ class ZScoreTransformer:
 
         emotion: if given and present in reference_df['emotion'], restrict
         the reference side to that label (e.g. match a single-baseline
-        subject recording against Erin's own 'neu' rows specifically,
+        subject recording against the actress' own 'neu' rows specifically,
         rather than her whole pooled reference). Ignored if reference_df
         has no 'emotion' column, or the label isn't present there.
         """

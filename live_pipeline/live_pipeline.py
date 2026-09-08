@@ -159,9 +159,12 @@ def build_arg_parser():
     parser.add_argument('--log-only', action='store_true',
                         help='Print outgoing W vectors instead of sending OSC (no Autolume needed)')
     parser.add_argument('--reference-features', default=None,
-                        help='Path to the actress\' (Erin\'s) online-schema feature CSV with '
-                             '\'emotion\' labels (e.g. biodata_pipeline/data/processed/'
-                             'erin_features_online.csv). If given, each session\'s calibration '
+                        help='Path to the actress\' online-schema feature CSV with \'emotion\' '
+                             'labels -- her own biodata, recorded synchronized with the video '
+                             'frames the regressor was trained on (e.g. biodata_pipeline/data/'
+                             'processed/continuous_features_online.csv -- NOT erin_features_online'
+                             '.csv, Erin is a separate test subject, not the actress). If given, '
+                             'each session\'s calibration '
                              'recording is used to fit a fresh alignment transformer against this '
                              'reference at calibration/stop (and on-demand via calibration/refit), '
                              'replacing the --transformer fallback for that session. If omitted, '

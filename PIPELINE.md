@@ -136,11 +136,13 @@ time has passed.
   the schema-unification work below, was 51; mean val R²=0.448, was 0.457 —
   within fold-to-fold noise, not a regression) under blocked-shuffle k-fold
   CV, saving `regressor.joblib` + a visual original/generated comparison grid.
-- **Offline user-to-latent pipeline**: done and tested end-to-end on a subject
-  other than the actress (Erin) — `apply_transformer.py` (alignment) +
-  `stage6_user_to_latent_test.py` (regressor + StyleGAN2 render). This proves
-  the four offline pieces (feature extraction, cross-subject alignment,
-  regressor, StyleGAN2) compose correctly on non-actress biodata.
+- **Offline user-to-latent pipeline**: done and tested end-to-end on a
+  subject other than the actress — Erin's recording, aligned against the
+  actress' (Laurence's) reference space — via `apply_transformer.py`
+  (alignment) + `stage6_user_to_latent_test.py` (regressor + StyleGAN2
+  render). This proves the four offline pieces (feature extraction,
+  cross-subject alignment, regressor, StyleGAN2) compose correctly on
+  non-actress biodata.
 - **Runtime pipeline (live)**: still not built. "Runtime" is reserved
   specifically for continuously incoming sensor data — online feature
   extraction (each second computed from only that second's and earlier
@@ -642,9 +644,12 @@ Until this, every session reused one static, pre-trained
 `[user-actress alignment]` transformer (`--transformer`) regardless of
 visitor — a poor personalization story given the whole point of that step
 is correcting for each visitor's own physiological baseline. If
-`--reference-features` is given (Erin's online-schema feature CSV, e.g.
-`biodata_pipeline/data/processed/erin_features_online.csv`), each
-session's own calibration recording is used to fit a fresh transformer
+`--reference-features` is given (the actress' — Laurence's — online-schema
+feature CSV, `biodata_pipeline/data/processed/continuous_features_online.csv`
+— her own biodata, recorded synchronized with the video frames the
+regressor was trained on; NOT `erin_features_online.csv`, Erin is a
+separate test subject used only to validate cross-subject alignment, not
+the actress), each session's own calibration recording is used to fit a fresh transformer
 against it at `calibration/stop` (and on demand via
 `/crocodile/calibration/refit`, which re-fits from the same stored
 calibration buffer without re-recording it) — replacing `--transformer`
