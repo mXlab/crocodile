@@ -472,6 +472,27 @@ training CLI. `apply_transformer.py`, `validate_transformer.py`, and
 `validate_heldout_emotion.py` were updated to import from the new module
 too.
 
+### OSC ports
+
+All default to `127.0.0.1`; override per-script with `--*-host`/`--*-port`
+flags if you need to run on a different machine or dodge a collision.
+
+| Port | Direction | Used by | Carries |
+|---|---|---|---|
+| **9000** | `live_pipeline.py` listens; `session_control.py`/control panel and `replay_biodata_as_osc.py` both send | Session control (`/crocodile/session/*`, `/crocodile/calibration/*`, `/crocodile/live/*`) **and** raw biodata (`/crocodile/biodata`) — two different message streams sharing one port, disambiguated only by OSC address, not by port |
+| **9001** | `live_pipeline.py` sends; control panel listens | Session-status broadcasts (`/crocodile/session/status` → `[phase, session_id]`), fired after every state transition |
+| **1338** | `live_pipeline.py` sends; `w_osc_debug_viewer.py`/`w_osc_debug_receiver.py`/Autolume listen | W output (`/crocodile/w` → 512 floats). Not really ours to renumber — 1338 is Autolume's own default OSC-input port |
+| **8090** | Open Stage Control's HTTP server (not OSC) | Browser UI for the control panel | Bumped from Open Stage Control's own default `8080` to dodge a local port collision (see `run_control_panel.sh`) |
+
+The one non-obvious part of this scheme is **9000's dual use** — control
+messages and raw biodata samples arrive on the same port, separated only by
+OSC address, so `live_pipeline.py` can run a single synchronous
+`BlockingOSCUDPServer` (serializing control and data handling for free, no
+locks needed — see the module docstring). 1338 and 8090 are both externally
+constrained (Autolume's default, and an unrelated app already on 8080)
+rather than chosen for memorability; 9000/9001 are the two actually "ours,"
+kept sequential on purpose.
+
 - **`live_pipeline.py`** — the core program. Runs under
   `biodata_pipeline/venv` (needs `OnlineFeatureExtractor` + the alignment
   transformer; no torch). A **persistent OSC server**, not a one-shot
