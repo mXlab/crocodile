@@ -44,12 +44,29 @@ W (OSC out to Autolume, unchanged from before):
 Session control (OSC in, new):
   /crocodile/session/start        [session_id: str] (optional)
   /crocodile/calibration/start
+  /crocodile/calibration/set_emotion  [label: str]   (CALIBRATING only)
   /crocodile/calibration/stop
   /crocodile/live/start
   /crocodile/session/end
   /crocodile/calibration/recalibrate   (LIVE only; does not change phase)
+  /crocodile/calibration/refit         (CALIBRATED/LIVE; does not change phase)
 An invalid transition (wrong current state) is logged and ignored, never
 crashes the server -- the operator is a human clicking buttons live.
+
+Live per-visitor alignment fit (new, optional -- needs --reference-features):
+  Every biodata sample pushed during CALIBRATING is tagged with the
+  session's "current calibration emotion" (default 'neu', changeable via
+  calibration/set_emotion) and buffered. At calibration/stop (or on
+  calibration/refit), that buffer is used to fit a fresh alignment
+  transformer against --reference-features -- ClassConditionalOTTransformer
+  if the buffer has >=2 emotion labels with enough samples each
+  (--min-samples-per-emotion), otherwise ZScoreTransformer (needs no
+  labels, robust from a short single-label baseline recording -- see
+  biodata_pipeline/modules/alignment_transformer.py). Fit failures are
+  logged and never crash the server; the previous transformer (the
+  --transformer startup fallback, until a live fit first succeeds) stays
+  active. If --reference-features is omitted, this is disabled entirely
+  and every session just uses --transformer, unchanged from before.
 
 Session status (OSC out, new, separate from the W stream -- a different
 consumer, an operator control surface, not Autolume):
@@ -91,7 +108,7 @@ BIODATA_PIPELINE_DIR = REPO_ROOT / 'biodata_pipeline'
 sys.path.insert(0, str(BIODATA_PIPELINE_DIR))
 
 from modules.online_feature_extractor import OnlineFeatureExtractor
-from modules.alignment_transformer import load_transformer
+from modules.alignment_transformer import load_transformer, create_transformer
 
 SIGNAL_COLS = {'eda': 'gsr', 'ppg': 'heart', 'resp': 'respiration'}
 
@@ -101,7 +118,10 @@ def build_arg_parser():
         description='Live biodata -> W pipeline server: OSC session control, OSC out to Autolume',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--regressor', required=True, help='Path to regressor.joblib')
-    parser.add_argument('--transformer', required=True, help='Path to alignment transformer .pkl')
+    parser.add_argument('--transformer', required=True,
+                        help='Path to alignment transformer .pkl -- the startup fallback every '
+                             'fresh session uses until/unless a live per-visitor fit succeeds '
+                             '(see --reference-features)')
     parser.add_argument('--sampling-rate', type=int, default=100, help='Hz')
     parser.add_argument('--in-host', default='127.0.0.1')
     parser.add_argument('--in-port', type=int, default=9000,
@@ -138,6 +158,24 @@ def build_arg_parser():
                              'filter-state discontinuity (see replay_biodata_as_osc.py\'s docstring).')
     parser.add_argument('--log-only', action='store_true',
                         help='Print outgoing W vectors instead of sending OSC (no Autolume needed)')
+    parser.add_argument('--reference-features', default=None,
+                        help='Path to the actress\' (Erin\'s) online-schema feature CSV with '
+                             '\'emotion\' labels (e.g. biodata_pipeline/data/processed/'
+                             'erin_features_online.csv). If given, each session\'s calibration '
+                             'recording is used to fit a fresh alignment transformer against this '
+                             'reference at calibration/stop (and on-demand via calibration/refit), '
+                             'replacing the --transformer fallback for that session. If omitted, '
+                             'this is disabled entirely and every session just uses --transformer.')
+    parser.add_argument('--live-transformer-method', choices=['auto', 'zscore', 'ot_classconditional'],
+                        default='auto',
+                        help='Method for the live per-visitor fit above. auto picks '
+                             'ot_classconditional if the calibration buffer has >=2 emotion labels '
+                             'with >=--min-samples-per-emotion rows each, else zscore (needs no '
+                             'labels, robust from very little data -- see alignment_transformer.py).')
+    parser.add_argument('--min-samples-per-emotion', type=int, default=30,
+                        help='Minimum rows for an emotion label to count toward the auto method '
+                             'selection above. A starting value, not rigorously derived -- tune '
+                             'once tested against real induced-emotion calibration data.')
     return parser
 
 
@@ -152,14 +190,17 @@ class SessionState:
     VALID_TRANSITIONS = {
         'start_session': {'IDLE'},
         'start_calibration': {'READY'},
+        'set_calibration_emotion': {'CALIBRATING'},
         'stop_calibration': {'CALIBRATING'},
         'start_live': {'READY', 'CALIBRATED'},
         'end_session': {'READY', 'CALIBRATING', 'CALIBRATED', 'LIVE'},
         'recalibrate': {'LIVE'},
+        'refit_transformer': {'CALIBRATED', 'LIVE'},
     }
 
     def __init__(self, sampling_rate, record_dir, calibration_df, status_client, status_address,
-                 model, scaler, feature_cols, w_cols, transformer, osc_client, out_address, log_only):
+                 model, scaler, feature_cols, w_cols, static_transformer, reference_df,
+                 live_transformer_method, min_samples_per_emotion, osc_client, out_address, log_only):
         self.sampling_rate = sampling_rate
         self.record_dir = Path(record_dir) if record_dir else None
         self.calibration_df = calibration_df
@@ -170,7 +211,10 @@ class SessionState:
         self.scaler = scaler
         self.feature_cols = feature_cols
         self.w_cols = w_cols
-        self.transformer = transformer
+        self.static_transformer = static_transformer
+        self.reference_df = reference_df
+        self.live_transformer_method = live_transformer_method
+        self.min_samples_per_emotion = min_samples_per_emotion
         self.osc_client = osc_client
         self.out_address = out_address
         self.log_only = log_only
@@ -178,6 +222,9 @@ class SessionState:
         self.phase = 'IDLE'
         self.session_id = None
         self.extractor = None
+        self.active_transformer = static_transformer
+        self.current_calibration_emotion = 'neu'
+        self._calibration_rows = []
         self._record_file = None
         self._record_writer = None
         self.n_rows_sent = 0
@@ -198,6 +245,7 @@ class SessionState:
             return
         self.session_id = session_id or datetime.now().strftime('session_%Y%m%d_%H%M%S')
         self.extractor = OnlineFeatureExtractor(sampling_rate=self.sampling_rate)
+        self.active_transformer = self.static_transformer  # reset for the new visitor
         if self.calibration_df is not None:
             print("  Priming from --calibration-csv")
             self.extractor.calibrate(self.calibration_df)
@@ -217,16 +265,69 @@ class SessionState:
     def start_calibration(self):
         if not self._check('start_calibration'):
             return
+        self._calibration_rows = []
+        self.current_calibration_emotion = 'neu'
         self.phase = 'CALIBRATING'
         print("Calibration started")
         self._broadcast_status()
+
+    def set_calibration_emotion(self, label):
+        if not self._check('set_calibration_emotion'):
+            return
+        self.current_calibration_emotion = label
+        print(f"  Calibration emotion set to '{label}'")
 
     def stop_calibration(self):
         if not self._check('stop_calibration'):
             return
         self.phase = 'CALIBRATED'
         print("Calibration stopped")
+        self._fit_live_transformer()
         self._broadcast_status()
+
+    def refit_transformer(self):
+        """Re-fit from the same stored calibration buffer, without re-running
+        calibration -- e.g. to retry after a failed fit, or to pick up a
+        --live-transformer-method change. Does not change phase or touch
+        biodata flow."""
+        if not self._check('refit_transformer'):
+            return
+        self._fit_live_transformer()
+
+    def _fit_live_transformer(self):
+        if self.reference_df is None:
+            return  # feature disabled (no --reference-features)
+        if not self._calibration_rows:
+            print("  No calibration data buffered -- keeping current transformer")
+            return
+
+        subject_df = pd.DataFrame(self._calibration_rows)
+        counts = subject_df['emotion'].value_counts()
+        viable_emotions = counts[counts >= self.min_samples_per_emotion].index.tolist()
+
+        method = self.live_transformer_method
+        if method == 'auto':
+            method = 'ot_classconditional' if len(viable_emotions) >= 2 else 'zscore'
+
+        try:
+            new_transformer = create_transformer(method)
+            if method == 'zscore':
+                # Single dominant label (usually just 'neu' from an un-cued
+                # calibration) -- match reference rows with that same label
+                # specifically; pool the whole reference otherwise.
+                emotion = subject_df['emotion'].mode().iloc[0] if len(counts) == 1 else None
+                new_transformer.fit(self.reference_df, subject_df, emotion=emotion)
+            else:
+                new_transformer.fit(self.reference_df, subject_df[subject_df['emotion'].isin(viable_emotions)])
+            self.active_transformer = new_transformer
+            print(f"  Live transformer fit: {method} on {len(subject_df)} calibration rows "
+                  f"({dict(counts)})")
+            if self.record_dir:
+                self.record_dir.mkdir(parents=True, exist_ok=True)
+                out_path = self.record_dir / f"{self.session_id}_live_transformer.pkl"
+                new_transformer.save(out_path)
+        except Exception as e:
+            print(f"  WARNING: live transformer fit failed ({e}) -- keeping current transformer")
 
     def start_live(self):
         if not self._check('start_live'):
@@ -264,15 +365,22 @@ class SessionState:
             record_phase = 'live' if self.phase == 'LIVE' else 'calib'
             self._record_writer.writerow([heart, gsr, respiration, record_phase, time.time()])
 
-        row_df = pd.DataFrame([{'heart': heart, 'gsr': gsr, 'respiration': respiration}])
+        row_dict = {'heart': heart, 'gsr': gsr, 'respiration': respiration}
+        if self.phase == 'CALIBRATING':
+            row_dict['emotion'] = self.current_calibration_emotion
+        row_df = pd.DataFrame([row_dict])
         rows = self.extractor.push(row_df, signal_cols=SIGNAL_COLS, feature_interval_s=1.0)
 
+        if self.phase == 'CALIBRATING':
+            self._calibration_rows.extend(rows)
+
         if self.phase != 'LIVE':
-            return  # CALIBRATING/CALIBRATED: keep priming state, discard finalized rows
+            return  # CALIBRATING/CALIBRATED: keep priming state, discard finalized rows here
 
         for row in rows:
-            aligned = self.transformer.transform(pd.DataFrame([row])[self.transformer.feature_cols])
-            aligned_df = pd.DataFrame(aligned, columns=self.transformer.feature_cols)
+            transformer = self.active_transformer
+            aligned = transformer.transform(pd.DataFrame([row])[transformer.feature_cols])
+            aligned_df = pd.DataFrame(aligned, columns=transformer.feature_cols)
             X = aligned_df[self.feature_cols].values
 
             if not np.isfinite(X).all():
@@ -300,10 +408,10 @@ def main():
     print(f"  {reg_data['model_type']}, {len(feature_cols)} features -> {len(w_cols)} W dims")
 
     print(f"Loading alignment transformer from {args.transformer}")
-    transformer = load_transformer(args.transformer)
-    print(f"  {transformer.__class__.__name__}, emotions: {transformer.common_emotions}")
+    static_transformer = load_transformer(args.transformer)
+    print(f"  {static_transformer.__class__.__name__}, emotions: {static_transformer.common_emotions}")
 
-    missing = [c for c in feature_cols if c not in transformer.feature_cols]
+    missing = [c for c in feature_cols if c not in static_transformer.feature_cols]
     if missing:
         raise ValueError(f"Transformer is missing regressor's expected features: {missing}")
 
@@ -312,6 +420,15 @@ def main():
         print(f"Loading calibration CSV from {args.calibration_csv}")
         calibration_df = pd.read_csv(args.calibration_csv)
 
+    reference_df = None
+    if args.reference_features:
+        print(f"Loading reference features from {args.reference_features} "
+              f"(live per-visitor transformer fitting enabled, method={args.live_transformer_method})")
+        reference_df = pd.read_csv(args.reference_features)
+    else:
+        print("--reference-features not given: live per-visitor transformer fitting disabled, "
+              "every session uses --transformer as-is")
+
     osc_client = None if args.log_only else SimpleUDPClient(args.out_host, args.out_port)
     status_client = SimpleUDPClient(args.status_out_host, args.status_out_port)
 
@@ -319,8 +436,10 @@ def main():
         sampling_rate=args.sampling_rate, record_dir=args.record_dir, calibration_df=calibration_df,
         status_client=status_client, status_address=args.status_out_address,
         model=model, scaler=scaler, feature_cols=feature_cols, w_cols=w_cols,
-        transformer=transformer, osc_client=osc_client, out_address=args.out_address,
-        log_only=args.log_only)
+        static_transformer=static_transformer, reference_df=reference_df,
+        live_transformer_method=args.live_transformer_method,
+        min_samples_per_emotion=args.min_samples_per_emotion,
+        osc_client=osc_client, out_address=args.out_address, log_only=args.log_only)
 
     def on_biodata(unused_address, *osc_args):
         if len(osc_args) != 3:
@@ -334,6 +453,12 @@ def main():
     def on_calibration_start(unused_address, *_):
         session.start_calibration()
 
+    def on_calibration_set_emotion(unused_address, *osc_args):
+        if not osc_args:
+            print("  WARNING: calibration/set_emotion needs a label argument -- dropping")
+            return
+        session.set_calibration_emotion(osc_args[0])
+
     def on_calibration_stop(unused_address, *_):
         session.stop_calibration()
 
@@ -346,14 +471,19 @@ def main():
     def on_recalibrate(unused_address, *_):
         session.recalibrate()
 
+    def on_refit_transformer(unused_address, *_):
+        session.refit_transformer()
+
     dispatcher = Dispatcher()
     dispatcher.map(args.in_address, on_biodata)
     dispatcher.map('/crocodile/session/start', on_session_start)
     dispatcher.map('/crocodile/calibration/start', on_calibration_start)
+    dispatcher.map('/crocodile/calibration/set_emotion', on_calibration_set_emotion)
     dispatcher.map('/crocodile/calibration/stop', on_calibration_stop)
     dispatcher.map('/crocodile/live/start', on_live_start)
     dispatcher.map('/crocodile/session/end', on_session_end)
     dispatcher.map('/crocodile/calibration/recalibrate', on_recalibrate)
+    dispatcher.map('/crocodile/calibration/refit', on_refit_transformer)
     server = BlockingOSCUDPServer((args.in_host, args.in_port), dispatcher)
 
     def handle_shutdown(*_):
