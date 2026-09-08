@@ -587,6 +587,21 @@ class ZScoreTransformer:
     labels the way `_common_setup()` does for the other four -- see
     live_pipeline.py's live per-visitor calibration fit, the reason this
     class exists.
+
+    KNOWN LIMITATION, observed in real testing: being diagonal-only means
+    this can produce visually glitchy downstream output. Because it
+    ignores cross-feature correlation, it can combine feature values in a
+    way that never actually co-occurred in the reference (actress) data --
+    genuinely out-of-distribution input to a downstream regressor trained
+    only on jointly-plausible actress feature combinations, which can
+    degrade badly (not gracefully) outside its training distribution. The
+    covariance-aware methods above (`ClassConditionalOTTransformer`,
+    `ot_global`/`coral`) don't have this failure mode, since they reshape
+    joint structure too -- this is specifically the price of being
+    fittable from a short, unlabeled calibration window. See PIPELINE.md's
+    "Live per-visitor alignment fit" section for the full writeup and how
+    to confirm this is the cause in a given case (compare W-vector norms
+    against a covariance-aware fit on the same data).
     """
 
     def __init__(self):

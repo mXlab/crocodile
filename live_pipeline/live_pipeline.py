@@ -61,12 +61,14 @@ Live per-visitor alignment fit (new, optional -- needs --reference-features):
   transformer against --reference-features -- ClassConditionalOTTransformer
   if the buffer has >=2 emotion labels with enough samples each
   (--min-samples-per-emotion), otherwise ZScoreTransformer (needs no
-  labels, robust from a short single-label baseline recording -- see
-  biodata_pipeline/modules/alignment_transformer.py). Fit failures are
-  logged and never crash the server; the previous transformer (the
-  --transformer startup fallback, until a live fit first succeeds) stays
-  active. If --reference-features is omitted, this is disabled entirely
-  and every session just uses --transformer, unchanged from before.
+  labels, robust from a short single-label baseline recording, but can
+  produce visually glitchy output -- see its docstring in
+  biodata_pipeline/modules/alignment_transformer.py and PIPELINE.md's
+  "Live per-visitor alignment fit" section). Fit failures are logged and
+  never crash the server; the previous transformer (the --transformer
+  startup fallback, until a live fit first succeeds) stays active. If
+  --reference-features is omitted, this is disabled entirely and every
+  session just uses --transformer, unchanged from before.
 
 Session status (OSC out, new, separate from the W stream -- a different
 consumer, an operator control surface, not Autolume):

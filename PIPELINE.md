@@ -693,6 +693,31 @@ visitor was actually calibrated. A failed fit (still-insufficient data, a
 linalg error) is logged and never crashes the server — the previous
 transformer just stays active.
 
+**Known limitation of `zscore`: can produce visually glitchy output** —
+observed in real testing (a `zscore`-fit session's generated faces showed
+more visual breakup/distortion than a `ClassConditionalOTTransformer`-fit
+one on comparable data). This is the direct cost of being diagonal-only:
+`zscore` matches each feature's mean and variance *independently*, but not
+cross-feature correlation. If two features move together in the actress'
+data but not in the visitor's, z-scoring can combine feature values in a
+way that never actually co-occurred in the actress' training data —
+genuinely out-of-distribution input to the Stage 5 regressor (an MLP,
+which doesn't degrade gracefully outside its training distribution). The
+covariance-aware methods (`ClassConditionalOTTransformer`, and `ot_global`/
+`coral` if ever used) reshape joint structure too, not just marginals, so
+they don't have this failure mode — it's specifically the tradeoff made to
+get a method that's fittable from a short, unlabeled calibration window
+(see above). Not necessarily a bug to engineer away, depending on intent —
+for an installation, "occasionally glitchy" from `zscore`-calibrated
+visitors could be an interesting expressive mode in its own right rather
+than something to eliminate; that's an artistic call, not a technical one.
+To confirm this is really what's happening in a given case: compare
+W-vector norms (printed by both debug scripts) between a `zscore` session
+and a `ClassConditionalOTTransformer` one on the same replayed data —
+noticeably larger/more erratic norms under `zscore` support this
+explanation over some other cause (a bad calibration fit, replay-speed
+packet loss, etc.).
+
 **Two real bugs were caught building this, both against the same
 mechanism** (an artificially fast `--speed` in `replay_biodata_as_osc.py`
 made a slow, systemic bug look like fast-UDP packet loss at first, so both
