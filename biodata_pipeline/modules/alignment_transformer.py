@@ -3,13 +3,20 @@ Cross-subject alignment transformers: map a new subject's biodata features
 into a reference (actress) subject's feature space, so the actress-trained
 biodata->W regressor generalizes to other people.
 
-Four interchangeable implementations (see train_transformer.py's --method
+Five interchangeable implementations (see train_transformer.py's --method
 for how each is fit) sharing the same fit()/transform()/save()/load()
 interface:
     PrototypeAlignmentTransformer  -- Ridge regression on per-emotion means
     LinearOTTransformer            -- global linear optimal transport
     ClassConditionalOTTransformer  -- per-emotion linear optimal transport
     CORALTransformer                -- covariance whitening/recoloring
+    ZScoreTransformer               -- diagonal-only: per-feature mean+variance,
+                                        no covariance -- needs no emotion labels
+                                        and stays well-conditioned from very
+                                        little data (see its own docstring);
+                                        used by live_pipeline.py to fit a
+                                        per-visitor alignment from a short,
+                                        unlabeled calibration recording
 
 Used both offline (train_transformer.py fits and saves one, apply_transformer.py
 /validate_transformer.py/validate_heldout_emotion.py evaluate or apply it in
@@ -557,8 +564,137 @@ class CORALTransformer:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Z-score transformer (diagonal-only: per-feature mean + variance, no covariance)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ZScoreTransformer:
+    """
+    Diagonal-only alignment: matches each feature's mean *and* variance
+    independently, without modeling cross-feature covariance (unlike
+    `CORALTransformer`/`LinearOTTransformer`). Equivalent to z-scoring into
+    the subject's own per-feature distribution, then de-z-scoring into the
+    reference's -- no new math needed, just `sub_scaler`/`ref_scaler`
+    (the same `StandardScaler`s every other class here already uses) with
+    no covariance/OT step in between.
+
+    Needs only two independent per-feature statistics (mean, variance) --
+    53 scalars each, not a 53x53 covariance matrix -- so unlike the other
+    four methods (Ridge/ClassConditionalOT need >=2 emotion prototypes;
+    ot_global/CORAL need enough samples to estimate a full covariance),
+    this stays well-conditioned even from a short (tens of samples),
+    single-label calibration recording. `subject_df` also doesn't need an
+    `emotion` column at all, and fitting never requires >=2 common emotion
+    labels the way `_common_setup()` does for the other four -- see
+    live_pipeline.py's live per-visitor calibration fit, the reason this
+    class exists.
+    """
+
+    def __init__(self):
+        self.sub_scaler = StandardScaler()
+        self.ref_scaler = StandardScaler()
+        self.feature_cols = []
+        self.common_emotions = []
+        self.subject_prototypes = {}
+        self.reference_prototypes = {}
+        self.trained = False
+
+    def fit(self, reference_df, subject_df, emotion=None):
+        """Unlike the other four transformers' fit(reference_df, subject_df),
+        subject_df need not have an 'emotion' column, and reference_df's
+        emotion labels (if any) are used only to optionally restrict which
+        reference rows to match against -- not to find common emotions.
+
+        emotion: if given and present in reference_df['emotion'], restrict
+        the reference side to that label (e.g. match a single-baseline
+        subject recording against Erin's own 'neu' rows specifically,
+        rather than her whole pooled reference). Ignored if reference_df
+        has no 'emotion' column, or the label isn't present there.
+        """
+        ref_features = set(c for c in reference_df.columns if c not in METADATA_COLS)
+        sub_features = set(c for c in subject_df.columns if c not in METADATA_COLS)
+        self.feature_cols = sorted(ref_features & sub_features)
+
+        if ref_features != sub_features:
+            print(f"  Note: using {len(self.feature_cols)} common features "
+                  f"(reference has {len(ref_features)}, subject has {len(sub_features)})")
+
+        ref_rows = reference_df
+        if emotion is not None and 'emotion' in reference_df.columns \
+                and emotion in reference_df['emotion'].values:
+            ref_rows = reference_df[reference_df['emotion'] == emotion]
+            self.common_emotions = [emotion]
+        else:
+            self.common_emotions = []
+
+        ref_all = _clean(ref_rows[self.feature_cols].values)
+        sub_all = _clean(subject_df[self.feature_cols].values)
+
+        print(f"\nFitting z-score alignment on {len(sub_all)} subject -> {len(ref_all)} "
+              f"reference samples (diagonal-only, {len(self.feature_cols)} features"
+              + (f", reference restricted to '{emotion}'" if self.common_emotions else "") + ")")
+
+        self.ref_scaler.fit(ref_all)
+        self.sub_scaler.fit(sub_all)
+        self.subject_prototypes['_all'] = np.mean(self.sub_scaler.transform(sub_all), axis=0)
+        self.reference_prototypes['_all'] = np.mean(self.ref_scaler.transform(ref_all), axis=0)
+        self.trained = True
+        print("Z-score transformer trained successfully")
+
+    def transform(self, features):
+        if not self.trained:
+            raise RuntimeError("Transformer not trained. Call fit() first.")
+        if isinstance(features, pd.DataFrame):
+            features = features[self.feature_cols].values
+        scaled = self.sub_scaler.transform(features)
+        return self.ref_scaler.inverse_transform(scaled)
+
+    def save(self, filepath):
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump({
+            'class': 'ZScore',
+            'sub_scaler': self.sub_scaler,
+            'ref_scaler': self.ref_scaler,
+            'feature_cols': self.feature_cols,
+            'common_emotions': self.common_emotions,
+            'subject_prototypes': self.subject_prototypes,
+            'reference_prototypes': self.reference_prototypes,
+        }, filepath)
+        print(f"Saved z-score transformer to {filepath}")
+
+    @classmethod
+    def load(cls, data):
+        obj = cls()
+        obj.sub_scaler = data['sub_scaler']
+        obj.ref_scaler = data['ref_scaler']
+        obj.feature_cols = data['feature_cols']
+        obj.common_emotions = data['common_emotions']
+        obj.subject_prototypes = data['subject_prototypes']
+        obj.reference_prototypes = data['reference_prototypes']
+        obj.trained = True
+        return obj
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Factory
 # ─────────────────────────────────────────────────────────────────────────────
+
+def create_transformer(method, alpha=10.0, n_features=None, reg=1e-5):
+    """Construct an untrained transformer instance by method name -- shared
+    by train_transformer.py's --method dispatch and live_pipeline.py's live
+    per-visitor fit-and-swap (see SessionState._fit_live_transformer)."""
+    if method == 'ridge':
+        return PrototypeAlignmentTransformer(alpha=alpha, n_features=n_features)
+    elif method == 'ot_global':
+        return LinearOTTransformer(reg=reg)
+    elif method == 'ot_classconditional':
+        return ClassConditionalOTTransformer(reg=reg)
+    elif method == 'coral':
+        return CORALTransformer(reg=reg)
+    elif method == 'zscore':
+        return ZScoreTransformer()
+    else:
+        raise ValueError(f"Unknown alignment method: {method}")
+
 
 def load_transformer(filepath):
     """Load any transformer type from a .pkl file."""
@@ -570,5 +706,7 @@ def load_transformer(filepath):
         return ClassConditionalOTTransformer.load(data)
     elif class_name == 'CORAL':
         return CORALTransformer.load(data)
+    elif class_name == 'ZScore':
+        return ZScoreTransformer.load(data)
     else:
         return PrototypeAlignmentTransformer.load(data)

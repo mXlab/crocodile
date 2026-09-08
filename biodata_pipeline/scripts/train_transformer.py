@@ -29,12 +29,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from modules.alignment_transformer import (
-    PrototypeAlignmentTransformer,
-    LinearOTTransformer,
-    ClassConditionalOTTransformer,
-    CORALTransformer,
-)
+from modules.alignment_transformer import create_transformer
 
 
 def main():
@@ -51,9 +46,16 @@ def main():
     )
     parser.add_argument(
         '--method',
-        choices=['ridge', 'ot_global', 'ot_classconditional', 'coral'],
+        choices=['ridge', 'ot_global', 'ot_classconditional', 'coral', 'zscore'],
         default='ridge',
-        help='Alignment method: ridge (default), ot_global, ot_classconditional, coral'
+        help='Alignment method: ridge (default), ot_global, ot_classconditional, coral, '
+             'zscore (diagonal-only mean+variance, no covariance -- no emotion labels '
+             'needed on --subject, robust from very little data; see live_pipeline.py)'
+    )
+    parser.add_argument(
+        '--emotion', default=None,
+        help='zscore only: restrict --reference rows to this single emotion label '
+             '(e.g. neu) instead of pooling all of --reference. Ignored by other methods.'
     )
     parser.add_argument(
         '--alpha', type=float, default=10.0,
@@ -84,16 +86,13 @@ def main():
     print(f"Reference: {len(ref_df)} samples from {args.reference}")
     print(f"Subject:   {len(sub_df)} samples from {args.subject}")
 
-    if args.method == 'ridge':
-        transformer = PrototypeAlignmentTransformer(alpha=args.alpha, n_features=args.n_features)
-    elif args.method == 'ot_global':
-        transformer = LinearOTTransformer(reg=args.reg)
-    elif args.method == 'ot_classconditional':
-        transformer = ClassConditionalOTTransformer(reg=args.reg)
-    elif args.method == 'coral':
-        transformer = CORALTransformer(reg=args.reg)
+    transformer = create_transformer(
+        args.method, alpha=args.alpha, n_features=args.n_features, reg=args.reg)
 
-    transformer.fit(ref_df, sub_df)
+    if args.method == 'zscore':
+        transformer.fit(ref_df, sub_df, emotion=args.emotion)
+    else:
+        transformer.fit(ref_df, sub_df)
     transformer.save(args.output)
 
     print("\nDone.")
