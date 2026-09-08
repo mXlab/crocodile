@@ -550,11 +550,13 @@ kept sequential on purpose.
   bypass). Also broadcasts `[state, session_id]` to a separate
   `/crocodile/session/status` address after every transition, for an
   operator control surface to confirm actual server state.
-- **`session_control.py`** — sends one session-control OSC message and
-  exits (`--start-session [ID]`, `--start-calibration`,
-  `--stop-calibration`, `--start-live`, `--recalibrate`, `--end-session`).
-  A CLI stand-in for a real control surface, and useful for scripted test
-  sequences.
+- **`session_control.py`** (run via `run_session_control.sh`, same
+  interpreter-pinning pattern as the other wrapper scripts) — sends one
+  session-control OSC message and exits (`--start-session [ID]`,
+  `--start-calibration`, `--set-calibration-emotion [LABEL]`,
+  `--stop-calibration`, `--start-live`, `--recalibrate`,
+  `--refit-transformer`, `--end-session`). A CLI stand-in for a real
+  control surface, and useful for scripted test sequences.
 - **`crocodile-control-panel.json`** + **`run_control_panel.sh`** — an
   actual GUI control surface, built with
   [Open Stage Control](https://openstagecontrol.ammd.net/) (already used

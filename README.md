@@ -122,8 +122,8 @@ live_pipeline/run_live.sh \
 
 # 2. Drive the session state machine -- either the GUI panel or the CLI.
 live_pipeline/run_control_panel.sh          # Open Stage Control GUI, port 8090
-# or, one message per call (biodata_pipeline/venv):
-SC="biodata_pipeline/venv/bin/python3 live_pipeline/session_control.py"
+# or, one message per call:
+SC=live_pipeline/run_session_control.sh
 $SC --start-session [ID]
 $SC --start-calibration
 $SC --stop-calibration

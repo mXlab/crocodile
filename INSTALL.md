@@ -157,13 +157,13 @@ an actual visual preview — same OSC stream, rendered.
 the same way through buttons):
 
 ```bash
-live_pipeline/session_control.py --start-session test
-live_pipeline/session_control.py --start-calibration
+live_pipeline/run_session_control.sh --start-session test
+live_pipeline/run_session_control.sh --start-calibration
 live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_calibration.csv --speed 1.0
-live_pipeline/session_control.py --stop-calibration
-live_pipeline/session_control.py --start-live
+live_pipeline/run_session_control.sh --stop-calibration
+live_pipeline/run_session_control.sh --start-live
 live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_live.csv --speed 1.0
-live_pipeline/session_control.py --end-session
+live_pipeline/run_session_control.sh --end-session
 ```
 
 **What to expect**: Terminal 1 logs each state transition
