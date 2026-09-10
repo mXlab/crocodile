@@ -185,7 +185,56 @@
         "type": "tab",
         "id": "tab_mixing",
         "label": "Mixing",
-        "widgets": [],
+        "widgets": [
+          {
+            "type": "text",
+            "id": "mix_caption",
+            "top": 20,
+            "left": 20,
+            "width": 300,
+            "height": 18,
+            "interaction": false,
+            "align": "left",
+            "default": "Actress / User mix (100% = pure actress)"
+          },
+          {
+            "type": "fader",
+            "id": "mix_amount",
+            "top": 42,
+            "left": 20,
+            "width": 300,
+            "height": 30,
+            "horizontal": true,
+            "range": { "min": 0, "max": 1 },
+            "default": 0.5,
+            "address": "/mix/amount",
+            "target": "127.0.0.1:9001"
+          },
+          {
+            "type": "text",
+            "id": "noise_caption",
+            "top": 90,
+            "left": 20,
+            "width": 300,
+            "height": 18,
+            "interaction": false,
+            "align": "left",
+            "default": "Noise amount"
+          },
+          {
+            "type": "fader",
+            "id": "noise_amount",
+            "top": 112,
+            "left": 20,
+            "width": 300,
+            "height": 30,
+            "horizontal": true,
+            "range": { "min": 0, "max": 1 },
+            "default": 0,
+            "address": "/noise/amount",
+            "target": "127.0.0.1:9001"
+          }
+        ],
         "tabs": []
       }
     ]
