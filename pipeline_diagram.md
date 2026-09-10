@@ -46,7 +46,7 @@ flowchart TB
         E2["Stage 2: Train VGG Encoder\n[actress-image-to-W encoder]\nimage → W ∈ ℝ⁵¹²\n(2A synthetic pretrain → 2B real fine-tune,\nsee stage-detail diagram below)"]
         E3[Stage 3: Validate\nEncoder vs Optimization]
         E4[Stage 4: Assemble\nbiodata → W dataset]
-        E5["Stage 5: [actress-features-to-W regressor]\nNOT YET BUILT"]
+        E5["Stage 5: [actress-features-to-W regressor]\nMLP (256,128), blocked-shuffle CV\non biodata_w_dataset.csv\n(done — val R²=0.448)"]
         SG[StyleGAN2 · frozen\nW → face]
         LPIPS[LPIPS + MSE loss]
     end
@@ -60,7 +60,7 @@ flowchart TB
         RF[User raw signals]
         FT["Feature Extraction\n[feature extraction]"]
         ALIGN["[user-actress alignment]\nbiodata_pipeline transformer\nRidge / OT class-conditional\n(model exists — not wired to a live script)"]
-        REG["[actress-features-to-W regressor]\nNOT YET BUILT"]
+        REG["[actress-features-to-W regressor]\nregressor.joblib\n(model exists — not wired to a live script)"]
         WV[W vector ℝ⁵¹²]
         FACE[StyleGAN2 · frozen\nSynthetic Face]
     end
@@ -107,8 +107,6 @@ flowchart TB
     style CD fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray: 5 5
 
     %% Styling — not yet built
-    style E5 fill:#fef3c7,stroke:#f59e0b,stroke-dasharray: 5 5
-    style REG fill:#fef3c7,stroke:#f59e0b,stroke-dasharray: 5 5
     style RF fill:#fef3c7,stroke:#f59e0b,stroke-dasharray: 5 5
     style FT fill:#fef3c7,stroke:#f59e0b,stroke-dasharray: 5 5
     style WV fill:#fef3c7,stroke:#f59e0b,stroke-dasharray: 5 5
@@ -116,6 +114,7 @@ flowchart TB
 
     %% Styling — exists, just not wired up yet
     style ALIGN fill:#dbeafe,stroke:#3b82f6,stroke-dasharray: 5 5
+    style REG fill:#dbeafe,stroke:#3b82f6,stroke-dasharray: 5 5
 ```
 
 ---
@@ -159,8 +158,9 @@ flowchart LR
 
 ## Latent Pipeline — Stage Detail
 
-Stages 1–4 build the `[actress-image-to-W encoder]`; Stage 5 is the (not yet
-built) `[actress-features-to-W regressor]`.
+Stages 1–4 build the `[actress-image-to-W encoder]`; Stage 5 fits the
+`[actress-features-to-W regressor]`; Stage 6 is an offline end-to-end test of
+both together on a non-actress subject.
 
 ```mermaid
 flowchart TD
@@ -169,13 +169,15 @@ flowchart TD
     S2B["Stage 2B — real-frame fine-tuning\nstage2b_train_frames.py\nLPIPS + MSE + diversity +\ntemporal + emotion-contrastive,\nbackprop through frozen StyleGAN2\n(resuming from epoch 10/20)"]
     S3["Stage 3\nstage3_validate.py\nCompare encoder vs\noptimization-based inversion"]
     S4["Stage 4\nstage4_assemble.py\nRun encoder on all biodata frames\nwrite biodata → W CSV"]
-    S5["Stage 5: [actress-features-to-W regressor]\nNOT YET BUILT\nFit biodata → W regressor\non biodata_w_dataset.csv"]
+    S5["Stage 5: [actress-features-to-W regressor]\nstage5_train_regressor.py\nMLP (256,128), blocked-shuffle CV\non biodata_w_dataset.csv\n(done — val R²=0.448)"]
+    S6["Stage 6: Offline user-to-latent test\nstage6_user_to_latent_test.py\nNon-actress subject (Erin) biodata →\naligned features → predicted W → StyleGAN2 face\n(done — proves the pieces compose offline)"]
 
     S1 --> S2B
     S2A -->|"--pretrained best.pt\n(not automatic)"| S2B
-    S2B --> S3 --> S4 --> S5
+    S2B --> S3 --> S4 --> S5 --> S6
 
     style S2A fill:#f0fdf4,stroke:#22c55e
     style S2B fill:#dbeafe,stroke:#3b82f6
-    style S5 fill:#fef3c7,stroke:#f59e0b,stroke-dasharray: 5 5
+    style S5 fill:#f0fdf4,stroke:#22c55e
+    style S6 fill:#f0fdf4,stroke:#22c55e
 ```
