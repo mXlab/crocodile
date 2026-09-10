@@ -90,5 +90,12 @@ try:
 
 finally:
     controller.terminate()
-    controller.wait(timeout=5)
+    try:
+        stdout, _ = controller.communicate(timeout=5)
+        if stdout:
+            print("\n--- controller subprocess output ---")
+            print(stdout)
+    except subprocess.TimeoutExpired:
+        controller.kill()
+        controller.wait()
     fake_autolume.shutdown()
