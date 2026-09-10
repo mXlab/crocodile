@@ -25,6 +25,13 @@ biodata_pipeline/reports/**/*.html
 !biodata_pipeline/reports/**/README.md
 
 # ============================================================================
+# EMOTION GRID - Project-specific
+# ============================================================================
+
+# Generated emotion grid outputs (derived from real actress footage)
+emotion_grid/data/
+
+# ============================================================================
 # PYTHON
 # ============================================================================
 
