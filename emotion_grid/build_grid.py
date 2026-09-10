@@ -24,6 +24,7 @@ Usage:
 """
 
 import argparse
+import json
 import os
 import shutil
 import sys
@@ -101,6 +102,49 @@ def export_selection(category, frame_paths, w_vectors, feeling_it_values, select
             entry[col] = w_vectors[idx, d]
         rows.append(entry)
     return rows
+
+
+def build_grid_layout(manifest_df, labels_df, output_dir):
+    """Build the row-major, rectangular grid_layout.json structure consumed by
+    the Open Stage Control emotion grid UI. Unlike manifest.csv, this carries
+    no W-vectors (kept server-side only) and uses absolute thumbnail paths."""
+    name_by_code = dict(zip(labels_df["code"], labels_df["full_name"]))
+
+    emotion_order = list(dict.fromkeys(manifest_df["emotion"]))  # first-seen order, de-duped
+    rows_by_emotion = {
+        emotion: manifest_df[manifest_df["emotion"] == emotion].to_dict("records")
+        for emotion in emotion_order
+    }
+    images_per_emotion = max(len(rows) for rows in rows_by_emotion.values())
+
+    emotions = [
+        {"code": code, "name": name_by_code.get(code, code)}
+        for code in emotion_order
+    ]
+
+    cells = []
+    for row in range(images_per_emotion):
+        for emotion in emotion_order:
+            rows = rows_by_emotion[emotion]
+            if row >= len(rows):
+                cells.append(None)
+                continue
+            r = rows[row]
+            cells.append({
+                "id": r["id"],
+                "emotion": emotion,
+                "thumbnailPath": os.path.join(output_dir, r["thumbnail_path"]),
+            })
+
+    layout = {
+        "emotions": emotions,
+        "images_per_emotion": images_per_emotion,
+        "cells": cells,
+    }
+    layout_path = os.path.join(output_dir, "grid_layout.json")
+    with open(layout_path, "w") as f:
+        json.dump(layout, f, indent=2)
+    return layout_path
 
 
 def gather_grimace_candidates(frames_dir):
@@ -271,6 +315,9 @@ def main():
     if undocumented:
         print(f"\nWARNING: no full-name entry in {EMOTION_LABELS_CSV} for: {undocumented}")
     shutil.copyfile(EMOTION_LABELS_CSV, os.path.join(args.output_dir, "emotion_labels.csv"))
+
+    layout_path = build_grid_layout(manifest_df, labels_df, args.output_dir)
+    print(f"Grid layout: {layout_path}")
 
     print(f"\nSaved {len(manifest_df)} images across {manifest_df['emotion'].nunique()} emotions")
     print(f"Manifest: {manifest_path}")
