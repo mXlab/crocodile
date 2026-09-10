@@ -15,8 +15,8 @@ messages that arrive faster than rendering keeps up are simply superseded,
 never queued, so the preview never falls behind.
 
 Usage (from the repo root):
-    python live_pipeline/w_osc_debug_viewer.py --config latent_pipeline/configs/default.yaml
-    python live_pipeline/w_osc_debug_viewer.py --in-port 1338 --in-address /crocodile/w
+    python live_pipeline/latent_osc_debug_viewer.py --config latent_pipeline/configs/default.yaml
+    python live_pipeline/latent_osc_debug_viewer.py --in-port 1338 --in-address /crocodile/latent/final
 """
 
 import argparse
@@ -55,7 +55,7 @@ def main():
                              'use 0.0.0.0 (default) to receive from a remote sender like TouchDesigner')
     parser.add_argument('--in-port', type=int, default=1338,
                         help="Same port live_pipeline.py's --out-port sends to")
-    parser.add_argument('--in-address', default='/crocodile/w')
+    parser.add_argument('--in-address', default='/crocodile/latent/final')
     parser.add_argument('--preview-resolution', type=int, default=512,
                         help='Downsample StyleGAN2 output to this size for faster live rendering')
     parser.add_argument('--fps', type=float, default=10.0, help='Render/display cadence, independent of OSC rate')

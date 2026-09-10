@@ -22,7 +22,7 @@ private storage, or generate synthetic stand-ins where noted below.
 | `live_pipeline.py` (**required**) | Trained alignment transformer (`biodata_pipeline/models/transformer_ot_classconditional_online.pkl`) | Private — ask a teammate, or train your own (`biodata_pipeline/scripts/train_transformer.py`) |
 | `live_pipeline.py` (optional — enables live per-visitor alignment fitting) | The actress' (Laurence's) online-schema reference features (`biodata_pipeline/data/processed/continuous_features_online.csv` — NOT `erin_features_online.csv`, Erin is a separate test subject, not the actress), passed as `--reference-features` | Private — ask a teammate. Without it, every session just uses the static transformer above (unchanged behavior) — see PIPELINE.md's "Live per-visitor alignment fit" |
 | Feeding the pipeline data | Real biodata recordings, or `--calibration-csv` priming | Private — optional; §5 generates synthetic data as a substitute |
-| `w_osc_debug_viewer.py` (visual check only) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) + the `stylegan_Autolume` code repo | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `w_osc_debug_receiver.py` (§6) |
+| `latent_osc_debug_viewer.py` (visual check only) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) + the `stylegan_Autolume` code repo | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§6) |
 | Real deployment only | Autolume, the separate live performance app | Private/separate project — not needed to install or test this repo |
 | GUI session control (optional) | Open Stage Control | Public — §3 |
 
@@ -55,18 +55,18 @@ you need:
 
 ```bash
 # Required for live_pipeline.py, session_control.py, replay_biodata_as_osc.py,
-# generate_synthetic_biodata.py, w_osc_debug_receiver.py -- i.e. everything
+# generate_synthetic_biodata.py, latent_osc_debug_receiver.py -- i.e. everything
 # except the visual debug viewer.
 python3 -m venv biodata_pipeline/venv
 biodata_pipeline/venv/bin/pip install -r biodata_pipeline/requirements.txt
 
-# Only needed for w_osc_debug_viewer.py (renders via StyleGAN2 -- needs torch).
+# Only needed for latent_osc_debug_viewer.py (renders via StyleGAN2 -- needs torch).
 python3 -m venv latent_pipeline/.venv
 latent_pipeline/.venv/bin/pip install -r latent_pipeline/requirements.txt
 ```
 
 If you don't plan to run the visual debug viewer yet, skip the
-`latent_pipeline/.venv` setup — `w_osc_debug_receiver.py` (§6) covers
+`latent_pipeline/.venv` setup — `latent_osc_debug_receiver.py` (§6) covers
 smoke-testing the OSC output without it.
 
 ## 3. (Optional) Install Open Stage Control

@@ -483,7 +483,7 @@ flags if you need to run on a different machine or dodge a collision.
 |---|---|---|---|
 | **9000** | `live_pipeline.py` listens; `session_control.py`/control panel and `replay_biodata_as_osc.py` both send | Session control (`/crocodile/session/*`, `/crocodile/calibration/*`, `/crocodile/live/*`) **and** raw biodata (`/crocodile/biodata`) — two different message streams sharing one port, disambiguated only by OSC address, not by port |
 | **9001** | `live_pipeline.py` sends; control panel listens | Session-status broadcasts (`/crocodile/session/status` → `[phase, session_id]`), fired after every state transition |
-| **1338** | `live_pipeline.py` sends; `w_osc_debug_viewer.py`/`w_osc_debug_receiver.py`/Autolume listen | W output (`/crocodile/w` → 512 floats). Not really ours to renumber — 1338 is Autolume's own default OSC-input port |
+| **1338** | `live_pipeline.py` sends; `latent_osc_debug_viewer.py`/`latent_osc_debug_receiver.py`/Autolume listen | W output (`/crocodile/latent/final` → 512 floats). Not really ours to renumber — 1338 is Autolume's own default OSC-input port |
 | **8090** | Open Stage Control's HTTP server (not OSC) | Browser UI for the control panel | Bumped from Open Stage Control's own default `8080` to dodge a local port collision (see `run_control_panel.sh`) |
 
 The one non-obvious part of this scheme is **9000's dual use** — control
@@ -587,13 +587,13 @@ kept sequential on purpose.
   ground-truth columns to stdout whenever they change, if present, for
   eyeballing the pipeline's output against what the subject was actually
   feeling during testing.
-- **`w_osc_debug_viewer.py`** — optional, separate process. Runs under
+- **`latent_osc_debug_viewer.py`** — optional, separate process. Runs under
   `latent_pipeline/.venv` (needs torch/StyleGAN2 — the only script here
   that does, and the only one needing the private StyleGAN2 checkpoint).
   Listens to the same W-over-OSC stream and renders it locally via this
   project's own StyleGAN2 code, for visual sanity-checking without
   Autolume running.
-- **`w_osc_debug_receiver.py`** — optional, separate process. Runs under
+- **`latent_osc_debug_receiver.py`** — optional, separate process. Runs under
   `biodata_pipeline/venv` — no torch/StyleGAN2/checkpoint needed at all,
   unlike the viewer above. Listens to the same W-over-OSC stream and just
   reports receipt stats (count, rate, vector norm), for confirming the OSC
@@ -895,7 +895,7 @@ pipeline all working, the remaining path is:
    `live_pipeline.py`, and refine its layout/status-display formatting
    once actually seen running
 5. Get Autolume actually running against `live_pipeline.py`'s output
-   end-to-end (tested so far only against `w_osc_debug_viewer.py` and
+   end-to-end (tested so far only against `latent_osc_debug_viewer.py` and
    `--log-only`) and confirm the "project unchecked" configuration note
    above in practice
 
