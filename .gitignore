@@ -147,6 +147,10 @@ venv.bak/
 *.pkl
 *.pt
 
+# Emotion label mapping (3-letter code -> full name, no biometric/personal
+# data -- exempt from the blanket *.csv rule above)
+!latent_pipeline/data/emotion_labels.csv
+
 # ============================================================================
 # OS GENERATED FILES
 # ============================================================================
