@@ -33,13 +33,14 @@ Biodata (OSC in, unchanged from before):
   One OSC message per raw sample, 3 floats [heart, gsr, respiration], on
   --in-address (default /crocodile/biodata).
 
-W (OSC out to Autolume, unchanged from before):
+W (OSC out to the live latent controller, changed):
   One OSC message per finalized feature row during LIVE, 512 floats, on
-  --out-address (default /crocodile/w). Autolume renders and displays the
-  face itself; this script never touches StyleGAN2. Autolume's
-  latent-vector OSC handler expects exactly this shape -- set its "vec"
-  OSC address to match --out-address, and leave its "project" checkbox
-  UNCHECKED (our W is already W-space, not Z-space).
+  --out-address (default /crocodile/latent/user). This no longer goes
+  straight to Autolume -- it goes to the live latent controller (Open
+  Stage Control + crocodile-control-module.js, see
+  live_pipeline/run_control_panel.sh), which composites it with the
+  actress vector and forwards the result on to Autolume itself. This
+  script never touches StyleGAN2.
 
 Session control (OSC in, new):
   /crocodile/session/start        [session_id: str] (optional)
@@ -139,11 +140,14 @@ def build_arg_parser():
                         help='Port for both biodata and session-control OSC messages')
     parser.add_argument('--in-address', default='/crocodile/biodata',
                         help='OSC address this script listens on for [heart, gsr, respiration]')
-    parser.add_argument('--out-host', default='127.0.0.1', help="Autolume's host")
-    parser.add_argument('--out-port', type=int, default=1338, help="Autolume's default OSC input port")
-    parser.add_argument('--out-address', default='/crocodile/w',
-                        help='OSC address to send the 512-float W vector to -- must match '
-                             "the address configured in Autolume's latent-vector OSC menu")
+    parser.add_argument('--out-host', default='127.0.0.1', help="The live latent controller's host")
+    parser.add_argument('--out-port', type=int, default=9001,
+                        help="The live latent controller's OSC-in port (same port its status "
+                             "broadcasts already use)")
+    parser.add_argument('--out-address', default='/crocodile/latent/user',
+                        help='OSC address to send the 512-float user W vector to -- the live '
+                             'latent controller listens here, composites it with the actress '
+                             'vector, and forwards the result on to Autolume')
     parser.add_argument('--status-out-host', default='127.0.0.1',
                         help='Host for session-status broadcasts (an operator control surface, not Autolume)')
     parser.add_argument('--status-out-port', type=int, default=9001)
