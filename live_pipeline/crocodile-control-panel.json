@@ -66,7 +66,119 @@
         "type": "tab",
         "id": "tab_grid",
         "label": "Emotion Grid",
-        "widgets": [],
+        "widgets": [
+          {
+            "type": "variable",
+            "id": "selected_id",
+            "value": ""
+          },
+          {
+            "type": "text",
+            "id": "grid_caption",
+            "top": 20,
+            "left": 20,
+            "width": 600,
+            "height": 20,
+            "interaction": false,
+            "align": "left",
+            "default": "Columns = emotions, rows = images. Tap a thumbnail to set it as the target."
+          },
+          {
+            "type": "matrix",
+            "id": "grid_matrix",
+            "top": 50,
+            "left": 20,
+            "width": 900,
+            "height": 240,
+            "layout": "grid",
+            "gridTemplate": "JS{ return 'repeat(' + globals.gridData.emotions.length + ', 1fr)' }",
+            "widgetType": "button",
+            "quantity": "JS{ return globals.gridData.cells.length }",
+            "props": {
+              "width": 36,
+              "height": 36,
+              "mode": "momentary",
+              "label": "",
+              "target": "127.0.0.1:9001",
+              "visible": "JS{ return globals.gridData.cells[$] !== null }",
+              "css": "JS{ var c = globals.gridData.cells[$]; if (!c) return ''; var sel = @{selected_id} === c.id; return '.widget{background-image:url(file://' + c.thumbnailPath + ');background-size:cover;background-position:center;border:2px solid ' + (sel ? '#2e7d32' : 'transparent') + '}' }",
+              "onTouch": "if (event.type !== 'start') return; var c = globals.gridData.cells[getIndex('this')]; if (!c) return; send('/grid/select', c.id)"
+            }
+          },
+          {
+            "type": "text",
+            "id": "controls_caption",
+            "top": 310,
+            "left": 20,
+            "width": 300,
+            "height": 20,
+            "interaction": false,
+            "align": "left",
+            "default": "Transition controls"
+          },
+          {
+            "type": "switch",
+            "id": "transition_mode",
+            "top": 336,
+            "left": 20,
+            "width": 300,
+            "height": 34,
+            "values": { "Manual start": 0, "Auto-start on select": 1 },
+            "default": 0,
+            "address": "/transition/mode",
+            "target": "127.0.0.1:9001"
+          },
+          {
+            "type": "text",
+            "id": "speed_caption",
+            "top": 380,
+            "left": 20,
+            "width": 300,
+            "height": 18,
+            "interaction": false,
+            "align": "left",
+            "default": "Transition speed"
+          },
+          {
+            "type": "fader",
+            "id": "transition_speed",
+            "top": 400,
+            "left": 20,
+            "width": 300,
+            "height": 30,
+            "horizontal": true,
+            "range": { "min": 0, "max": 1 },
+            "default": 0.08,
+            "address": "/transition/speed",
+            "target": "127.0.0.1:9001"
+          },
+          {
+            "type": "button",
+            "id": "transition_running",
+            "top": 440,
+            "left": 20,
+            "width": 300,
+            "height": 44,
+            "label": "#{@{this.value} === 1 ? 'Stop' : 'Start'}",
+            "mode": "toggle",
+            "colorWidget": "#{@{this.value} === 1 ? '#2e7d32' : 'auto'}",
+            "value": 0,
+            "default": 0,
+            "address": "/transition/running",
+            "target": "127.0.0.1:9001"
+          },
+          {
+            "type": "text",
+            "id": "target_display",
+            "top": 494,
+            "left": 20,
+            "width": 300,
+            "height": 20,
+            "interaction": false,
+            "align": "left",
+            "value": "#{'Target: ' + (@{selected_id} || '(none)')}"
+          }
+        ],
         "tabs": []
       },
       {
