@@ -89,11 +89,15 @@ live_pipeline.py --out-host/--out-port(9001)--> [control panel: Open Stage Contr
 
 ### Downstream naming follow-through
 
-`w_osc_debug_receiver.py` and `w_osc_debug_viewer.py`'s `--in-address`
-defaults change from `/crocodile/w` to `/crocodile/latent/final`, since their
-purpose (sanity-check the exact stream Autolume receives) is unchanged — only
-the address naming and, now, the sender (module instead of
-`live_pipeline.py` directly).
+`w_osc_debug_receiver.py` and `w_osc_debug_viewer.py` are kept — they remain
+useful as a lightweight stand-in for Autolume when testing the pipeline
+without it running. They're renamed (`git mv`) to
+`latent_osc_debug_receiver.py` / `latent_osc_debug_viewer.py` for consistency
+with the rest of the `w` → `latent` renaming, and their `--in-address`
+defaults change from `/crocodile/w` to `/crocodile/latent/final` — their
+purpose (sanity-check the exact stream Autolume receives) is unchanged, only
+the address naming and, now, the sender (module instead of `live_pipeline.py`
+directly).
 
 ## Session layout: tabs
 
@@ -180,9 +184,15 @@ Output tick (default 30 Hz, `init()`-started `setInterval`):
 - `live_pipeline/run_control_panel.sh` — add `--custom-module` flag.
 - `live_pipeline/live_pipeline.py` — `--out-port` default `1338` → `9001`,
   `--out-address` default `/crocodile/w` → `/crocodile/latent/user`.
-- `live_pipeline/w_osc_debug_receiver.py`,
-  `live_pipeline/w_osc_debug_viewer.py` — `--in-address` default
-  `/crocodile/w` → `/crocodile/latent/final`.
+- `live_pipeline/w_osc_debug_receiver.py` → renamed
+  `live_pipeline/latent_osc_debug_receiver.py`;
+  `live_pipeline/w_osc_debug_viewer.py` → renamed
+  `live_pipeline/latent_osc_debug_viewer.py`. Both keep their behavior,
+  `--in-address` default changes `/crocodile/w` → `/crocodile/latent/final`.
+- `live_pipeline/run_debug_receiver.sh`, `live_pipeline/run_debug_viewer.sh`
+  — updated to invoke the renamed scripts.
+- `PIPELINE.md`, `INSTALL.md` — references to the old script names and
+  `/crocodile/w` updated to match.
 - Autolume (separate repo, `~/Documents/workspace/autolume`) — its OSC
   input address setting needs updating to `/crocodile/latent/final` to match
   (manual/UI change on that side, not part of this repo's changes; also
