@@ -30,7 +30,9 @@ def main():
         description="Listen for the live pipeline's W-over-OSC stream and report receipt stats "
                     '(no StyleGAN2/torch required)',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--in-host', default='127.0.0.1')
+    parser.add_argument('--in-host', default='0.0.0.0',
+                        help='Bind address. 127.0.0.1 only accepts packets sent from this machine -- '
+                             'use 0.0.0.0 (default) to receive from a remote sender like TouchDesigner')
     parser.add_argument('--in-port', type=int, default=1338,
                         help="Same port live_pipeline.py's --out-port sends to")
     parser.add_argument('--in-address', default='/crocodile/w')

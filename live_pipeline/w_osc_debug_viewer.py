@@ -50,7 +50,9 @@ def main():
         description='Debug viewer: render the live W-over-OSC stream locally',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--config', default='latent_pipeline/configs/default.yaml')
-    parser.add_argument('--in-host', default='127.0.0.1')
+    parser.add_argument('--in-host', default='0.0.0.0',
+                        help='Bind address. 127.0.0.1 only accepts packets sent from this machine -- '
+                             'use 0.0.0.0 (default) to receive from a remote sender like TouchDesigner')
     parser.add_argument('--in-port', type=int, default=1338,
                         help="Same port live_pipeline.py's --out-port sends to")
     parser.add_argument('--in-address', default='/crocodile/w')
@@ -70,12 +72,14 @@ def main():
     n_received = 0
 
     def on_w(unused_address, *osc_args):
+        print("Received message")
         nonlocal latest_w, n_received
         if len(osc_args) != G.w_dim:
             print(f"  WARNING: expected {G.w_dim} floats, got {len(osc_args)} -- dropping")
             return
         with latest_w_lock:
             latest_w = np.array(osc_args, dtype=np.float32)
+            print(latest_w)
             n_received += 1
 
     dispatcher = Dispatcher()
