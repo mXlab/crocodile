@@ -138,10 +138,16 @@ live_pipeline/run_generate_synthetic.sh --duration 60 --seed 1 \
     --output live_pipeline/data/synthetic_live.csv
 live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_live.csv --speed 1.0
 
-# 4. Consume the W output -- point Autolume at the server's OSC output
-#    (default port 1338, address /crocodile/w; uncheck Autolume's "project"
-#    box, since the output is already W-space); or sanity-check the OSC
-#    plumbing alone, no StyleGAN2 model needed:
+# 4. Start the latent controller (it composites the visitor's vector with the
+#    operator's emotion selection and is what actually feeds Autolume now).
+#    Already running if you used the GUI panel in step 2, since
+#    run_control_panel.sh loads it by default; otherwise (CLI session
+#    control) start it explicitly:
+live_pipeline/run_control_panel.sh
+#    Then point Autolume at the controller's OSC output (port 1338, address
+#    /crocodile/latent/final; uncheck Autolume's "project" box, since the
+#    output is already W-space); or sanity-check the OSC plumbing alone, no
+#    StyleGAN2 model needed:
 live_pipeline/run_debug_receiver.sh
 #    or, for an actual visual preview (needs latent_pipeline/.venv AND the
 #    private StyleGAN2 checkpoint -- see INSTALL.md):

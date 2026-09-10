@@ -25,6 +25,7 @@ private storage, or generate synthetic stand-ins where noted below.
 | `latent_osc_debug_viewer.py` (visual check only) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) + the `stylegan_Autolume` code repo | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§6) |
 | Real deployment only | Autolume, the separate live performance app | Private/separate project — not needed to install or test this repo |
 | GUI session control (optional) | Open Stage Control | Public — §3 |
+| Emotion Grid tab (required for the live latent controller) | `emotion_grid/data/` (`manifest.csv`, `grid_layout.json`, `thumbnails/`) | Private — build locally with `emotion_grid/build_grid.py` from the private `latent_pipeline` dataset, or ask a teammate for a copy |
 
 **In short**: you can install and fully test `live_pipeline.py`'s OSC
 plumbing (§1–§6) with only the two trained artifacts above and no real
@@ -69,11 +70,18 @@ If you don't plan to run the visual debug viewer yet, skip the
 `latent_pipeline/.venv` setup — `latent_osc_debug_receiver.py` (§6) covers
 smoke-testing the OSC output without it.
 
-## 3. (Optional) Install Open Stage Control
+## 3. (Optional, but required for live output) Install Open Stage Control
 
-Only needed if you want the GUI control panel
+Needed if you want the GUI control panel
 (`live_pipeline/crocodile-control-panel.json`) instead of driving sessions
-from the command line with `session_control.py`. Get a package for your OS
+from the command line with `session_control.py`. Note that it's no longer
+purely optional for a full live run: `crocodile-control-module.js` (loaded by
+`run_control_panel.sh`, part of this same panel) is what composites the
+visitor's vector with the operator's emotion selection and actually sends to
+Autolume — `live_pipeline.py` no longer talks to Autolume directly — so some
+form of Open Stage Control (with the control module loaded) must be running
+for anything to reach Autolume, even if you drive session state itself from
+`session_control.py` on the command line. Get a package for your OS
 from the [Open Stage Control releases page](https://openstagecontrol.ammd.net/)
 and install it so the `open-stage-control` binary is on your `PATH`
 (e.g. `sudo dpkg -i open-stage-control_*.deb` on Debian/Ubuntu). Verify with:

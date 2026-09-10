@@ -482,18 +482,18 @@ flags if you need to run on a different machine or dodge a collision.
 | Port | Direction | Used by | Carries |
 |---|---|---|---|
 | **9000** | `live_pipeline.py` listens; `session_control.py`/control panel and `replay_biodata_as_osc.py` both send | Session control (`/crocodile/session/*`, `/crocodile/calibration/*`, `/crocodile/live/*`) **and** raw biodata (`/crocodile/biodata`) — two different message streams sharing one port, disambiguated only by OSC address, not by port |
-| **9001** | `live_pipeline.py` sends; control panel listens | Session-status broadcasts (`/crocodile/session/status` → `[phase, session_id]`), fired after every state transition |
-| **1338** | `live_pipeline.py` sends; `latent_osc_debug_viewer.py`/`latent_osc_debug_receiver.py`/Autolume listen | W output (`/crocodile/latent/final` → 512 floats). Not really ours to renumber — 1338 is Autolume's own default OSC-input port |
+| **9001** | `live_pipeline.py` sends; `crocodile-control-module.js` (the latent controller) listens | Three disambiguated-by-address uses: session-status broadcasts (`/crocodile/session/status` → `[phase, session_id]`), fired after every state transition; the visitor's live W vector (`/crocodile/latent/user` → 512 floats, from `live_pipeline.py`); and the control panel's own widget-control addresses (`/grid/select`, `/transition/*`, `/mix/amount`, `/noise/amount`) |
+| **1338** | `crocodile-control-module.js` (the latent controller) sends; `latent_osc_debug_viewer.py`/`latent_osc_debug_receiver.py`/Autolume listen | W output (`/crocodile/latent/final` → 512 floats). Not really ours to renumber — 1338 is Autolume's own default OSC-input port |
 | **8090** | Open Stage Control's HTTP server (not OSC) | Browser UI for the control panel | Bumped from Open Stage Control's own default `8080` to dodge a local port collision (see `run_control_panel.sh`) |
 
-The one non-obvious part of this scheme is **9000's dual use** — control
-messages and raw biodata samples arrive on the same port, separated only by
-OSC address, so `live_pipeline.py` can run a single synchronous
-`BlockingOSCUDPServer` (serializing control and data handling for free, no
-locks needed — see the module docstring). 1338 and 8090 are both externally
-constrained (Autolume's default, and an unrelated app already on 8080)
-rather than chosen for memorability; 9000/9001 are the two actually "ours,"
-kept sequential on purpose.
+The one non-obvious part of this scheme is **9001's now-heavy overload** —
+session-status broadcasts, the visitor's live W vector, and the control
+panel's own widget messages all arrive on the same port, separated only by
+OSC address (the same disambiguation-by-address trick 9000 already uses for
+control vs. raw biodata). 1338 and 8090 are both externally constrained
+(Autolume's default, and an unrelated app already on 8080) rather than
+chosen for memorability; 9000/9001 are the two actually "ours," kept
+sequential on purpose.
 
 - **`live_pipeline.py`** — the core program. Runs under
   `biodata_pipeline/venv` (needs `OnlineFeatureExtractor` + the alignment
@@ -539,17 +539,25 @@ kept sequential on purpose.
   table and the reasoning for keeping everything (biodata + control) on
   one synchronous `BlockingOSCUDPServer` (serializes control and data
   handling for free, no locks needed). Sends each finalized row's
-  512-float W vector to **Autolume** — a separate live StyleGAN
-  performance app (`/home/tats/Documents/workspace/autolume`, not part of
-  this repo; distinct from `stylegan_Autolume`, the bare synthesis library
+  512-float W vector to the **latent controller**
+  (`crocodile-control-module.js`, via `/crocodile/latent/user` on port
+  9001) rather than to Autolume directly — the controller composites the
+  visitor's vector with the operator's emotion selection (mix, noise,
+  transitions) before forwarding a single blended vector on to
+  **Autolume** — a separate live StyleGAN performance app
+  (`/home/tats/Documents/workspace/autolume`, not part of this repo;
+  distinct from `stylegan_Autolume`, the bare synthesis library
   `latent_pipeline` imports directly). Autolume owns rendering and display
-  entirely — this script never touches StyleGAN2. Autolume's latent-vector
-  OSC handler expects exactly 512 floats and treats them as W directly
-  only if its "project" checkbox is left unchecked (it defaults to
-  Z-space with an optional Z→W mapping step, which our output must
-  bypass). Also broadcasts `[state, session_id]` to a separate
-  `/crocodile/session/status` address after every transition, for an
-  operator control surface to confirm actual server state.
+  entirely — neither this script nor the controller ever touches
+  StyleGAN2. Autolume's latent-vector OSC handler expects exactly 512
+  floats and treats them as W directly only if its "project" checkbox is
+  left unchecked (it defaults to Z-space with an optional Z→W mapping
+  step, which our output must bypass) — that instruction now applies to
+  the controller's output (`/crocodile/latent/final` on port 1338), not to
+  `live_pipeline.py` directly. `live_pipeline.py` also broadcasts
+  `[state, session_id]` to a separate `/crocodile/session/status` address
+  after every transition, for an operator control surface to confirm
+  actual server state.
 - **`session_control.py`** (run via `run_session_control.sh`, same
   interpreter-pinning pattern as the other wrapper scripts) — sends one
   session-control OSC message and exits (`--start-session [ID]`,
@@ -561,20 +569,29 @@ kept sequential on purpose.
   actual GUI control surface, built with
   [Open Stage Control](https://openstagecontrol.ammd.net/) (already used
   for this project's other installations, e.g. Xenolalia's own OSC panel).
-  One button per control message (`Start Calibration`, `Stop Calibration`,
-  `Start Live`, `Recalibrate`, `End Session`), a text field for the
-  optional session ID (sends `/crocodile/session/start` on Enter), and a
-  status display bound to `/crocodile/session/status`. `run_control_panel.sh`
-  launches it pre-wired to `live_pipeline.py`'s default ports (sends to
-  9000, listens on 9001) — run both and the panel's buttons drive the
-  session state machine directly. Verified in this session: the session
-  file loads without error and every widget renders with the correct
-  label/position/wiring (confirmed via a headless Chromium screenshot);
-  real click-through wasn't independently confirmed in that same headless
-  pass (a GPU/compositor limitation of the sandboxed test environment, not
-  a property of the file) — the button interaction pattern (`mode:
-  momentary`) is otherwise standard, documented Open Stage Control
-  behavior also used elsewhere in this project's other panels.
+  Three tabs: **Session** — one button per session-control message (`Start
+  Calibration`, `Stop Calibration`, `Start Live`, `Recalibrate`, `End
+  Session`), a text field for the optional session ID (sends
+  `/crocodile/session/start` on Enter), and a status display bound to
+  `/crocodile/session/status`; **Emotion Grid** — a thumbnail matrix (one
+  button per emotion/image cell, headed by a row of emotion-name labels)
+  wired to `/grid/select`, plus transition mode/speed/start-stop controls
+  and a target display; **Mixing** — actress/visitor mix and noise-amount
+  faders (`/mix/amount`, `/noise/amount`). The Emotion Grid and Mixing
+  tabs talk to `crocodile-control-module.js` (the latent controller, on
+  port 9001), not to `live_pipeline.py`. `run_control_panel.sh` launches
+  it pre-wired to `live_pipeline.py`'s default ports (sends to 9000,
+  listens on 9001) and loads the latent controller's custom module — run
+  both and the panel's buttons drive the session state machine directly,
+  while the grid/mixing tabs drive the latent controller. Verified in
+  this session: the session file loads without error and every widget
+  renders with the correct label/position/wiring (confirmed via a
+  headless Chromium screenshot); real click-through wasn't independently
+  confirmed in that same headless pass (a GPU/compositor limitation of
+  the sandboxed test environment, not a property of the file) — the
+  button interaction pattern (`mode: momentary`) is otherwise standard,
+  documented Open Stage Control behavior also used elsewhere in this
+  project's other panels.
 - **`replay_biodata_as_osc.py`** — runs under `biodata_pipeline/venv`.
   Sends a recorded raw biodata CSV out as OSC at real-time (or faster)
   pace, standing in for real sensor hardware. No hardware/OSC protocol for
