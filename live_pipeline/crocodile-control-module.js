@@ -45,10 +45,19 @@ function loadManifest() {
         var cols = lines[i].split(',')
         var id = cols[idCol]
         var w = new Array(W_DIM)
+        var rowOk = true
         for (var d = 0; d < W_DIM; d++) {
-            w[d] = parseFloat(cols[wStart + d])
+            var val = parseFloat(cols[wStart + d])
+            if (!isFinite(val)) {
+                console.error('[crocodile-control-module] manifest.csv row id ' + id + ': non-finite value at w_' + d + ', skipping row')
+                rowOk = false
+                break
+            }
+            w[d] = val
         }
-        manifestById[id] = w
+        if (rowOk) {
+            manifestById[id] = w
+        }
     }
     console.log('[crocodile-control-module] loaded ' + Object.keys(manifestById).length + ' emotion vectors from manifest.csv')
 }
@@ -70,6 +79,7 @@ var state = {
     mix: 0.5,                // 1 = pure actress, 0 = pure incoming user vector
     noise_amount: 0,
     noise_state: zeros(),
+    has_selected_before: false,
 }
 
 var clients = []
@@ -89,7 +99,7 @@ function pushFeedback() {
 }
 
 function tick() {
-    if (state.target_id === null) return // nothing selected yet -- send nothing
+    if (state.target_id === null && state.w_u === null) return // fully idle -- send nothing
 
     if (state.running) {
         for (var i = 0; i < W_DIM; i++) {
@@ -133,6 +143,10 @@ module.exports = {
                 return
             }
             state.w_u = args.slice()
+            if (state.target_id === null) {
+                // no emotion picked yet -- track the visitor 1:1 until the operator acts
+                state.current_w = state.w_u.slice()
+            }
             return // consumed, not forwarded to widgets
         }
 
@@ -145,6 +159,10 @@ module.exports = {
             }
             state.target_id = id
             state.target_w = w
+            if (!state.has_selected_before) {
+                state.current_w = w.slice()
+                state.has_selected_before = true
+            }
             if (state.mode === 'auto') {
                 state.running = true
             }
@@ -158,7 +176,12 @@ module.exports = {
         }
 
         if (address === '/transition/speed') {
-            state.speed = args[0]
+            var speedVal = args[0]
+            if (isFinite(speedVal)) {
+                state.speed = Math.max(0, Math.min(1, speedVal))
+            } else {
+                console.error('[crocodile-control-module] /transition/speed: ignoring non-finite value ' + speedVal)
+            }
             return
         }
 
@@ -169,12 +192,22 @@ module.exports = {
         }
 
         if (address === '/mix/amount') {
-            state.mix = args[0]
+            var mixVal = args[0]
+            if (isFinite(mixVal)) {
+                state.mix = Math.max(0, Math.min(1, mixVal))
+            } else {
+                console.error('[crocodile-control-module] /mix/amount: ignoring non-finite value ' + mixVal)
+            }
             return
         }
 
         if (address === '/noise/amount') {
-            state.noise_amount = args[0]
+            var noiseVal = args[0]
+            if (isFinite(noiseVal)) {
+                state.noise_amount = Math.max(0, Math.min(1, noiseVal))
+            } else {
+                console.error('[crocodile-control-module] /noise/amount: ignoring non-finite value ' + noiseVal)
+            }
             return
         }
 
