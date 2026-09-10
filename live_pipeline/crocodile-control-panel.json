@@ -85,8 +85,25 @@
           },
           {
             "type": "matrix",
+            "id": "grid_headers",
+            "top": 44,
+            "left": 20,
+            "width": 900,
+            "height": 20,
+            "layout": "grid",
+            "gridTemplate": "JS{ return 'repeat(' + globals.gridData.emotions.length + ', 1fr)' }",
+            "widgetType": "text",
+            "quantity": "JS{ return globals.gridData.emotions.length }",
+            "props": {
+              "interaction": false,
+              "align": "center",
+              "value": "JS{ return globals.gridData.emotions[$].name }"
+            }
+          },
+          {
+            "type": "matrix",
             "id": "grid_matrix",
-            "top": 50,
+            "top": 68,
             "left": 20,
             "width": 900,
             "height": 240,
@@ -108,7 +125,7 @@
           {
             "type": "text",
             "id": "controls_caption",
-            "top": 310,
+            "top": 328,
             "left": 20,
             "width": 300,
             "height": 20,
@@ -119,7 +136,7 @@
           {
             "type": "switch",
             "id": "transition_mode",
-            "top": 336,
+            "top": 354,
             "left": 20,
             "width": 300,
             "height": 34,
@@ -131,7 +148,7 @@
           {
             "type": "text",
             "id": "speed_caption",
-            "top": 380,
+            "top": 398,
             "left": 20,
             "width": 300,
             "height": 18,
@@ -142,7 +159,7 @@
           {
             "type": "fader",
             "id": "transition_speed",
-            "top": 400,
+            "top": 418,
             "left": 20,
             "width": 300,
             "height": 30,
@@ -155,7 +172,7 @@
           {
             "type": "button",
             "id": "transition_running",
-            "top": 440,
+            "top": 458,
             "left": 20,
             "width": 300,
             "height": 44,
@@ -170,7 +187,7 @@
           {
             "type": "text",
             "id": "target_display",
-            "top": 494,
+            "top": 512,
             "left": 20,
             "width": 300,
             "height": 20,
