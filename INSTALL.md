@@ -22,7 +22,8 @@ private storage, or generate synthetic stand-ins where noted below.
 | `live_pipeline.py` (only for a **real calibration** — §6b) | Trained alignment transformer (`biodata_pipeline/models/transformer_ot_classconditional_online.pkl`) | Private — ask a teammate, or train your own (`biodata_pipeline/scripts/train_transformer.py`). Not needed for §6's quick check, which uses a public transformer pre-fit on synthetic data instead (`live_pipeline/data/synthetic_test_transformer.pkl`, committed) |
 | `live_pipeline.py` (optional — enables live per-visitor alignment fitting) | The actress' (Laurence's) online-schema reference features (`biodata_pipeline/data/processed/continuous_features_online.csv` — NOT `erin_features_online.csv`, Erin is a separate test subject, not the actress), passed as `--reference-features` | Private — ask a teammate. Without it, every session just uses the static transformer above (unchanged behavior) — see PIPELINE.md's "Live per-visitor alignment fit" |
 | Feeding the pipeline data | Real biodata recordings, or `--calibration-csv` priming | Private — optional; §6's quick check replays a committed synthetic recording instead, and §6b's full calibration walkthrough generates fresh synthetic data if you don't have a real one |
-| Visual check only — `latent_osc_debug_viewer.py` (debug overlay) or `live_viewer.py` (no overlay, can replace Autolume outright) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) + the `stylegan_Autolume` code repo | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§6) |
+| Visual check only — `latent_osc_debug_viewer.py` (debug overlay) or `live_viewer.py` (no overlay, can replace Autolume outright) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§6) |
+| Same as above | `stylegan_Autolume` code (`dnnlib`/`legacy.py`/`torch_utils`, imported by `latent_pipeline/models/stylegan.py` to load and run the checkpoint) | **Public** — `git clone` it yourself, see §4b. Not the same thing as Autolume (the live performance app) below, despite the name |
 | Real deployment only | Autolume, the separate live performance app | Private/separate project — not needed to install or test this repo |
 | GUI session control (optional) | Open Stage Control | Public — §3 |
 | Emotion Grid tab (required for the live latent controller) | `emotion_grid/data/` (`manifest.csv`, `grid_layout.json`, `thumbnails/`) | Private — build locally with `emotion_grid/build_grid.py` from the private `latent_pipeline` dataset, or ask a teammate for a copy |
@@ -105,13 +106,60 @@ don't exist) — the commands below reference them there. If your files live
 elsewhere or under different names, just point `--regressor`/`--transformer`
 (§6/§6b) at wherever you put them.
 
-If you also obtained the StyleGAN2 checkpoint and `stylegan_Autolume` code
-(for the visual debug viewer or `latent_pipeline` work generally), place the
-checkpoint at `models/finalModel_Crocodile.pkl` (repo root, separate from
-`latent_pipeline/models/`, which holds code not the weights) and edit
-`latent_pipeline/configs/default.yaml`'s `paths.repo_root` and
-`paths.stylegan_code` to match your machine — both are currently hardcoded
-absolute paths from whoever last edited that file.
+If you want the visual viewer (`latent_osc_debug_viewer.py`/`live_viewer.py`)
+rather than just the OSC-plumbing check in §6, you also need the private
+checkpoint and a small piece of **public** code — see §4b.
+
+## 4b. Install stylegan_Autolume (only for the visual viewer)
+
+`latent_pipeline/models/stylegan.py` loads and runs the checkpoint by
+importing `dnnlib`, `legacy`, and `torch_utils` from
+[`stylegan_Autolume`](https://github.com/petercmh01/stylegan_Autolume) — a
+StyleGAN3 fork maintained for the Autolume project. Despite the similar
+name, this is a **different, unrelated thing** from Autolume itself (the
+separate live performance app in §0's table) — it's just the bare synthesis
+code, not the performance app.
+
+The code is public; only the trained checkpoint (obtained above) is
+private:
+
+```bash
+# Anywhere on disk, doesn't need to be inside this repo -- a sibling
+# directory is the convention the existing config paths assume.
+git clone https://github.com/petercmh01/stylegan_Autolume.git
+```
+
+No separate environment or `pip install` for it is needed:
+`latent_pipeline/.venv` already has everything `dnnlib`/`legacy`/
+`torch_utils` import at runtime, right down to the exact
+`setuptools==70.2.0` pin its `torch_utils` needs (see the comment in
+`latent_pipeline/requirements.txt`) — and `load_stylegan()` forces
+pure-PyTorch reference ops specifically to avoid needing a matching CUDA
+toolkit/compiler to JIT-compile its custom kernels. Its own
+`environment.yml` (conda, CUDA 11.1, a GUI visualizer's extra dependencies)
+is for its own training/visualization tools and can be ignored here.
+
+Then point the config at both pieces:
+
+```yaml
+# latent_pipeline/configs/default.yaml
+paths:
+  repo_root: /absolute/path/to/your/crocodile/checkout
+  stylegan_code: /absolute/path/to/wherever/you/cloned/stylegan_Autolume
+  stylegan_model: models/finalModel_Crocodile.pkl   # relative to repo_root
+```
+
+Both `paths.repo_root` and `paths.stylegan_code` are currently hardcoded
+absolute paths from whoever last edited that file — you must change both to
+match your machine. Verify it worked with:
+
+```bash
+live_pipeline/run_debug_viewer.sh
+```
+
+If `dnnlib`/`legacy` fail to import, double-check `stylegan_code` points at
+the repo root you cloned (the directory containing `dnnlib/`, `legacy.py`,
+`torch_utils/` directly, not a subdirectory).
 
 ## 5. Get the Emotion Grid data
 
@@ -168,7 +216,7 @@ live_pipeline/run_debug_receiver.sh
 This is the recommended first check — it just confirms 512-float W vectors
 are actually arriving at the expected rate on Autolume's own port/address
 (1338, `/crocodile/latent/final`), without needing the private StyleGAN2
-model at all. Once you have that model installed (§4), run one of these
+model at all. Once you have that model installed (§4b), run one of these
 instead/in addition for an actual visual check:
 
 ```bash
