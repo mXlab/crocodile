@@ -19,17 +19,17 @@ private storage, or generate synthetic stand-ins where noted below.
 | Needed for | What | Where it comes from |
 |---|---|---|
 | `live_pipeline.py` (**required**) | Trained regressor (`latent_pipeline/outputs/stage5_regressor_online/regressor.joblib`) | Private — ask a teammate, or train your own (`latent_pipeline/PLAN.md`, Stage 5) |
-| `live_pipeline.py` (only for a **real calibration** — §6b) | Trained alignment transformer (`biodata_pipeline/models/transformer_ot_classconditional_online.pkl`) | Private — ask a teammate, or train your own (`biodata_pipeline/scripts/train_transformer.py`). Not needed for §6's quick check, which uses a public transformer pre-fit on synthetic data instead (`live_pipeline/data/synthetic_test_transformer.pkl`, committed) |
+| `live_pipeline.py` (only for a **real calibration** — §5b) | Trained alignment transformer (`biodata_pipeline/models/transformer_ot_classconditional_online.pkl`) | Private — ask a teammate, or train your own (`biodata_pipeline/scripts/train_transformer.py`). Not needed for §5's quick check, which uses a public transformer pre-fit on synthetic data instead (`live_pipeline/data/synthetic_test_transformer.pkl`, committed) |
 | `live_pipeline.py` (optional — enables live per-visitor alignment fitting) | The actress' (Laurence's) online-schema reference features (`biodata_pipeline/data/processed/continuous_features_online.csv` — NOT `erin_features_online.csv`, Erin is a separate test subject, not the actress), passed as `--reference-features` | Private — ask a teammate. Without it, every session just uses the static transformer above (unchanged behavior) — see PIPELINE.md's "Live per-visitor alignment fit" |
-| Feeding the pipeline data | Real biodata recordings, or `--calibration-csv` priming | Private — optional; §6's quick check replays a committed synthetic recording instead, and §6b's full calibration walkthrough generates fresh synthetic data if you don't have a real one |
-| Visual check only — `latent_osc_debug_viewer.py` (debug overlay) or `live_viewer.py` (no overlay, can replace Autolume outright) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§6) |
+| Feeding the pipeline data | Real biodata recordings, or `--calibration-csv` priming | Private — optional; §5's quick check replays a committed synthetic recording instead, and §5b's full calibration walkthrough generates fresh synthetic data if you don't have a real one |
+| Visual check only — `latent_osc_debug_viewer.py` (debug overlay) or `live_viewer.py` (no overlay, can replace Autolume outright) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§5) |
 | Same as above | `stylegan_Autolume` code (`dnnlib`/`legacy.py`/`torch_utils`, imported by `latent_pipeline/models/stylegan.py` to load and run the checkpoint) | **Public** — a git submodule at `latent_pipeline/stylegan_Autolume`, not initialized by §1's default `--recursive` init, see §4b. Not the same thing as Autolume (the live performance app) below, despite the name |
 | Real deployment only | Autolume, the separate live performance app | Private/separate project — not needed to install or test this repo |
 | GUI session control (optional) | Open Stage Control | Public — §3 |
-| Emotion Grid tab (required for the live latent controller) | `emotion_grid/data/` (`manifest.csv`, `grid_layout.json`, `thumbnails/`) | Private — build locally with `emotion_grid/build_grid.py` from the private `latent_pipeline` dataset, or ask a teammate for a copy |
+| Emotion Grid tab (required for the live latent controller) | `emotion_grid/data/` (`manifest.csv`, `grid_layout.json`, `thumbnails/`) | Private — see §4, or build it yourself with `emotion_grid/build_grid.py` from the private `latent_pipeline` dataset |
 
 **In short**: you can install and fully test `live_pipeline.py`'s OSC
-plumbing (§1–§6) with only the private regressor and no real biodata,
+plumbing (§1–§5) with only the private regressor and no real biodata,
 private alignment transformer, or StyleGAN2 model at all, using the
 committed synthetic fixtures and the lightweight debug receiver.
 
@@ -72,7 +72,7 @@ latent_pipeline/.venv/bin/pip install -r latent_pipeline/requirements.txt
 ```
 
 If you don't plan to run the visual debug viewer yet, skip the
-`latent_pipeline/.venv` setup — `latent_osc_debug_receiver.py` (§6) covers
+`latent_pipeline/.venv` setup — `latent_osc_debug_receiver.py` (§5) covers
 smoke-testing the OSC output without it.
 
 ## 3. (Optional, but required for live output) Install Open Stage Control
@@ -95,24 +95,54 @@ and install it so the `open-stage-control` binary is on your `PATH`
 open-stage-control --version
 ```
 
-## 4. Get the private trained artifacts
+## 4. Get the private data
 
-Obtain from a teammate (or your project's private storage — ask whoever
-last trained them):
+Every private/gitignored asset this pipeline needs lives in one place, a
+`crocodile-private/` folder, kept entirely outside this repo (so there's no
+risk of any of it ever being swept into git). Ask a teammate for a copy —
+it should contain, mirroring this repo's own relative layout:
 
-- `latent_pipeline/outputs/stage5_regressor_online/regressor.joblib`
-  (**required** — needed even for §6's quick check)
-- `biodata_pipeline/models/transformer_ot_classconditional_online.pkl`
-  (only needed for §6b's full calibration walkthrough)
+```
+crocodile-private/
+├── models/finalModel_Crocodile.pkl                          (needed for §4b, the visual viewer)
+├── latent_pipeline/outputs/stage5_regressor_online/          (needed even for §5's quick check)
+├── latent_pipeline/outputs/stage5_regressor(_continuous)/    (alternate alignment-method regressors)
+├── biodata_pipeline/models/*.pkl                              (needed for §5b's full calibration)
+├── biodata_pipeline/data/raw/                                (real recordings, optional)
+├── biodata_pipeline/data/processed/continuous_features_online.csv  (the actress' reference features, optional)
+├── emotion_grid/data/ (manifest.csv, grid_layout.json, thumbnails/) (needed for the Emotion Grid tab)
+├── live_pipeline/data/erin_*.csv + sessions/                 (real recordings, optional)
+└── luana-Crocodile-with-data/                                (real recordings, optional)
+```
 
-Place them at those exact relative paths (create the directories if they
-don't exist) — the commands below reference them there. If your files live
-elsewhere or under different names, just point `--regressor`/`--transformer`
-(§6/§6b) at wherever you put them.
+This is a curated subset, not a full mirror of every gitignored file on
+someone's machine — it deliberately excludes bulky Stage 2 encoder-training
+artifacts (`latent_pipeline/outputs/best.pt`, `recon_epoch_*.png`, etc.) and
+`biodata_pipeline/data/processed/`'s many exploratory feature-extraction
+experiment files, since nothing reads those by path outside of re-training
+the encoder from scratch — ask a teammate directly if you need those too.
+
+Place the folder as a sibling directory next to your checkout (i.e. if this
+repo is at `workspace/crocodile`, put it at `workspace/crocodile-private`),
+then symlink everything into place:
+
+```bash
+scripts/link_private_data.sh
+```
+
+(Pass a path as an argument if you put `crocodile-private/` somewhere else.)
+This is safe to re-run any time — it skips anything already correctly
+linked and never overwrites a real file/directory already sitting at one of
+these paths. Unix-only (macOS or Linux, or Windows via WSL) — see §6 if
+you're on plain Windows.
+
+If you'd rather not use symlinks, just place the individual files at the
+same relative paths yourself, or point `--regressor`/`--transformer` (§5/§5b)
+at wherever you put them directly.
 
 If you want the visual viewer (`latent_osc_debug_viewer.py`/`live_viewer.py`)
-rather than just the OSC-plumbing check in §6, you also need the private
-checkpoint and a small piece of **public** code — see §4b.
+rather than just the OSC-plumbing check in §5, you also need a small piece
+of **public** code alongside the checkpoint above — see §4b.
 
 ## 4b. Install stylegan_Autolume (only for the visual viewer)
 
@@ -175,16 +205,7 @@ a need): `cd latent_pipeline/stylegan_Autolume && git checkout
 <new-commit>`, then commit the updated submodule pointer from the repo
 root after confirming the viewer still works.
 
-## 5. Get the Emotion Grid data
-
-The live latent controller's Emotion Grid tab needs `emotion_grid/data/`
-(`manifest.csv`, `grid_layout.json`, `thumbnails/`) — private, since it's
-built from the actress' real footage. Ask a teammate for a copy, or build it
-locally with `emotion_grid/build_grid.py` from the private `latent_pipeline`
-dataset. Needed for §6 below (the composited output has nothing to select
-without it).
-
-## 6. Test the live pipeline end-to-end
+## 5. Test the live pipeline end-to-end
 
 Open several terminals, all from the repo root. This is the quickest
 check — no calibration, no button-pressing, and no real recording, using two
@@ -206,7 +227,7 @@ live_pipeline/run_live.sh \
 Wait for `Live output started`. Note this uses the committed
 `synthetic_test_transformer.pkl`, not the private
 `transformer_ot_classconditional_online.pkl` from §4 — the private one is
-only needed for a real calibration (§6b below).
+only needed for a real calibration (§5b below).
 
 **Terminal 2 — the latent controller.** This composites the visitor's vector
 with the actress' selection and is what actually forwards to Autolume —
@@ -218,7 +239,7 @@ live_pipeline/run_control_panel.sh
 ```
 
 Open `http://127.0.0.1:8090` and pick any thumbnail in the Emotion Grid tab
-(§5) — with "Auto-start on select" checked (the default), that immediately
+(§4) — with "Auto-start on select" checked (the default), that immediately
 starts the actress-side transition.
 
 **Terminal 3 — a lightweight W receiver (no StyleGAN2/torch needed):**
@@ -251,7 +272,7 @@ whole chain (session → alignment → regressor → latent controller → OSC o
 is wired correctly. If no `WARNING` lines appeared anywhere, the pipeline is
 correctly installed end-to-end.
 
-### 6b. Testing a full calibration scenario (optional)
+### 5b. Testing a full calibration scenario (optional)
 
 The above skips calibration entirely by using a transformer pre-fit offline
 on synthetic data. To exercise the full state machine (`session/start` →
@@ -272,7 +293,7 @@ live_pipeline/run_generate_synthetic.sh --duration 60 --seed 2 \
     --output live_pipeline/data/synthetic_live.csv
 ```
 
-Then, in place of §6's Terminal 1 and 4 commands (Terminals 2 and 3 are the
+Then, in place of §5's Terminal 1 and 4 commands (Terminals 2 and 3 are the
 same as above):
 
 **Terminal 1 — the core server**, using the private transformer this time:
@@ -306,7 +327,7 @@ while the second `run_replay.sh` call is running, and `N` there should
 match Terminal 1's `Rows sent` count. If both match and no `WARNING` lines
 appeared, the full calibration flow is correctly wired end-to-end.
 
-## 7. Troubleshooting
+## 6. Troubleshooting
 
 - **`EADDRINUSE` / "address already in use"**: something is already bound to
   one of the ports involved (`9000` control+biodata, `9001` status, `1338`
@@ -320,12 +341,21 @@ appeared, the full calibration flow is correctly wired end-to-end.
   log) — biodata arriving before `live/start` is intentionally discarded
   (see PIPELINE.md's state machine). Also confirm the latent controller
   (`run_control_panel.sh`) is running — nothing reaches port `1338` without
-  it, even in §6's simplified test — and that `replay_biodata_as_osc.py` and
+  it, even in §5's simplified test — and that `replay_biodata_as_osc.py` and
   `live_pipeline.py` agree on `--port`/`--address`.
 - **`ModuleNotFoundError`**: you're running a script with the wrong venv's
   interpreter directly instead of through its `run_*.sh` wrapper, or you
   installed before the requirements file included `neurokit2`/`joblib`/
   `python-osc` — re-run `pip install -r biodata_pipeline/requirements.txt`.
+- **On Windows**: every wrapper script in this project is a `.sh` file, so
+  you need WSL or Git Bash regardless of §4. Symlinks specifically (what
+  `scripts/link_private_data.sh` creates) need either WSL with Developer
+  Mode enabled, or admin/elevated privileges in Git Bash — plain Windows
+  accounts can't create them by default, and Git Bash may silently fall
+  back to copying the file instead of linking it (harmless, just means
+  updates to `crocodile-private/` won't be picked up automatically). If
+  that's not workable, skip the script and just copy the individual files
+  from `crocodile-private/` to the paths §4 lists directly.
 - Anything else: see PIPELINE.md's "Two real bugs were caught building
   this" section for the two subtlest failure modes found so far (a
   calibration/live speed artifact and a peak-detector priming bug), both
