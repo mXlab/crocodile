@@ -611,6 +611,17 @@ sequential on purpose.
   Listens to the same W-over-OSC stream and renders it locally via this
   project's own StyleGAN2 code, for visual sanity-checking without
   Autolume running.
+- **`live_viewer.py`** — optional, separate process. Same runtime
+  requirements as `latent_osc_debug_viewer.py` (`latent_pipeline/.venv`,
+  StyleGAN2 checkpoint) and shares its render loop via `latent_viewer_core.py`
+  (same folder), but meant as an actual **replacement for Autolume** rather
+  than a debug tool: defaults to Autolume's own port/address (1338,
+  `/crocodile/latent/final`), supports `--fullscreen` (toggle anytime with
+  `f`), and has no debug overlay burned into the output unless `--overlay` is
+  passed. NDI output isn't implemented yet — `LatentOscViewer.run()`'s
+  `on_frame` callback is the intended hook point for adding it later. Run via
+  `run_live_viewer.sh`, same interpreter-pinning pattern as the other wrapper
+  scripts.
 - **`latent_osc_debug_receiver.py`** — optional, separate process. Runs under
   `biodata_pipeline/venv` — no torch/StyleGAN2/checkpoint needed at all,
   unlike the viewer above. Listens to the same W-over-OSC stream and just

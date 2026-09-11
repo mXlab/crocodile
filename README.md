@@ -136,8 +136,13 @@ live_pipeline/run_live.sh \
 
 # 2. Start the latent controller (composites with the actress' selection)...
 live_pipeline/run_control_panel.sh &
-# ...and replay the synthetic visitor recording.
+
+
+# 3. Replay the synthetic visitor recording.
 live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv --speed 1.0
+
+# Optional: Start the live viewer (instead of Autolume)
+live_pipeline/run_live_viewer.sh
 ```
 
 Open `http://127.0.0.1:8090`, pick a thumbnail in the Emotion Grid tab, and use
