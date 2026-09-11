@@ -133,7 +133,7 @@ def build_grid_layout(manifest_df, labels_df, output_dir):
             cells.append({
                 "id": r["id"],
                 "emotion": emotion,
-                "thumbnailPath": os.path.join(output_dir, r["thumbnail_path"]),
+                "thumbnailPath": os.path.abspath(os.path.join(output_dir, r["thumbnail_path"])),
             })
 
     layout = {
