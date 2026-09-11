@@ -6,17 +6,22 @@
 # BIODATA PIPELINE - Project-specific
 # ============================================================================
 
-# Data files (large, regeneratable)
-biodata_pipeline/data/raw/
+# Data files (large, regeneratable). No trailing slash on raw/ -- unlike
+# the others here, scripts/link_private_data.sh symlinks this one in from
+# crocodile-private/, and a trailing-slash pattern only matches a real
+# directory, never a symlink (even one pointing at a directory).
+biodata_pipeline/data/raw
 biodata_pipeline/data/processed/
 biodata_pipeline/data/features/
 biodata_pipeline/data/metadata/
 
-# Named-subject raw biometric data
-luana-Crocodile-with-data/
+# Named-subject raw biometric data. No trailing slash -- see the raw/ comment
+# above, same reason (this is a symlink via link_private_data.sh).
+luana-Crocodile-with-data
 
-# Trained models (large binary files)
-biodata_pipeline/models/
+# Trained models (large binary files). No trailing slash -- see the raw/
+# comment above, same reason (this is a symlink via link_private_data.sh).
+biodata_pipeline/models
 
 # Generated reports (keep README.md files)
 biodata_pipeline/reports/**/*.png
@@ -28,8 +33,10 @@ biodata_pipeline/reports/**/*.html
 # EMOTION GRID - Project-specific
 # ============================================================================
 
-# Generated emotion grid outputs (derived from real actress footage)
-emotion_grid/data/
+# Generated emotion grid outputs (derived from real actress footage). No
+# trailing slash -- see the raw/ comment above, same reason (this is a
+# symlink via link_private_data.sh).
+emotion_grid/data
 
 # ============================================================================
 # PYTHON
@@ -157,6 +164,13 @@ venv.bak/
 # these two were derived. Exempt from the blanket *.csv/*.pkl rules above.
 !live_pipeline/data/synthetic_test_live.csv
 !live_pipeline/data/synthetic_test_transformer.pkl
+
+# --record-dir output (real recorded sessions from live runs) -- the *.csv
+# rule above already covers the files, but this directory is symlinked in
+# via scripts/link_private_data.sh and had no rule of its own (an actual
+# gap found 2026-09-11, not just a symlink-vs-trailing-slash fix like the
+# others in this file -- no trailing slash for the same symlink reason).
+live_pipeline/data/sessions
 
 # ============================================================================
 # OS GENERATED FILES
