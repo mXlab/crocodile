@@ -12,7 +12,7 @@ var path = nativeRequire('path')
 
 var MANIFEST_PATH = path.join(__dirname, '..', 'emotion_grid', 'data', 'manifest.csv')
 var W_DIM = 512
-var DEFAULT_FPS = 30 // matches Autolume's rendering cadence -- adjustable at runtime via /output/fps
+var DEFAULT_FPS = 30 // matches Autolume's rendering cadence -- adjustable at runtime via /crocodile/output/fps
 var MIN_FPS = 1
 var MAX_FPS = 60
 var MIN_TAU = 0.02  // seconds -- floor for both transition and noise-walk time constants
@@ -241,11 +241,11 @@ module.exports = {
             return // consumed, not forwarded to widgets
         }
 
-        if (address === '/grid/select') {
+        if (address === '/crocodile/grid/select') {
             var id = args[0]
             var w = manifestById[id]
             if (!w) {
-                console.error('[crocodile-control-module] /grid/select: unknown id ' + id)
+                console.error('[crocodile-control-module] /crocodile/grid/select: unknown id ' + id)
                 return
             }
             state.target_id = id
@@ -261,69 +261,69 @@ module.exports = {
             return
         }
 
-        if (address === '/transition/mode') {
+        if (address === '/crocodile/transition/mode') {
             state.mode = args[0] === 1 ? 'auto' : 'manual'
             return
         }
 
-        if (address === '/transition/time') {
+        if (address === '/crocodile/transition/time') {
             var timeVal = args[0]
             if (isFinite(timeVal)) {
                 state.transitionTau = Math.max(MIN_TAU, Math.min(MAX_TAU, timeVal))
             } else {
-                console.error('[crocodile-control-module] /transition/time: ignoring non-finite value ' + timeVal)
+                console.error('[crocodile-control-module] /crocodile/transition/time: ignoring non-finite value ' + timeVal)
             }
             return
         }
 
-        if (address === '/output/fps') {
+        if (address === '/crocodile/output/fps') {
             var fpsVal = args[0]
             if (isFinite(fpsVal) && fpsVal > 0) {
                 state.fps = Math.max(MIN_FPS, Math.min(MAX_FPS, fpsVal))
                 scheduleTick()
             } else {
-                console.error('[crocodile-control-module] /output/fps: ignoring invalid value ' + fpsVal)
+                console.error('[crocodile-control-module] /crocodile/output/fps: ignoring invalid value ' + fpsVal)
             }
             return
         }
 
-        if (address === '/noise/walk_time') {
+        if (address === '/crocodile/noise/walk_time') {
             var walkTimeVal = args[0]
             if (isFinite(walkTimeVal)) {
                 state.noiseTau = Math.max(MIN_TAU, Math.min(MAX_TAU, walkTimeVal))
             } else {
-                console.error('[crocodile-control-module] /noise/walk_time: ignoring non-finite value ' + walkTimeVal)
+                console.error('[crocodile-control-module] /crocodile/noise/walk_time: ignoring non-finite value ' + walkTimeVal)
             }
             return
         }
 
-        if (address === '/output/truncation') {
+        if (address === '/crocodile/output/truncation') {
             var psiVal = args[0]
             if (isFinite(psiVal)) {
                 state.truncationPsi = Math.max(0, Math.min(1, psiVal))
             } else {
-                console.error('[crocodile-control-module] /output/truncation: ignoring non-finite value ' + psiVal)
+                console.error('[crocodile-control-module] /crocodile/output/truncation: ignoring non-finite value ' + psiVal)
             }
             return
         }
 
-        if (address === '/transition/running') {
+        if (address === '/crocodile/transition/running') {
             state.running = args[0] === 1
             pushFeedback()
             return
         }
 
-        if (address === '/mix/amount') {
+        if (address === '/crocodile/mix/amount') {
             var mixVal = args[0]
             if (isFinite(mixVal)) {
                 state.mix = Math.max(0, Math.min(1, mixVal))
             } else {
-                console.error('[crocodile-control-module] /mix/amount: ignoring non-finite value ' + mixVal)
+                console.error('[crocodile-control-module] /crocodile/mix/amount: ignoring non-finite value ' + mixVal)
             }
             return
         }
 
-        if (address === '/noise/amount') {
+        if (address === '/crocodile/noise/amount') {
             var noiseVal = args[0]
             if (isFinite(noiseVal)) {
                 // in units of each dimension's own natural std across manifest.csv (see
@@ -331,7 +331,7 @@ module.exports = {
                 // is there for deliberately extreme effects, tempered by truncationPsi.
                 state.noise_amount = Math.max(0, Math.min(3, noiseVal))
             } else {
-                console.error('[crocodile-control-module] /noise/amount: ignoring non-finite value ' + noiseVal)
+                console.error('[crocodile-control-module] /crocodile/noise/amount: ignoring non-finite value ' + noiseVal)
             }
             return
         }

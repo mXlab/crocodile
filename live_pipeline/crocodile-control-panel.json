@@ -462,7 +462,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/ang/ang_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'ang_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'ang_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'ang_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'ang_00')"
           },
           {
             "type": "button",
@@ -475,7 +475,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/anx/anx_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'anx_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'anx_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'anx_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'anx_00')"
           },
           {
             "type": "button",
@@ -488,7 +488,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/aro/aro_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'aro_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'aro_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'aro_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'aro_00')"
           },
           {
             "type": "button",
@@ -501,7 +501,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/cfd/cfd_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'cfd_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'cfd_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'cfd_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'cfd_00')"
           },
           {
             "type": "button",
@@ -514,7 +514,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/con/con_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'con_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'con_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'con_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'con_00')"
           },
           {
             "type": "button",
@@ -527,7 +527,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsg/dsg_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsg_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsg_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsg_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsg_00')"
           },
           {
             "type": "button",
@@ -540,7 +540,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsp/dsp_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsp_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsp_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsp_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsp_00')"
           },
           {
             "type": "button",
@@ -553,7 +553,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dst/dst_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dst_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dst_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dst_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dst_00')"
           },
           {
             "type": "button",
@@ -566,7 +566,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/fea/fea_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'fea_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'fea_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'fea_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'fea_00')"
           },
           {
             "type": "button",
@@ -579,7 +579,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gra/gra_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gra_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gra_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gra_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gra_00')"
           },
           {
             "type": "button",
@@ -592,7 +592,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gri/gri_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gri_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gri_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gri_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gri_00')"
           },
           {
             "type": "button",
@@ -605,7 +605,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/joy/joy_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'joy_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'joy_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'joy_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'joy_00')"
           },
           {
             "type": "button",
@@ -618,7 +618,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/pai/pai_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'pai_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'pai_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'pai_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'pai_00')"
           },
           {
             "type": "button",
@@ -631,7 +631,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlf/rlf_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlf_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlf_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlf_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlf_00')"
           },
           {
             "type": "button",
@@ -644,7 +644,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlx/rlx_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlx_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlx_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlx_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlx_00')"
           },
           {
             "type": "button",
@@ -657,7 +657,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sad/sad_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sad_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sad_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sad_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sad_00')"
           },
           {
             "type": "button",
@@ -670,7 +670,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sha/sha_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sha_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sha_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sha_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sha_00')"
           },
           {
             "type": "button",
@@ -683,7 +683,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sun/sun_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sun_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sun_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sun_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sun_00')"
           },
           {
             "type": "button",
@@ -696,7 +696,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sup/sup_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sup_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sup_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sup_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sup_00')"
           },
           {
             "type": "button",
@@ -709,7 +709,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/tir/tir_00.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'tir_00' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'tir_00' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'tir_00')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'tir_00')"
           },
           {
             "type": "button",
@@ -722,7 +722,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/ang/ang_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'ang_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'ang_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'ang_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'ang_01')"
           },
           {
             "type": "button",
@@ -735,7 +735,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/anx/anx_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'anx_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'anx_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'anx_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'anx_01')"
           },
           {
             "type": "button",
@@ -748,7 +748,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/aro/aro_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'aro_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'aro_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'aro_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'aro_01')"
           },
           {
             "type": "button",
@@ -761,7 +761,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/cfd/cfd_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'cfd_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'cfd_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'cfd_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'cfd_01')"
           },
           {
             "type": "button",
@@ -774,7 +774,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/con/con_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'con_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'con_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'con_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'con_01')"
           },
           {
             "type": "button",
@@ -787,7 +787,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsg/dsg_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsg_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsg_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsg_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsg_01')"
           },
           {
             "type": "button",
@@ -800,7 +800,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsp/dsp_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsp_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsp_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsp_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsp_01')"
           },
           {
             "type": "button",
@@ -813,7 +813,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dst/dst_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dst_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dst_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dst_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dst_01')"
           },
           {
             "type": "button",
@@ -826,7 +826,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/fea/fea_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'fea_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'fea_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'fea_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'fea_01')"
           },
           {
             "type": "button",
@@ -839,7 +839,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gra/gra_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gra_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gra_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gra_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gra_01')"
           },
           {
             "type": "button",
@@ -852,7 +852,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gri/gri_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gri_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gri_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gri_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gri_01')"
           },
           {
             "type": "button",
@@ -865,7 +865,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/joy/joy_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'joy_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'joy_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'joy_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'joy_01')"
           },
           {
             "type": "button",
@@ -878,7 +878,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/pai/pai_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'pai_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'pai_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'pai_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'pai_01')"
           },
           {
             "type": "button",
@@ -891,7 +891,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlf/rlf_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlf_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlf_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlf_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlf_01')"
           },
           {
             "type": "button",
@@ -904,7 +904,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlx/rlx_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlx_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlx_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlx_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlx_01')"
           },
           {
             "type": "button",
@@ -917,7 +917,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sad/sad_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sad_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sad_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sad_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sad_01')"
           },
           {
             "type": "button",
@@ -930,7 +930,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sha/sha_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sha_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sha_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sha_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sha_01')"
           },
           {
             "type": "button",
@@ -943,7 +943,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sun/sun_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sun_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sun_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sun_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sun_01')"
           },
           {
             "type": "button",
@@ -956,7 +956,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sup/sup_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sup_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sup_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sup_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sup_01')"
           },
           {
             "type": "button",
@@ -969,7 +969,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/tir/tir_01.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'tir_01' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'tir_01' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'tir_01')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'tir_01')"
           },
           {
             "type": "button",
@@ -982,7 +982,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/ang/ang_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'ang_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'ang_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'ang_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'ang_02')"
           },
           {
             "type": "button",
@@ -995,7 +995,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/anx/anx_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'anx_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'anx_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'anx_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'anx_02')"
           },
           {
             "type": "button",
@@ -1008,7 +1008,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/aro/aro_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'aro_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'aro_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'aro_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'aro_02')"
           },
           {
             "type": "button",
@@ -1021,7 +1021,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/cfd/cfd_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'cfd_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'cfd_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'cfd_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'cfd_02')"
           },
           {
             "type": "button",
@@ -1034,7 +1034,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/con/con_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'con_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'con_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'con_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'con_02')"
           },
           {
             "type": "button",
@@ -1047,7 +1047,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsg/dsg_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsg_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsg_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsg_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsg_02')"
           },
           {
             "type": "button",
@@ -1060,7 +1060,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsp/dsp_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsp_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsp_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsp_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsp_02')"
           },
           {
             "type": "button",
@@ -1073,7 +1073,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dst/dst_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dst_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dst_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dst_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dst_02')"
           },
           {
             "type": "button",
@@ -1086,7 +1086,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/fea/fea_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'fea_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'fea_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'fea_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'fea_02')"
           },
           {
             "type": "button",
@@ -1099,7 +1099,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gra/gra_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gra_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gra_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gra_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gra_02')"
           },
           {
             "type": "button",
@@ -1112,7 +1112,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gri/gri_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gri_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gri_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gri_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gri_02')"
           },
           {
             "type": "button",
@@ -1125,7 +1125,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/joy/joy_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'joy_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'joy_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'joy_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'joy_02')"
           },
           {
             "type": "button",
@@ -1138,7 +1138,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/pai/pai_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'pai_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'pai_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'pai_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'pai_02')"
           },
           {
             "type": "button",
@@ -1151,7 +1151,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlf/rlf_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlf_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlf_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlf_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlf_02')"
           },
           {
             "type": "button",
@@ -1164,7 +1164,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlx/rlx_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlx_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlx_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlx_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlx_02')"
           },
           {
             "type": "button",
@@ -1177,7 +1177,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sad/sad_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sad_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sad_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sad_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sad_02')"
           },
           {
             "type": "button",
@@ -1190,7 +1190,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sha/sha_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sha_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sha_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sha_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sha_02')"
           },
           {
             "type": "button",
@@ -1203,7 +1203,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sun/sun_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sun_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sun_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sun_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sun_02')"
           },
           {
             "type": "button",
@@ -1216,7 +1216,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sup/sup_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sup_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sup_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sup_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sup_02')"
           },
           {
             "type": "button",
@@ -1229,7 +1229,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/tir/tir_02.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'tir_02' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'tir_02' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'tir_02')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'tir_02')"
           },
           {
             "type": "button",
@@ -1242,7 +1242,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/ang/ang_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'ang_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'ang_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'ang_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'ang_03')"
           },
           {
             "type": "button",
@@ -1255,7 +1255,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/anx/anx_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'anx_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'anx_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'anx_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'anx_03')"
           },
           {
             "type": "button",
@@ -1268,7 +1268,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/aro/aro_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'aro_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'aro_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'aro_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'aro_03')"
           },
           {
             "type": "button",
@@ -1281,7 +1281,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/cfd/cfd_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'cfd_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'cfd_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'cfd_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'cfd_03')"
           },
           {
             "type": "button",
@@ -1294,7 +1294,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/con/con_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'con_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'con_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'con_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'con_03')"
           },
           {
             "type": "button",
@@ -1307,7 +1307,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsg/dsg_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsg_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsg_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsg_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsg_03')"
           },
           {
             "type": "button",
@@ -1320,7 +1320,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsp/dsp_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsp_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsp_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsp_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsp_03')"
           },
           {
             "type": "button",
@@ -1333,7 +1333,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dst/dst_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dst_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dst_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dst_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dst_03')"
           },
           {
             "type": "button",
@@ -1346,7 +1346,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/fea/fea_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'fea_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'fea_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'fea_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'fea_03')"
           },
           {
             "type": "button",
@@ -1359,7 +1359,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gra/gra_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gra_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gra_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gra_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gra_03')"
           },
           {
             "type": "button",
@@ -1372,7 +1372,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gri/gri_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gri_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gri_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gri_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gri_03')"
           },
           {
             "type": "button",
@@ -1385,7 +1385,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/joy/joy_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'joy_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'joy_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'joy_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'joy_03')"
           },
           {
             "type": "button",
@@ -1398,7 +1398,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/pai/pai_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'pai_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'pai_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'pai_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'pai_03')"
           },
           {
             "type": "button",
@@ -1411,7 +1411,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlf/rlf_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlf_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlf_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlf_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlf_03')"
           },
           {
             "type": "button",
@@ -1424,7 +1424,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlx/rlx_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlx_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlx_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlx_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlx_03')"
           },
           {
             "type": "button",
@@ -1437,7 +1437,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sad/sad_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sad_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sad_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sad_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sad_03')"
           },
           {
             "type": "button",
@@ -1450,7 +1450,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sha/sha_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sha_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sha_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sha_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sha_03')"
           },
           {
             "type": "button",
@@ -1463,7 +1463,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sun/sun_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sun_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sun_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sun_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sun_03')"
           },
           {
             "type": "button",
@@ -1476,7 +1476,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sup/sup_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sup_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sup_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sup_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sup_03')"
           },
           {
             "type": "button",
@@ -1489,7 +1489,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/tir/tir_03.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'tir_03' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'tir_03' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'tir_03')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'tir_03')"
           },
           {
             "type": "button",
@@ -1502,7 +1502,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/ang/ang_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'ang_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'ang_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'ang_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'ang_04')"
           },
           {
             "type": "button",
@@ -1515,7 +1515,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/anx/anx_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'anx_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'anx_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'anx_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'anx_04')"
           },
           {
             "type": "button",
@@ -1528,7 +1528,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/aro/aro_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'aro_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'aro_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'aro_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'aro_04')"
           },
           {
             "type": "button",
@@ -1541,7 +1541,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/cfd/cfd_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'cfd_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'cfd_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'cfd_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'cfd_04')"
           },
           {
             "type": "button",
@@ -1554,7 +1554,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/con/con_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'con_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'con_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'con_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'con_04')"
           },
           {
             "type": "button",
@@ -1567,7 +1567,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsg/dsg_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsg_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsg_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsg_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsg_04')"
           },
           {
             "type": "button",
@@ -1580,7 +1580,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dsp/dsp_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dsp_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dsp_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dsp_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dsp_04')"
           },
           {
             "type": "button",
@@ -1593,7 +1593,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/dst/dst_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'dst_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'dst_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'dst_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'dst_04')"
           },
           {
             "type": "button",
@@ -1606,7 +1606,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/fea/fea_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'fea_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'fea_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'fea_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'fea_04')"
           },
           {
             "type": "button",
@@ -1619,7 +1619,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gra/gra_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gra_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gra_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gra_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gra_04')"
           },
           {
             "type": "button",
@@ -1632,7 +1632,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/gri/gri_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'gri_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'gri_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'gri_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'gri_04')"
           },
           {
             "type": "button",
@@ -1645,7 +1645,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/joy/joy_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'joy_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'joy_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'joy_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'joy_04')"
           },
           {
             "type": "button",
@@ -1658,7 +1658,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/pai/pai_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'pai_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'pai_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'pai_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'pai_04')"
           },
           {
             "type": "button",
@@ -1671,7 +1671,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlf/rlf_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlf_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlf_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlf_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlf_04')"
           },
           {
             "type": "button",
@@ -1684,7 +1684,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/rlx/rlx_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'rlx_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'rlx_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'rlx_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'rlx_04')"
           },
           {
             "type": "button",
@@ -1697,7 +1697,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sad/sad_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sad_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sad_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sad_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sad_04')"
           },
           {
             "type": "button",
@@ -1710,7 +1710,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sha/sha_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sha_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sha_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sha_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sha_04')"
           },
           {
             "type": "button",
@@ -1723,7 +1723,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sun/sun_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sun_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sun_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sun_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sun_04')"
           },
           {
             "type": "button",
@@ -1736,7 +1736,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/sup/sup_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'sup_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'sup_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'sup_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'sup_04')"
           },
           {
             "type": "button",
@@ -1749,7 +1749,7 @@
             "label": "",
             "target": "127.0.0.1:9001",
             "css": "background-image:url(http://127.0.0.1:8090/home/tats/Documents/workspace/crocodile/emotion_grid/data/thumbnails/tir/tir_04.png);background-size:cover;background-position:center;border:4px solid #{@{selected_id} === 'tir_04' ? '#4caf50' : 'transparent'};box-shadow:#{@{selected_id} === 'tir_04' ? '0 0 10px 2px rgba(76,175,80,0.8)' : 'none'};",
-            "onTouch": "if (event.type !== 'start') return; send('/grid/select', 'tir_04')"
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/grid/select', 'tir_04')"
           },
           {
             "type": "text",
@@ -1774,7 +1774,7 @@
             "value": 0,
             "default": 0,
             "colorWidget": "#{@{this.value} === 1 ? '#2e7d32' : 'auto'}",
-            "address": "/transition/mode",
+            "address": "/crocodile/transition/mode",
             "target": "127.0.0.1:9001",
             "comments": "Checkbox: checked = auto-start the transition as soon as a thumbnail is selected; unchecked = wait for the Start button."
           },
@@ -1802,7 +1802,7 @@
               "max": 3
             },
             "default": 0.4,
-            "address": "/transition/time",
+            "address": "/crocodile/transition/time",
             "target": "127.0.0.1:9001",
             "linkId": "link_transition_time"
           },
@@ -1819,7 +1819,7 @@
             "linkId": "link_transition_time",
             "value": 0.4,
             "default": 0.4,
-            "address": "/transition/time",
+            "address": "/crocodile/transition/time",
             "target": "127.0.0.1:9001"
           },
           {
@@ -1833,11 +1833,11 @@
             "mode": "toggle",
             "bypass": true,
             "comments": "bypass:true stops this widget's own address from auto-firing on every value change (including a /SET feedback push, which would otherwise re-trigger a send and flip forever) -- onTouch below sends explicitly on real presses only, since send() ignores bypass. With bypass:true, `value` in onTouch is still the pre-press value (bypass suppresses the toggle's own local flip too, not just its OSC send), so send the inverse rather than `value` itself.",
-            "onTouch": "if (event.type !== 'start') return; send('/transition/running', value === 1 ? 0 : 1)",
+            "onTouch": "if (event.type !== 'start') return; send('/crocodile/transition/running', value === 1 ? 0 : 1)",
             "colorWidget": "#{@{this.value} === 1 ? '#2e7d32' : 'auto'}",
             "value": 0,
             "default": 0,
-            "address": "/transition/running",
+            "address": "/crocodile/transition/running",
             "target": "127.0.0.1:9001"
           },
           {
@@ -1875,7 +1875,7 @@
               "max": 1
             },
             "default": 0.5,
-            "address": "/mix/amount",
+            "address": "/crocodile/mix/amount",
             "target": "127.0.0.1:9001",
             "linkId": "link_mix_amount"
           },
@@ -1892,7 +1892,7 @@
             "linkId": "link_mix_amount",
             "value": 0.5,
             "default": 0.5,
-            "address": "/mix/amount",
+            "address": "/crocodile/mix/amount",
             "target": "127.0.0.1:9001"
           },
           {
@@ -1919,7 +1919,7 @@
               "max": 3
             },
             "default": 0,
-            "address": "/noise/amount",
+            "address": "/crocodile/noise/amount",
             "target": "127.0.0.1:9001",
             "linkId": "link_noise_amount"
           },
@@ -1936,7 +1936,7 @@
             "linkId": "link_noise_amount",
             "value": 0,
             "default": 0,
-            "address": "/noise/amount",
+            "address": "/crocodile/noise/amount",
             "target": "127.0.0.1:9001",
             "range": {
               "min": 0,
@@ -1967,7 +1967,7 @@
               "max": 8
             },
             "default": 2,
-            "address": "/noise/walk_time",
+            "address": "/crocodile/noise/walk_time",
             "target": "127.0.0.1:9001",
             "linkId": "link_noise_walk_time"
           },
@@ -1984,7 +1984,7 @@
             "linkId": "link_noise_walk_time",
             "value": 2,
             "default": 2,
-            "address": "/noise/walk_time",
+            "address": "/crocodile/noise/walk_time",
             "target": "127.0.0.1:9001"
           },
           {
@@ -2009,7 +2009,7 @@
             "align": "left",
             "value": 30,
             "default": 30,
-            "address": "/output/fps",
+            "address": "/crocodile/output/fps",
             "target": "127.0.0.1:9001"
           },
           {
@@ -2036,7 +2036,7 @@
               "max": 1
             },
             "default": 0.85,
-            "address": "/output/truncation",
+            "address": "/crocodile/output/truncation",
             "target": "127.0.0.1:9001",
             "linkId": "link_truncation_psi"
           },
@@ -2053,7 +2053,7 @@
             "linkId": "link_truncation_psi",
             "value": 0.85,
             "default": 0.85,
-            "address": "/output/truncation",
+            "address": "/crocodile/output/truncation",
             "target": "127.0.0.1:9001"
           }
         ],

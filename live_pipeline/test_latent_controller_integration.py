@@ -63,9 +63,9 @@ try:
         first_row = next(csv.DictReader(f))
     target_id = first_row['id']
 
-    client.send_message('/grid/select', target_id)
-    client.send_message('/transition/time', 0.01)  # jump immediately for a fast test
-    client.send_message('/transition/running', 1)
+    client.send_message('/crocodile/grid/select', target_id)
+    client.send_message('/crocodile/transition/time', 0.01)  # jump immediately for a fast test
+    client.send_message('/crocodile/transition/running', 1)
 
     time.sleep(0.5)
     assert len(received) > 0, "expected output after selecting a target and starting the transition"
@@ -76,11 +76,11 @@ try:
     # 3. Feed a fake user vector and set mix to 0 (pure user) -- output should
     #    converge toward it. Truncation disabled here since it deliberately pulls
     #    the output toward w_avg -- this step is isolating the mix math, not it.
-    client.send_message('/output/truncation', 1.0)
+    client.send_message('/crocodile/output/truncation', 1.0)
     fake_w_u = [0.0] * W_DIM
     fake_w_u[0] = 42.0
     client.send_message('/crocodile/latent/user', fake_w_u)
-    client.send_message('/mix/amount', 0.0)
+    client.send_message('/crocodile/mix/amount', 0.0)
     time.sleep(0.5)
     last = received[-1]
     assert abs(last[0] - 42.0) < 5.0, f"expected output to converge toward the user vector (42.0), got {last[0]}"

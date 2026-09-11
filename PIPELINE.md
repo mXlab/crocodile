@@ -482,7 +482,7 @@ flags if you need to run on a different machine or dodge a collision.
 | Port | Direction | Used by | Carries |
 |---|---|---|---|
 | **9000** | `live_pipeline.py` listens; `session_control.py`/control panel and `replay_biodata_as_osc.py` both send | Session control (`/crocodile/session/*`, `/crocodile/calibration/*`, `/crocodile/live/*`) **and** raw biodata (`/crocodile/biodata`) — two different message streams sharing one port, disambiguated only by OSC address, not by port |
-| **9001** | `live_pipeline.py` sends; `crocodile-control-module.js` (the latent controller) listens | Three disambiguated-by-address uses: session-status broadcasts (`/crocodile/session/status` → `[phase, session_id]`), fired after every state transition; the visitor's live W vector (`/crocodile/latent/user` → 512 floats, from `live_pipeline.py`); and the control panel's own widget-control addresses (`/grid/select`, `/transition/*`, `/mix/amount`, `/noise/amount`) |
+| **9001** | `live_pipeline.py` sends; `crocodile-control-module.js` (the latent controller) listens | Three disambiguated-by-address uses: session-status broadcasts (`/crocodile/session/status` → `[phase, session_id]`), fired after every state transition; the visitor's live W vector (`/crocodile/latent/user` → 512 floats, from `live_pipeline.py`); and the control panel's own widget-control addresses (`/crocodile/grid/select`, `/crocodile/transition/*`, `/crocodile/mix/amount`, `/crocodile/noise/amount`) |
 | **1338** | `crocodile-control-module.js` (the latent controller) sends; `latent_osc_debug_viewer.py`/`latent_osc_debug_receiver.py`/Autolume listen | W output (`/crocodile/latent/final` → 512 floats). Not really ours to renumber — 1338 is Autolume's own default OSC-input port |
 | **8090** | Open Stage Control's HTTP server (not OSC) | Browser UI for the control panel | Bumped from Open Stage Control's own default `8080` to dodge a local port collision (see `run_control_panel.sh`) |
 
@@ -575,9 +575,10 @@ sequential on purpose.
   `/crocodile/session/start` on Enter), and a status display bound to
   `/crocodile/session/status`; **Emotion Grid** — a thumbnail matrix (one
   button per emotion/image cell, headed by a row of emotion-name labels)
-  wired to `/grid/select`, plus transition mode/speed/start-stop controls
-  and a target display; **Mixing** — actress/visitor mix and noise-amount
-  faders (`/mix/amount`, `/noise/amount`). The Emotion Grid and Mixing
+  wired to `/crocodile/grid/select`, plus transition mode/speed/start-stop
+  controls and a target display; **Mixing** — actress/visitor mix and
+  noise-amount faders (`/crocodile/mix/amount`, `/crocodile/noise/amount`).
+  The Emotion Grid and Mixing
   tabs talk to `crocodile-control-module.js` (the latent controller, on
   port 9001), not to `live_pipeline.py`. `run_control_panel.sh` launches
   it pre-wired to `live_pipeline.py`'s default ports (sends to 9000,
