@@ -179,7 +179,7 @@ live_pipeline/run_live_viewer.sh     # larger, no overlay by default -- can repl
 **Terminal 4 — replay the committed synthetic visitor recording:**
 
 ```bash
-live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv --speed 1.0
+live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv --speed 1.0 --loop
 ```
 
 **What to expect**: Terminal 1 logs `Session started`/`Live output started`

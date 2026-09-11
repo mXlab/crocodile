@@ -139,7 +139,7 @@ live_pipeline/run_control_panel.sh &
 
 
 # 3. Replay the synthetic visitor recording.
-live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv --speed 1.0
+live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv --speed 1.0  --loop
 
 # Optional: Start the live viewer (instead of Autolume)
 live_pipeline/run_live_viewer.sh
