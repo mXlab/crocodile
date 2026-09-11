@@ -10,7 +10,11 @@
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
 #
-# Phase 2B: Fine-tune EmotionEncoder on real frames (Rorqual, H100 80GB).
+# Phase 2B: Fine-tune the encoder on real frames (Rorqual, H100 80GB).
+# Works with either encoder architecture -- default EmotionEncoder (from-
+# scratch VGG trunk), or --encoder-arch discriminator_init (StyleGAN2's own
+# discriminator trunk, see models/discriminator_encoder.py; pretrain it
+# first with submit_train_discriminator_init_rorqual.sh).
 #
 # --time is set for finishing the ~9 remaining epochs of the current
 # 20-epoch schedule (resuming from epoch 10/11) — raise it if you're
@@ -24,6 +28,11 @@
 #
 #   # Resume after timeout/preemption (continue from latest cluster checkpoint):
 #   sbatch latent_pipeline/cluster/submit_train_rorqual.sh --resume latent_pipeline/outputs/latest.pt
+#
+#   # Fine-tune the discriminator-init encoder after its Phase 2A pretrain:
+#   sbatch latent_pipeline/cluster/submit_train_rorqual.sh \
+#       --encoder-arch discriminator_init \
+#       --pretrained latent_pipeline/outputs/train_discriminator_init/best.pt
 
 set -euo pipefail
 

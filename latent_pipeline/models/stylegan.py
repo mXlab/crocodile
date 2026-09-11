@@ -67,6 +67,43 @@ def load_stylegan(config: dict, device: torch.device | str = 'cpu') -> nn.Module
     return G
 
 
+def load_discriminator(config: dict, device: torch.device | str = 'cpu') -> nn.Module:
+    """Load the StyleGAN2 discriminator (D, not D's EMA -- there isn't one)
+    from the same pickle as load_stylegan.
+
+    Used as a pretrained backbone for DiscriminatorEncoder (models/discriminator_encoder.py):
+    D was adversarially trained on the exact same face-image distribution as
+    G, so its conv trunk starts out already sensitive to content G can
+    produce -- including the Diverse/ pool's expression extremes (closed
+    eyes, bared teeth) that EmotionEncoder's from-scratch trunk undersamples.
+
+    Returned in train mode (unlike load_stylegan's G) since the whole point
+    is to keep fine-tuning parts of it; caller is responsible for freezing
+    whatever it isn't ready to update yet.
+    """
+    stylegan_code = os.path.join(config['paths']['repo_root'], config['paths']['stylegan_code'])
+    sys.path.insert(0, stylegan_code)
+
+    import dnnlib
+    import legacy
+
+    import torch_utils.ops.bias_act as _bias_act_mod
+    import torch_utils.ops.upfirdn2d as _upfirdn2d_mod
+    _bias_act_mod._init = lambda: False
+    _upfirdn2d_mod._init = lambda: False
+
+    model_path = os.path.join(
+        config['paths']['repo_root'],
+        config['paths']['stylegan_model'],
+    )
+    print(f"Loading StyleGAN2 discriminator from {model_path}")
+    with dnnlib.util.open_url(model_path) as f:
+        data = legacy.load_network_pkl(f)
+    D = data['D'].to(device)
+    print(f"  Resolution: {D.img_resolution}, block_resolutions: {D.block_resolutions}")
+    return D
+
+
 # ---------------------------------------------------------------------------
 # W sampling
 # ---------------------------------------------------------------------------

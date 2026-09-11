@@ -40,10 +40,36 @@ sys.path.insert(0, PIPELINE_DIR)
 sys.path.insert(0, REPO_ROOT)
 
 from models.encoder import EmotionEncoder
+from models.discriminator_encoder import build_discriminator_encoder
 from models.stylegan import load_stylegan, generate, generate_with_grad
 from data.dataset import (
     CrocodileEncoderDataset, TemporalAwareSampler, ALL_REAL_POOLS
 )
+
+
+def build_encoder(encoder_arch, config, device):
+    """Construct the encoder architecture named by --encoder-arch.
+
+    'emotion_cnn' (default): from-scratch VGG trunk, as always.
+    'discriminator_init': StyleGAN2's own discriminator trunk repurposed as
+    an encoder (models/discriminator_encoder.py) -- pretrain it first with
+    stage2a_discriminator_init.py and pass that checkpoint via --pretrained.
+    """
+    if encoder_arch == 'discriminator_init':
+        # Freeze/progressive-unfreeze staging is stage2a_discriminator_init.py's
+        # job; by the time weights reach here (via --pretrained) that schedule
+        # has already run its course, and Stage 2B fine-tunes end to end same
+        # as it always has for EmotionEncoder.
+        encoder = build_discriminator_encoder(config, device)
+        for name in encoder.pretrained_group_names():
+            encoder.unfreeze_pretrained_group(name)
+        return encoder
+    ec = config['encoder']
+    return EmotionEncoder(
+        channels=tuple(ec['channels']),
+        w_dim=ec['w_dim'],
+        dropout=ec['dropout'],
+    ).to(device)
 
 
 def load_config(config_path):
@@ -370,6 +396,11 @@ def main():
     parser.add_argument('--config', default='latent_pipeline/configs/default.yaml')
     parser.add_argument('--resume', default=None, help='Resume within train_frames (restores epoch, optimizer, scheduler)')
     parser.add_argument('--pretrained', default=None, help='Load encoder weights only (cross-phase transfer, resets epoch to 0)')
+    parser.add_argument('--encoder-arch', default='emotion_cnn',
+                        choices=['emotion_cnn', 'discriminator_init'],
+                        help="'emotion_cnn' (from-scratch VGG trunk, default) or "
+                             "'discriminator_init' (StyleGAN2 discriminator trunk, "
+                             "see stage2a_discriminator_init.py)")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -386,12 +417,7 @@ def main():
     G = load_stylegan(config, device)
 
     # Initialize encoder
-    ec = config['encoder']
-    encoder = EmotionEncoder(
-        channels=tuple(ec['channels']),
-        w_dim=ec['w_dim'],
-        dropout=ec['dropout'],
-    ).to(device)
+    encoder = build_encoder(args.encoder_arch, config, device)
 
     # Loss functions
     lpips_fn = lpips.LPIPS(net='vgg').to(device)
@@ -438,7 +464,7 @@ def main():
     w_cache = {}
 
     # W queue for diversity loss (accumulates recent W vectors)
-    w_queue = WQueue(max_size=256, w_dim=ec['w_dim'], device=device)
+    w_queue = WQueue(max_size=256, w_dim=encoder.w_dim, device=device)
 
     # Load checkpoint
     start_epoch = 0

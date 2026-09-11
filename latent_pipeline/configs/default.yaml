@@ -90,6 +90,39 @@ encoder:
   w_dim: 512
   dropout: 0.3
 
+# Discriminator-initialized encoder (alternative to EmotionEncoder's
+# from-scratch trunk): reuses StyleGAN2's own discriminator, which was
+# adversarially trained on the same face distribution as G, as a
+# domain-matched pretrained backbone. entry_resolution must exactly equal
+# one of D's block resolutions (the transplanted block chain must land
+# exactly on D's fixed 4x4 epilogue) -- 256 matches both a real D block
+# boundary and the resolution stage2b_train_frames.py already trains real
+# frames at. See models/discriminator_encoder.py.
+discriminator_encoder:
+  entry_resolution: 256
+  w_dim: 512
+
+# Phase 2A, discriminator-init variant (scripts/stage2a_discriminator_init.py):
+# staged pretraining on synthetic (image, W) pairs so a freshly-initialized
+# head doesn't distort D's pretrained trunk during early training (LP-FT,
+# Kumar et al. 2022) -- freeze the whole trunk and train only the new entry
+# adapter + W head first, then unfreeze pretrained groups one at a time,
+# deepest (closest to the new head) first, at a LR that decays with unfreeze
+# order (FreezeD, Mo et al. 2020: deeper/task-specific layers need the most
+# adaptation, shallower/generic ones the least).
+train_discriminator_init:
+  phase1_epochs: 5            # new params only (entry adapter + W head), trunk frozen
+  lr_new: 1.0e-3
+  phase2_epochs_per_group: 3  # epochs before unfreezing the next (shallower) group
+  lr_trunk_base: 2.0e-4       # LR for the most-recently-unfrozen (deepest) group
+  lr_decay_per_group: 0.5     # each earlier-unfrozen (shallower) group gets base * decay^i
+  train_resolution: 256       # must equal discriminator_encoder.entry_resolution
+  batch_size: 16
+  val_split: 0.1
+  num_workers: 0   # 0 = load in main process (avoids DataLoader deadlock, see train_frames)
+  checkpoint_dir: latent_pipeline/outputs/train_discriminator_init
+  visual_check_every: 1
+
 # Stage 3 validation
 validation:
   n_frames: 30

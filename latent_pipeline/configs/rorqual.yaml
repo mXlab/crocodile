@@ -78,6 +78,27 @@ encoder:
   w_dim: 512
   dropout: 0.3
 
+# Discriminator-initialized encoder (see models/discriminator_encoder.py,
+# scripts/stage2a_discriminator_init.py). entry_resolution must stay 256 --
+# it's a fixed property of the transplanted D block chain, not a
+# performance knob.
+discriminator_encoder:
+  entry_resolution: 256
+  w_dim: 512
+
+train_discriminator_init:
+  phase1_epochs: 5
+  lr_new: 1.0e-3
+  phase2_epochs_per_group: 3
+  lr_trunk_base: 2.0e-4
+  lr_decay_per_group: 0.5
+  train_resolution: 256
+  batch_size: 64                # H100 80GB vs laptop's 16 — UNTESTED, drop if you hit CUDA OOM
+  val_split: 0.1
+  num_workers: 8                # train_frames.num_workers=8 already works fine here for stage2b
+  checkpoint_dir: latent_pipeline/outputs/train_discriminator_init
+  visual_check_every: 1
+
 validation:
   n_frames: 30
   optim_lr: 0.01
