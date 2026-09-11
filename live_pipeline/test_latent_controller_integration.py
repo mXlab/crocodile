@@ -64,7 +64,7 @@ try:
     target_id = first_row['id']
 
     client.send_message('/grid/select', target_id)
-    client.send_message('/transition/speed', 1.0)  # jump immediately for a fast test
+    client.send_message('/transition/time', 0.01)  # jump immediately for a fast test
     client.send_message('/transition/running', 1)
 
     time.sleep(0.5)
@@ -74,7 +74,9 @@ try:
     print(f"✓ received {len(received)} /crocodile/latent/final messages, each with {W_DIM} floats")
 
     # 3. Feed a fake user vector and set mix to 0 (pure user) -- output should
-    #    converge toward it.
+    #    converge toward it. Truncation disabled here since it deliberately pulls
+    #    the output toward w_avg -- this step is isolating the mix math, not it.
+    client.send_message('/output/truncation', 1.0)
     fake_w_u = [0.0] * W_DIM
     fake_w_u[0] = 42.0
     client.send_message('/crocodile/latent/user', fake_w_u)
