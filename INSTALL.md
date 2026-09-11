@@ -19,18 +19,18 @@ private storage, or generate synthetic stand-ins where noted below.
 | Needed for | What | Where it comes from |
 |---|---|---|
 | `live_pipeline.py` (**required**) | Trained regressor (`latent_pipeline/outputs/stage5_regressor_online/regressor.joblib`) | Private — ask a teammate, or train your own (`latent_pipeline/PLAN.md`, Stage 5) |
-| `live_pipeline.py` (**required**) | Trained alignment transformer (`biodata_pipeline/models/transformer_ot_classconditional_online.pkl`) | Private — ask a teammate, or train your own (`biodata_pipeline/scripts/train_transformer.py`) |
+| `live_pipeline.py` (only for a **real calibration** — §6b) | Trained alignment transformer (`biodata_pipeline/models/transformer_ot_classconditional_online.pkl`) | Private — ask a teammate, or train your own (`biodata_pipeline/scripts/train_transformer.py`). Not needed for §6's quick check, which uses a public transformer pre-fit on synthetic data instead (`live_pipeline/data/synthetic_test_transformer.pkl`, committed) |
 | `live_pipeline.py` (optional — enables live per-visitor alignment fitting) | The actress' (Laurence's) online-schema reference features (`biodata_pipeline/data/processed/continuous_features_online.csv` — NOT `erin_features_online.csv`, Erin is a separate test subject, not the actress), passed as `--reference-features` | Private — ask a teammate. Without it, every session just uses the static transformer above (unchanged behavior) — see PIPELINE.md's "Live per-visitor alignment fit" |
-| Feeding the pipeline data | Real biodata recordings, or `--calibration-csv` priming | Private — optional; §5 generates synthetic data as a substitute |
-| `latent_osc_debug_viewer.py` (visual check only) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) + the `stylegan_Autolume` code repo | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§6) |
+| Feeding the pipeline data | Real biodata recordings, or `--calibration-csv` priming | Private — optional; §6's quick check replays a committed synthetic recording instead, and §6b's full calibration walkthrough generates fresh synthetic data if you don't have a real one |
+| Visual check only — `latent_osc_debug_viewer.py` (debug overlay) or `live_viewer.py` (no overlay, can replace Autolume outright) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) + the `stylegan_Autolume` code repo | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§6) |
 | Real deployment only | Autolume, the separate live performance app | Private/separate project — not needed to install or test this repo |
 | GUI session control (optional) | Open Stage Control | Public — §3 |
 | Emotion Grid tab (required for the live latent controller) | `emotion_grid/data/` (`manifest.csv`, `grid_layout.json`, `thumbnails/`) | Private — build locally with `emotion_grid/build_grid.py` from the private `latent_pipeline` dataset, or ask a teammate for a copy |
 
 **In short**: you can install and fully test `live_pipeline.py`'s OSC
-plumbing (§1–§6) with only the two trained artifacts above and no real
-biodata or StyleGAN2 model at all, using synthetic data and the lightweight
-debug receiver.
+plumbing (§1–§6) with only the private regressor and no real biodata,
+private alignment transformer, or StyleGAN2 model at all, using the
+committed synthetic fixtures and the lightweight debug receiver.
 
 ## 1. Clone the repo
 
@@ -96,12 +96,14 @@ Obtain from a teammate (or your project's private storage — ask whoever
 last trained them):
 
 - `latent_pipeline/outputs/stage5_regressor_online/regressor.joblib`
+  (**required** — needed even for §6's quick check)
 - `biodata_pipeline/models/transformer_ot_classconditional_online.pkl`
+  (only needed for §6b's full calibration walkthrough)
 
 Place them at those exact relative paths (create the directories if they
 don't exist) — the commands below reference them there. If your files live
 elsewhere or under different names, just point `--regressor`/`--transformer`
-(§6) at wherever you put them.
+(§6/§6b) at wherever you put them.
 
 If you also obtained the StyleGAN2 checkpoint and `stylegan_Autolume` code
 (for the visual debug viewer or `latent_pipeline` work generally), place the
@@ -111,14 +113,91 @@ checkpoint at `models/finalModel_Crocodile.pkl` (repo root, separate from
 `paths.stylegan_code` to match your machine — both are currently hardcoded
 absolute paths from whoever last edited that file.
 
-## 5. Generate synthetic biodata (if you don't have a real recording)
+## 5. Get the Emotion Grid data
 
-`generate_synthetic_biodata.py` uses NeuroKit2's own signal simulators to
-produce a CSV with the same columns `replay_biodata_as_osc.py` expects
-(`heart`, `gsr`, `respiration`) — enough to exercise the full pipeline
-end-to-end. The output W vectors won't be physiologically meaningful (no
-real subject/emotion signal underlies them), but this is enough to confirm
-the plumbing works before you have real data.
+The live latent controller's Emotion Grid tab needs `emotion_grid/data/`
+(`manifest.csv`, `grid_layout.json`, `thumbnails/`) — private, since it's
+built from the actress' real footage. Ask a teammate for a copy, or build it
+locally with `emotion_grid/build_grid.py` from the private `latent_pipeline`
+dataset. Needed for §6 below (the composited output has nothing to select
+without it).
+
+## 6. Test the live pipeline end-to-end
+
+Open several terminals, all from the repo root. This is the quickest
+check — no calibration, no button-pressing, and no real recording, using two
+files already committed under `live_pipeline/data/` (both 100% synthetic,
+NeuroKit2-generated — see README.md's "Simplest possible test" for how
+they were made and why they're safe to be in the repo).
+
+**Terminal 1 — the core server**, with `--auto-start` so it goes straight to
+`LIVE` on launch (no `session/start`/`live/start` OSC messages needed
+either):
+
+```bash
+live_pipeline/run_live.sh \
+    --regressor latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
+    --transformer live_pipeline/data/synthetic_test_transformer.pkl \
+    --auto-start
+```
+
+Wait for `Live output started`. Note this uses the committed
+`synthetic_test_transformer.pkl`, not the private
+`transformer_ot_classconditional_online.pkl` from §4 — the private one is
+only needed for a real calibration (§6b below).
+
+**Terminal 2 — the latent controller.** This composites the visitor's vector
+with the actress' selection and is what actually forwards to Autolume —
+`live_pipeline.py` no longer talks to Autolume directly, so nothing reaches
+it without this running, even in this simplified test:
+
+```bash
+live_pipeline/run_control_panel.sh
+```
+
+Open `http://127.0.0.1:8090` and pick any thumbnail in the Emotion Grid tab
+(§5) — with "Auto-start on select" checked (the default), that immediately
+starts the actress-side transition.
+
+**Terminal 3 — a lightweight W receiver (no StyleGAN2/torch needed):**
+
+```bash
+live_pipeline/run_debug_receiver.sh
+```
+
+This is the recommended first check — it just confirms 512-float W vectors
+are actually arriving at the expected rate on Autolume's own port/address
+(1338, `/crocodile/latent/final`), without needing the private StyleGAN2
+model at all. Once you have that model installed (§4), run one of these
+instead/in addition for an actual visual check:
+
+```bash
+live_pipeline/run_debug_viewer.sh    # small preview window with a debug overlay
+live_pipeline/run_live_viewer.sh     # larger, no overlay by default -- can replace Autolume outright
+```
+
+**Terminal 4 — replay the committed synthetic visitor recording:**
+
+```bash
+live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv --speed 1.0
+```
+
+**What to expect**: Terminal 1 logs `Session started`/`Live output started`
+right on launch. Once replay starts, Terminal 3's debug receiver (or viewer)
+should show a steady `received=... rate=.../s norm=...` — that confirms the
+whole chain (session → alignment → regressor → latent controller → OSC out)
+is wired correctly. If no `WARNING` lines appeared anywhere, the pipeline is
+correctly installed end-to-end.
+
+### 6b. Testing a full calibration scenario (optional)
+
+The above skips calibration entirely by using a transformer pre-fit offline
+on synthetic data. To exercise the full state machine (`session/start` →
+`calibration/start` → `calibration/stop` → `live/start`) and a live
+per-visitor alignment fit instead, first generate your own synthetic
+segments — or, if you have a real recording (raw `heart`/`gsr`/`respiration`
+CSV columns, 100Hz), skip straight to the walkthrough below and use it
+directly with `replay_biodata_as_osc.py`:
 
 ```bash
 mkdir -p live_pipeline/data
@@ -131,15 +210,10 @@ live_pipeline/run_generate_synthetic.sh --duration 60 --seed 2 \
     --output live_pipeline/data/synthetic_live.csv
 ```
 
-If you do have a real recording (raw `heart`/`gsr`/`respiration` CSV
-columns, 100Hz), skip this step and use it directly with
-`replay_biodata_as_osc.py` in §6 instead.
+Then, in place of §6's Terminal 1 and 4 commands (Terminals 2 and 3 are the
+same as above):
 
-## 6. Test the live pipeline end-to-end
-
-Open several terminals, all from the repo root.
-
-**Terminal 1 — the core server:**
+**Terminal 1 — the core server**, using the private transformer this time:
 
 ```bash
 live_pipeline/run_live.sh \
@@ -149,20 +223,8 @@ live_pipeline/run_live.sh \
 
 Wait for `Waiting for /crocodile/session/start ...`.
 
-**Terminal 2 — a lightweight W receiver (no StyleGAN2/torch needed):**
-
-```bash
-live_pipeline/run_debug_receiver.sh
-```
-
-This is the recommended first check — it just confirms 512-float W vectors
-are actually arriving at the expected rate, without needing the private
-StyleGAN2 model at all. Once you have that model installed (§4), you can
-additionally run `live_pipeline/run_debug_viewer.sh` in another terminal for
-an actual visual preview — same OSC stream, rendered.
-
-**Terminal 3 — drive the session** (CLI shown; `run_control_panel.sh` works
-the same way through buttons):
+**Terminal 4 — drive the session** (CLI shown; `run_session_control.sh`
+works the same way as the panel's buttons):
 
 ```bash
 live_pipeline/run_session_control.sh --start-session test
@@ -176,11 +238,11 @@ live_pipeline/run_session_control.sh --end-session
 
 **What to expect**: Terminal 1 logs each state transition
 (`Session started`, `Calibration started`, `Live output started`, ...) and
-ends with `Session ended: test. Rows sent: N, skipped: 0`. Terminal 2 prints
-periodic `received=... rate=.../s norm=...` lines while Terminal 3's second
-`run_replay.sh` call is running, and `N` there should match Terminal 1's
-`Rows sent` count. If both match and no `WARNING` lines appeared, the
-pipeline is correctly installed and wired end-to-end.
+ends with `Session ended: test. Rows sent: N, skipped: 0`. Terminal 3's
+debug receiver prints periodic `received=... rate=.../s norm=...` lines
+while the second `run_replay.sh` call is running, and `N` there should
+match Terminal 1's `Rows sent` count. If both match and no `WARNING` lines
+appeared, the full calibration flow is correctly wired end-to-end.
 
 ## 7. Troubleshooting
 
@@ -191,10 +253,12 @@ pipeline is correctly installed and wired end-to-end.
   different `--in-port`/`--out-port`/`--status-out-port` (and matching
   `--port`/`--send`/`--osc-port` to `session_control.py`/
   `run_control_panel.sh`) to run on alternate ports.
-- **No W vectors received in Terminal 2**: confirm Terminal 1 actually
-  reached the `LIVE` phase (`Live output started` in its log) — biodata
-  arriving before `live/start` is intentionally discarded (see
-  PIPELINE.md's state machine). Also check `replay_biodata_as_osc.py` and
+- **No W vectors received in the debug receiver/viewer**: confirm the core
+  server actually reached the `LIVE` phase (`Live output started` in its
+  log) — biodata arriving before `live/start` is intentionally discarded
+  (see PIPELINE.md's state machine). Also confirm the latent controller
+  (`run_control_panel.sh`) is running — nothing reaches port `1338` without
+  it, even in §6's simplified test — and that `replay_biodata_as_osc.py` and
   `live_pipeline.py` agree on `--port`/`--address`.
 - **`ModuleNotFoundError`**: you're running a script with the wrong venv's
   interpreter directly instead of through its `run_*.sh` wrapper, or you
