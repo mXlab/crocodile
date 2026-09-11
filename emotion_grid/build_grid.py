@@ -147,6 +147,39 @@ def build_grid_layout(manifest_df, labels_df, output_dir):
     return layout_path
 
 
+def build_theme_css(manifest_df, output_dir):
+    """Writes theme.css: one .grid-cell-<id> rule per image, background-image
+    using a path relative to this file's own location (just 'thumbnails/...',
+    since theme.css and thumbnails/ live side by side in output_dir).
+
+    Why this exists instead of baking image URLs directly into the control
+    panel's widget JSON: Open Stage Control's css property doesn't support
+    JS{}/#{} templating (confirmed empirically -- see the open-stage-control
+    skill's widgets.md), so per-cell images have to be literal strings
+    somewhere. Baking a machine-specific absolute path into 100 widgets in
+    the committed session JSON meant every machine/checkout needed its own
+    resync (see git history -- update_panel_thumbnails.py). A relative path
+    in a separate theme.css avoids that: the server resolves a theme's own
+    relative url()s against the theme file's directory (confirmed against
+    the actual server source, src/server/node/server.mjs's resolvePath),
+    so this file is 100% machine-independent -- only the single `--theme`
+    CLI flag pointing at it (in run_control_panel.sh) is machine-specific,
+    not each individual image path. The panel widgets just need a stable
+    `class: grid-cell-<id>;` line each (see
+    emotion_grid/update_panel_thumbnails.py), which never changes across
+    machines and rarely needs regenerating at all.
+    """
+    rules = [".grid-cell { background-size: cover; background-position: center; }"]
+    rules += [
+        f".grid-cell-{r['id']} {{ background-image: url({r['thumbnail_path']}); }}"
+        for r in manifest_df.to_dict("records")
+    ]
+    theme_path = os.path.join(output_dir, "theme.css")
+    with open(theme_path, "w") as f:
+        f.write("\n".join(rules) + "\n")
+    return theme_path
+
+
 def gather_grimace_candidates(frames_dir):
     """Bucket session_1X frames labeled 'pri' or 'lau' -- the only two labels
     in that session with no equivalent among the biodata sessions. Every
@@ -318,6 +351,9 @@ def main():
 
     layout_path = build_grid_layout(manifest_df, labels_df, args.output_dir)
     print(f"Grid layout: {layout_path}")
+
+    theme_path = build_theme_css(manifest_df, args.output_dir)
+    print(f"Theme (grid cell images, machine-independent): {theme_path}")
 
     print(f"\nSaved {len(manifest_df)} images across {manifest_df['emotion'].nunique()} emotions")
     print(f"Manifest: {manifest_path}")

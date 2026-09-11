@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
-"""Syncs each grid_cell widget's thumbnail image path in
-live_pipeline/crocodile-control-panel.json to match the current machine's
-actual absolute paths, read from emotion_grid/data/grid_layout.json.
+"""Ensures each grid_cell widget in live_pipeline/crocodile-control-panel.json
+uses the machine-independent theme-class scheme for its thumbnail image,
+instead of a literal background-image:url(<path>) baked into its own css.
 
-Why this is needed: the control panel references thumbnails via CSS
-background-image, and Open Stage Control's css property does not support
-JS{}/#{} templating (confirmed empirically -- see the open-stage-control
-skill's widgets.md). So each grid cell's image path is baked into the
-session JSON as a literal string rather than computed at load time, the
-same way grid_layout.json itself bakes in absolute paths. Re-run this
-script any time build_grid.py regenerates the grid (paths may shift), or
-when opening this session on a different machine/checkout where the
-absolute paths baked in from a previous machine won't resolve.
+Why: Open Stage Control's css property does not support JS{}/#{}
+templating (confirmed empirically -- see the open-stage-control skill's
+widgets.md), so a per-cell image can't be computed at load time from
+inside the session JSON. The old approach baked a literal, machine-specific
+absolute path into every one of the 100 grid_cell widgets, which broke on
+every new machine/checkout and needed its own resync step.
 
-Deliberately does NOT bake in a http://host:port prefix -- a path
-starting with / is resolved by the browser against whatever origin
-actually served the page, so the server's port never needs to be
-hardcoded or kept in sync with this script. Only the machine-specific
-filesystem path needs syncing.
+Instead: emotion_grid/build_grid.py generates emotion_grid/data/theme.css,
+one ".grid-cell-<id> { background-image: url(...) }" rule per image, using
+a path relative to theme.css's own location (thumbnails/ lives right next
+to it) -- confirmed against the actual server source
+(src/server/node/server.mjs's resolvePath) that a theme's relative url()s
+resolve against the theme file's own directory, independent of the
+session's location or any per-client state. run_control_panel.sh loads it
+via --theme. Each widget just needs a stable `class: grid-cell-<id>;` line
+in its css (a real, literal OSC syntax -- see widget.mjs's "extra css
+class property" handling) to pick up that rule -- this class name is
+derived purely from the id and never changes across machines, so unlike
+the old approach this script should rarely need re-running (only if
+emotion_grid/build_grid.py's cell ids themselves change).
 
 Usage:
     python emotion_grid/update_panel_thumbnails.py
@@ -29,6 +34,10 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Matches the old inline-url css this script used to write, so it can be
+# stripped even from panels generated before the theme.css scheme existed.
+OLD_INLINE_IMAGE_CSS = re.compile(r'background-image:url\([^)]*\);background-size:cover;background-position:center;')
 
 
 def iter_widgets(node):
@@ -47,48 +56,37 @@ def iter_widgets(node):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Sync the control panel's grid cell thumbnail paths to the current grid_layout.json",
+        description="Ensure the control panel's grid cells reference theme.css classes instead of literal image paths",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--grid-layout', default=str(REPO_ROOT / 'emotion_grid' / 'data' / 'grid_layout.json'))
     parser.add_argument('--panel', default=str(REPO_ROOT / 'live_pipeline' / 'crocodile-control-panel.json'))
     args = parser.parse_args()
-
-    with open(args.grid_layout) as f:
-        layout = json.load(f)
-    thumbnail_by_id = {cell['id']: cell['thumbnailPath'] for cell in layout['cells'] if cell}
-    print(f"Loaded {len(thumbnail_by_id)} thumbnail paths from {args.grid_layout}")
 
     with open(args.panel) as f:
         panel = json.load(f)
 
     n_updated = 0
-    n_missing = 0
-    seen_ids = set()
+    n_already = 0
     for widget in iter_widgets(panel['content']):
         widget_id = widget.get('id', '')
         if not widget_id.startswith('grid_cell_'):
             continue
         cell_id = widget_id[len('grid_cell_'):]
-        seen_ids.add(cell_id)
-        if cell_id not in thumbnail_by_id:
-            print(f"  WARNING: {widget_id} has no matching cell in grid_layout.json -- leaving as-is")
-            n_missing += 1
-            continue
         css = widget.get('css', '')
-        new_css, n = re.subn(
-            r'background-image:url\([^)]*\)',
-            f'background-image:url({thumbnail_by_id[cell_id]})',
-            css)
-        if n == 0:
-            print(f"  WARNING: {widget_id}'s css has no background-image:url(...) to replace -- leaving as-is")
-            continue
-        widget['css'] = new_css
-        n_updated += 1
 
-    n_unmatched_layout_ids = len(set(thumbnail_by_id) - seen_ids)
-    if n_unmatched_layout_ids:
-        print(f"  Note: {n_unmatched_layout_ids} grid_layout.json cell(s) have no matching "
-              f"grid_cell_* widget in the panel (added images since the panel was last built?)")
+        class_lines = f"class: grid-cell;\nclass: grid-cell-{cell_id};\n"
+        if css.startswith(class_lines):
+            n_already += 1
+            continue
+
+        # Strip a pre-existing class-lines prefix (in case cell_id or the
+        # class scheme itself changed) and the old inline-url css, whichever
+        # is present, leaving only the dynamic per-instance rules (the
+        # selection-highlight border/box-shadow, driven by @{selected_id}).
+        remainder = re.sub(r'^(?:class:[^\n]*\n)+', '', css)
+        remainder = OLD_INLINE_IMAGE_CSS.sub('', remainder)
+
+        widget['css'] = class_lines + remainder
+        n_updated += 1
 
     # ensure_ascii=True matches the panel file's own current escaping convention (confirmed via
     # round-trip byte comparison) -- keeps this script's diff to just the intended css changes
@@ -96,7 +94,7 @@ def main():
     with open(args.panel, 'w') as f:
         json.dump(panel, f, indent=2, ensure_ascii=True)
 
-    print(f"Updated {n_updated} grid cell thumbnail paths in {args.panel} ({n_missing} missing)")
+    print(f"Updated {n_updated} grid cell(s), {n_already} already using the theme-class scheme, in {args.panel}")
 
 
 if __name__ == '__main__':
