@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=crocodile-disc-encoder
 #SBATCH --account=def-sofian
-#SBATCH --time=02:00:00
+#SBATCH --time=04:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
@@ -17,19 +17,20 @@
 # models/discriminator_encoder.py and scripts/stage2a_discriminator_init.py
 # for the full writeup and PIPELINE.md's session notes (2026-09-11/12).
 #
-# --time is a guess (untested on Rorqual) -- the laptop's 26-epoch schedule
-# ran ~5.5min/epoch on an 8GB RTX 5060 with num_workers=4 before hitting a
-# DataLoader deadlock (fixed here via train_discriminator_init.num_workers=8,
-# same fix already proven for stage2b on this cluster); an H100 with 4x the
-# batch size should be well under this budget, but check the first run's
-# actual per-epoch time and adjust before relying on it.
+# --time=4h is a padded guess (untested on Rorqual) -- the laptop's 26-epoch
+# schedule ran ~5.5min/epoch on an 8GB RTX 5060 with num_workers=4 before
+# hitting a DataLoader deadlock (fixed here via train_discriminator_init.num_workers=8,
+# same fix already proven for stage2b on this cluster). An H100 with 4x the
+# batch size should be well under this, likely closer to 1-2.5h, but check
+# the first run's actual per-epoch time in the .out log and adjust the
+# --time on future submissions rather than trusting this estimate.
 #
-# Unlike stage2b_train_frames.py (fine-tunes an existing checkpoint), this
-# script always starts fresh -- there's no --resume/--pretrained here because
-# a single run covers both phase 1 (frozen trunk) and phase 2 (progressive
-# unfreeze) in one schedule. Re-running from scratch is the only way to
-# change phase timings (train_discriminator_init.phase1_epochs etc in the
-# config) after the fact.
+# If SLURM still kills it before all 26 epochs finish (5 phase1 +
+# 7 groups x 3 phase2), --resume continues from latest.pt -- it replays the
+# freeze/unfreeze schedule up to the checkpointed epoch before restoring
+# optimizer state, so it picks up exactly where it left off:
+#   sbatch latent_pipeline/cluster/submit_train_discriminator_init_rorqual.sh \
+#       --resume latent_pipeline/outputs/train_discriminator_init/latest.pt
 #
 # Usage:
 #   cd ~/links/projects/def-sofian/sofian/crocodile

@@ -42,6 +42,11 @@ The saved checkpoint is compatible with stage2b_train_frames.py's
 Usage:
     python latent_pipeline/scripts/stage2a_discriminator_init.py \\
         --config latent_pipeline/configs/default.yaml
+
+    # Resume after a timeout/preemption (or an interrupted local run):
+    python latent_pipeline/scripts/stage2a_discriminator_init.py \\
+        --config latent_pipeline/configs/default.yaml \\
+        --resume latent_pipeline/outputs/train_discriminator_init/latest.pt
 """
 
 import argparse
@@ -106,6 +111,25 @@ def validate(encoder, loader, device):
     return total_loss / max(n_batches, 1)
 
 
+def apply_unfreeze_event(encoder, optimizer, tc, event, unfrozen_count):
+    """Apply one 'unfreeze:<name>' schedule event (no-op for 'phase1_start'),
+    returning the updated unfrozen_count. Factored out so --resume can replay
+    the schedule up to the checkpointed epoch and reconstruct identical
+    optimizer param_groups before loading saved optimizer state into them
+    (torch's load_state_dict matches groups by position, so the replay must
+    add them in the exact same order as the original run)."""
+    if event == 'phase1_start':
+        return unfrozen_count
+    name = event.split(':', 1)[1]
+    encoder.unfreeze_pretrained_group(name)
+    lr = tc['lr_trunk_base'] * (tc['lr_decay_per_group'] ** unfrozen_count)
+    optimizer.add_param_group({
+        'params': encoder.pretrained_group_parameters(name),
+        'lr': lr,
+    })
+    return unfrozen_count + 1
+
+
 def build_phase_schedule(tc, group_names):
     """Return a list of (epoch, action) events: 'phase1_start' at epoch 0,
     then one 'unfreeze:<group_name>' event every phase2_epochs_per_group
@@ -127,6 +151,9 @@ def main():
     )
     parser.add_argument('--config', default='latent_pipeline/configs/default.yaml',
                         help='Path to pipeline config YAML')
+    parser.add_argument('--resume', default=None,
+                        help='Checkpoint path to resume from (restores epoch, '
+                             'freeze/unfreeze state, and optimizer state)')
     args = parser.parse_args()
 
     # SLURM (and any non-TTY redirect) fully buffers stdout by default --
@@ -183,26 +210,41 @@ def main():
 
     optimizer = torch.optim.Adam(encoder.new_parameters(), lr=tc['lr_new'])
     unfrozen_count = 0
+    start_epoch = 0
+    best_val_loss = float('inf')
 
     log_path = os.path.join(output_dir, 'train_discriminator_init_log.json')
     log_entries = []
-    best_val_loss = float('inf')
 
-    for epoch in range(total_epochs):
+    if args.resume:
+        ckpt = torch.load(args.resume, map_location=device, weights_only=False)
+        start_epoch = ckpt['epoch'] + 1
+        # Replay schedule events up to (and including) the checkpointed epoch
+        # so the encoder's freeze state and the optimizer's param_groups
+        # exactly match what they were when the checkpoint was saved --
+        # load_state_dict below matches groups by position, not name.
+        for e in range(start_epoch):
+            for event in schedule.get(e, []):
+                unfrozen_count = apply_unfreeze_event(encoder, optimizer, tc, event, unfrozen_count)
+        encoder.load_state_dict(ckpt['encoder'])
+        optimizer.load_state_dict(ckpt['optimizer'])
+        best_val_loss = ckpt.get('best_val_loss', float('inf'))
+        print(f"Resumed from epoch {start_epoch} "
+              f"({unfrozen_count}/{len(group_names)} pretrained groups unfrozen)")
+        if os.path.exists(log_path):
+            with open(log_path) as f:
+                log_entries = json.load(f)
+            log_entries = [e for e in log_entries if e['epoch'] < start_epoch]
+
+    for epoch in range(start_epoch, total_epochs):
         for event in schedule.get(epoch, []):
             if event == 'phase1_start':
                 print(f"Epoch {epoch}: phase 1 -- pretrained trunk frozen, "
                       f"training new params only")
-            elif event.startswith('unfreeze:'):
+            else:
                 name = event.split(':', 1)[1]
-                encoder.unfreeze_pretrained_group(name)
-                lr = tc['lr_trunk_base'] * (tc['lr_decay_per_group'] ** unfrozen_count)
-                optimizer.add_param_group({
-                    'params': encoder.pretrained_group_parameters(name),
-                    'lr': lr,
-                })
-                unfrozen_count += 1
-                print(f"Epoch {epoch}: unfroze '{name}' at lr={lr:.2e} "
+                unfrozen_count = apply_unfreeze_event(encoder, optimizer, tc, event, unfrozen_count)
+                print(f"Epoch {epoch}: unfroze '{name}' at lr={optimizer.param_groups[-1]['lr']:.2e} "
                       f"({unfrozen_count}/{len(group_names)} pretrained groups unfrozen)")
 
         t0 = time.time()
@@ -222,6 +264,7 @@ def main():
         ckpt = {
             'epoch': epoch,
             'encoder': encoder.state_dict(),
+            'optimizer': optimizer.state_dict(),
             'encoder_arch': 'discriminator_init',
             'best_val_loss': best_val_loss,
             'config': config,
