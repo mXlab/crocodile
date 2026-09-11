@@ -23,7 +23,7 @@ private storage, or generate synthetic stand-ins where noted below.
 | `live_pipeline.py` (optional — enables live per-visitor alignment fitting) | The actress' (Laurence's) online-schema reference features (`biodata_pipeline/data/processed/continuous_features_online.csv` — NOT `erin_features_online.csv`, Erin is a separate test subject, not the actress), passed as `--reference-features` | Private — ask a teammate. Without it, every session just uses the static transformer above (unchanged behavior) — see PIPELINE.md's "Live per-visitor alignment fit" |
 | Feeding the pipeline data | Real biodata recordings, or `--calibration-csv` priming | Private — optional; §6's quick check replays a committed synthetic recording instead, and §6b's full calibration walkthrough generates fresh synthetic data if you don't have a real one |
 | Visual check only — `latent_osc_debug_viewer.py` (debug overlay) or `live_viewer.py` (no overlay, can replace Autolume outright) | StyleGAN2 checkpoint `models/finalModel_Crocodile.pkl` (~430MB) | Private — ask a teammate. Not needed for `live_pipeline.py` itself or for `latent_osc_debug_receiver.py` (§6) |
-| Same as above | `stylegan_Autolume` code (`dnnlib`/`legacy.py`/`torch_utils`, imported by `latent_pipeline/models/stylegan.py` to load and run the checkpoint) | **Public** — `git clone` it yourself, see §4b. Not the same thing as Autolume (the live performance app) below, despite the name |
+| Same as above | `stylegan_Autolume` code (`dnnlib`/`legacy.py`/`torch_utils`, imported by `latent_pipeline/models/stylegan.py` to load and run the checkpoint) | **Public** — a git submodule at `latent_pipeline/stylegan_Autolume`, not initialized by §1's default `--recursive` init, see §4b. Not the same thing as Autolume (the live performance app) below, despite the name |
 | Real deployment only | Autolume, the separate live performance app | Private/separate project — not needed to install or test this repo |
 | GUI session control (optional) | Open Stage Control | Public — §3 |
 | Emotion Grid tab (required for the live latent controller) | `emotion_grid/data/` (`manifest.csv`, `grid_layout.json`, `thumbnails/`) | Private — build locally with `emotion_grid/build_grid.py` from the private `latent_pipeline` dataset, or ask a teammate for a copy |
@@ -41,6 +41,10 @@ cd crocodile
 git checkout pipeline_develop
 git submodule update --init --recursive   # BioDataFeatureExtract/libraries/ — not needed for live_pipeline, but harmless
 ```
+
+This deliberately skips `latent_pipeline/stylegan_Autolume` (it's marked
+`update = none` in `.gitmodules` since it's a large codebase most setups
+don't need) — see §4b if you want the visual viewer.
 
 **Note the branch checkout above is required, not optional**: `master`
 predates the entire `biodata_pipeline`/`latent_pipeline`/`live_pipeline`
@@ -113,23 +117,26 @@ checkpoint and a small piece of **public** code — see §4b.
 ## 4b. Install stylegan_Autolume (only for the visual viewer)
 
 `latent_pipeline/models/stylegan.py` loads and runs the checkpoint by
-importing `dnnlib`, `legacy`, and `torch_utils` from
-[`stylegan_Autolume`](https://github.com/petercmh01/stylegan_Autolume) — a
+importing `dnnlib`, `legacy`, and `torch_utils` from `stylegan_Autolume` — a
 StyleGAN3 fork maintained for the Autolume project. Despite the similar
 name, this is a **different, unrelated thing** from Autolume itself (the
 separate live performance app in §0's table) — it's just the bare synthesis
 code, not the performance app.
 
-The code is public; only the trained checkpoint (obtained above) is
-private:
+It's a **git submodule** at `latent_pipeline/stylegan_Autolume`, pinned to a
+known-good commit — pulled in
+[our own fork](https://github.com/mXlab/stylegan_Autolume) rather than
+upstream (`petercmh01/stylegan_Autolume`) so a deleted/renamed/rewritten
+upstream repo can't break this. It's not part of §1's default
+`--recursive` init (it's a large, optional codebase most setups don't need),
+so init it explicitly:
 
 ```bash
-# Anywhere on disk, doesn't need to be inside this repo -- a sibling
-# directory is the convention the existing config paths assume.
-git clone https://github.com/petercmh01/stylegan_Autolume.git
+git submodule update --init --checkout latent_pipeline/stylegan_Autolume
 ```
 
-No separate environment or `pip install` for it is needed:
+Only the trained checkpoint (obtained above) is private — the code itself,
+and no separate environment or `pip install` for it, is needed:
 `latent_pipeline/.venv` already has everything `dnnlib`/`legacy`/
 `torch_utils` import at runtime, right down to the exact
 `setuptools==70.2.0` pin its `torch_utils` needs (see the comment in
@@ -139,27 +146,34 @@ toolkit/compiler to JIT-compile its custom kernels. Its own
 `environment.yml` (conda, CUDA 11.1, a GUI visualizer's extra dependencies)
 is for its own training/visualization tools and can be ignored here.
 
-Then point the config at both pieces:
+`paths.stylegan_code` in `latent_pipeline/configs/default.yaml` is already
+set to the right relative path (`latent_pipeline/stylegan_Autolume`) and
+needs no editing. `paths.repo_root` still does — it's a hardcoded absolute
+path from whoever last edited that file:
 
 ```yaml
 # latent_pipeline/configs/default.yaml
 paths:
-  repo_root: /absolute/path/to/your/crocodile/checkout
-  stylegan_code: /absolute/path/to/wherever/you/cloned/stylegan_Autolume
-  stylegan_model: models/finalModel_Crocodile.pkl   # relative to repo_root
+  repo_root: /absolute/path/to/your/crocodile/checkout   # <- edit this
+  stylegan_code: latent_pipeline/stylegan_Autolume        # already correct
+  stylegan_model: models/finalModel_Crocodile.pkl         # relative to repo_root
 ```
 
-Both `paths.repo_root` and `paths.stylegan_code` are currently hardcoded
-absolute paths from whoever last edited that file — you must change both to
-match your machine. Verify it worked with:
+Verify it worked with:
 
 ```bash
 live_pipeline/run_debug_viewer.sh
 ```
 
-If `dnnlib`/`legacy` fail to import, double-check `stylegan_code` points at
-the repo root you cloned (the directory containing `dnnlib/`, `legacy.py`,
-`torch_utils/` directly, not a subdirectory).
+If `dnnlib`/`legacy` fail to import, confirm the submodule actually has
+content (`ls latent_pipeline/stylegan_Autolume/dnnlib` — an empty directory
+means the `git submodule update --init --checkout` above was skipped or failed).
+
+To update the pinned commit later (only if you have a specific reason to —
+this is inference-only code loading a frozen checkpoint, so there's rarely
+a need): `cd latent_pipeline/stylegan_Autolume && git checkout
+<new-commit>`, then commit the updated submodule pointer from the repo
+root after confirming the viewer still works.
 
 ## 5. Get the Emotion Grid data
 

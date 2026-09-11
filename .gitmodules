@@ -11,3 +11,7 @@
 [submodule "BioDataFeatureExtract/libraries/CSV Parser"]
 	path = BioDataFeatureExtract/libraries/CSV Parser
 	url = https://github.com/michalmonday/CSV-Parser-for-Arduino
+[submodule "latent_pipeline/stylegan_Autolume"]
+	path = latent_pipeline/stylegan_Autolume
+	url = https://github.com/mXlab/stylegan_Autolume.git
+	update = none

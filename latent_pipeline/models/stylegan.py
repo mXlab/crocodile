@@ -41,7 +41,7 @@ def load_stylegan(config: dict, device: torch.device | str = 'cpu') -> nn.Module
     G : nn.Module
         StyleGAN2 generator (G_ema), eval, frozen.
     """
-    stylegan_code = config['paths']['stylegan_code']
+    stylegan_code = os.path.join(config['paths']['repo_root'], config['paths']['stylegan_code'])
     sys.path.insert(0, stylegan_code)
 
     import dnnlib

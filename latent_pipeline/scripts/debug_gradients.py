@@ -157,7 +157,7 @@ def main():
     print(f"Device: {device}, train_resolution: {train_res}")
 
     # Load StyleGAN2
-    sys.path.insert(0, config['paths']['stylegan_code'])
+    sys.path.insert(0, os.path.join(repo_root, config['paths']['stylegan_code']))
     import dnnlib, legacy
     import torch_utils.ops.bias_act as _ba
     import torch_utils.ops.upfirdn2d as _up

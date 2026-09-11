@@ -3,7 +3,7 @@
 
 paths:
   repo_root: /home/tats/Documents/workspace/crocodile
-  stylegan_code: /home/tats/Documents/workspace/stylegan_Autolume
+  stylegan_code: latent_pipeline/stylegan_Autolume
   stylegan_model: models/finalModel_Crocodile.pkl
   # NeuroKit2 batch extractor (modules/batch_feature_extractor.py) -- switched
   # from the online/real-time-compatible continuous_features.csv default
