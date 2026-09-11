@@ -143,12 +143,14 @@ live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv -
 Open `http://127.0.0.1:8090`, pick a thumbnail in the Emotion Grid tab, and use
 the Actress/User mix slider to blend it with the replayed synthetic vector —
 that confirms the whole chain (session → alignment → regressor → latent
-controller → OSC out) is wired correctly. Expect visibly distorted output:
-the transformer is fit on synthetic-only data, which is exactly `zscore`'s
-documented out-of-distribution limitation (see PIPELINE.md's "Live per-visitor
-alignment fit" section) — this test is for exercising the plumbing and the
-control panel, not for judging visual quality. For that, use a real
-calibration (below) or at least a real reference recording.
+controller → OSC out) is wired correctly. Output should look reasonably
+face-like (the synthetic generator's raw signal ranges are tuned to a real
+sensor rig's scale, not its default 0-4095 — see
+`live_pipeline/prepare_synthetic_test_fixtures.py`), though it won't match
+any particular calibrated emotion since the underlying signal is still
+synthetic. For real output quality — a real visitor calibration, or
+comparing alignment methods — use the full setup (below) with a real
+recording.
 
 #### Full setup (real calibration, real/synthetic biodata)
 

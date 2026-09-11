@@ -27,6 +27,19 @@ per-visitor alignment fit" section), chosen because it needs no emotion
 labels and is what an un-cued single-segment calibration falls back to
 anyway.
 
+RAW_RANGES below matter a lot: generate_synthetic_biodata.py's own
+defaults (0-4095 on every channel) don't resemble the real sensor rig's
+actual ADC output at all, which used to make the extracted features land
+1.5-8x outside real per-feature scales (e.g. eda.tonic_level ~1130 vs a
+real recording's ~320, respiratory.amplitude_mean_10s ~3590 vs ~430) --
+enough to push the transformed/regressed output into visibly out-of-domain
+StyleGAN2 latents. RAW_RANGES were picked by inspecting the aggregate
+min/max/mean/std of one real recording's raw heart/gsr/respiration
+columns -- never the recording itself, never committed, and only used
+here, once, to calibrate these six numbers -- then hand-tuned so the
+*extracted feature* scales land close to that recording's. Only re-derive
+these if the sensor hardware changes.
+
 Usage:
     live_pipeline/run_prepare_synthetic_test_fixtures.sh
 """
@@ -46,12 +59,24 @@ from biodata_pipeline.modules.alignment_transformer import ZScoreTransformer
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GENERATE_SCRIPT = REPO_ROOT / 'live_pipeline' / 'generate_synthetic_biodata.py'
 
+# Realistic ADC ranges (see module docstring) -- applied to every generated
+# segment so extracted features land in real-world scale, not the generator's
+# arbitrary 0-4095 default.
+RAW_RANGES = {
+    'heart_range': (0, 1024),
+    'gsr_range': (100, 800),
+    'respiration_range': (14450, 14950),
+}
+
 
 def generate_raw(output_path, duration, seed, **kwargs):
     cmd = [sys.executable, str(GENERATE_SCRIPT), '--output', str(output_path),
            '--duration', str(duration), '--seed', str(seed)]
-    for key, value in kwargs.items():
-        cmd += [f'--{key.replace("_", "-")}', str(value)]
+    for key, value in {**RAW_RANGES, **kwargs}.items():
+        if isinstance(value, tuple):
+            cmd += [f'--{key.replace("_", "-")}'] + [str(v) for v in value]
+        else:
+            cmd += [f'--{key.replace("_", "-")}', str(value)]
     subprocess.run(cmd, check=True)
 
 
