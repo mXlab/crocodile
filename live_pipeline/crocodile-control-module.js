@@ -20,6 +20,14 @@ var MAX_TAU = 10
 var AUTOLUME_HOST = '127.0.0.1'
 var AUTOLUME_PORT = 1338
 var AUTOLUME_ADDRESS = '/crocodile/latent/final'
+// Visitor W vectors arrive from live_pipeline.py at roughly 1/sec (one per
+// feature-extraction window), far below the output tick rate -- held raw,
+// that's a visible staircase. DEFAULT_W_U_INTERVAL is only the bootstrap
+// guess used before two arrivals have actually been measured; from then on
+// W_U_INTERVAL_EMA_ALPHA smooths the real measured gap (a single jittery
+// gap shouldn't cause a visible hitch in interpolation speed).
+var DEFAULT_W_U_INTERVAL = 1.0
+var W_U_INTERVAL_EMA_ALPHA = 0.3
 
 var manifestById = {} // id -> plain array of 512 floats
 
@@ -118,11 +126,16 @@ function gaussianRandom() {
 }
 
 var state = {
-    w_u: null,              // 512-array from live_pipeline.py, or null until first message
+    w_u_from: null,         // previous visitor W vector -- interpolation start point
+    w_u_to: null,           // most recently received visitor W vector -- interpolation target
+    w_u_current: null,      // this tick's interpolated position -- also next segment's start point,
+                            // so a new arrival never causes a discontinuity even if it's early/late
+    w_u_last_arrival_time: 0,  // seconds (Date.now()/1000) when w_u_to arrived
+    w_u_interval: null,     // EMA-smoothed measured seconds between arrivals, null until 2 arrivals seen
     current_w: zeros(),     // the "actress" vector, advances toward target_w each tick
     target_w: zeros(),
     target_id: null,
-    mode: 'manual',         // 'auto' | 'manual'
+    mode: 'auto',           // 'auto' | 'manual'
     fps: DEFAULT_FPS,       // output rate to Autolume -- also the tick rate everything else runs at
     transitionTau: 0.4,     // seconds -- time constant for current_w's approach to target_w
     running: false,
@@ -162,7 +175,7 @@ function pushFeedback() {
 }
 
 function tick() {
-    if (state.target_id === null && state.w_u === null) return // fully idle -- send nothing
+    if (state.target_id === null && state.w_u_to === null) return // fully idle -- send nothing
 
     var dt = 1 / state.fps
 
@@ -192,7 +205,26 @@ function tick() {
         state.noise_state[j] = noiseDecay * state.noise_state[j] + noiseDiffusion * gaussianRandom()
     }
 
-    var w_u = state.w_u || state.current_w
+    // Interpolate the visitor vector from its previous value toward the most recently
+    // received one, linearly over the measured inter-arrival interval -- rather than
+    // holding it raw (a staircase, since arrivals are far slower than the tick rate).
+    // Distinct from transitionTau above: this tracks the visitor's own update rate, not
+    // an artistic knob, so it's measured rather than operator-set.
+    var w_u
+    if (state.w_u_to === null) {
+        w_u = state.current_w
+    } else if (state.w_u_from === null) {
+        w_u = state.w_u_to
+    } else {
+        var w_u_interval = state.w_u_interval || DEFAULT_W_U_INTERVAL
+        var w_u_elapsed = (Date.now() / 1000) - state.w_u_last_arrival_time
+        var w_u_frac = w_u_interval > 0 ? Math.min(1, w_u_elapsed / w_u_interval) : 1
+        w_u = new Array(W_DIM)
+        for (var wi = 0; wi < W_DIM; wi++) {
+            w_u[wi] = state.w_u_from[wi] + (state.w_u_to[wi] - state.w_u_from[wi]) * w_u_frac
+        }
+    }
+    state.w_u_current = w_u
     var final_w = new Array(W_DIM)
     for (var k = 0; k < W_DIM; k++) {
         final_w[k] = state.mix * state.current_w[k]
@@ -233,10 +265,27 @@ module.exports = {
                 console.error('[crocodile-control-module] /crocodile/latent/user: expected ' + W_DIM + ' floats, got ' + args.length)
                 return
             }
-            state.w_u = args.slice()
+            var w_u_now = Date.now() / 1000
+            if (state.w_u_to !== null) {
+                var w_u_gap = w_u_now - state.w_u_last_arrival_time
+                if (w_u_gap > 0) {
+                    state.w_u_interval = state.w_u_interval === null
+                        ? w_u_gap
+                        : W_U_INTERVAL_EMA_ALPHA * w_u_gap + (1 - W_U_INTERVAL_EMA_ALPHA) * state.w_u_interval
+                }
+                // Start the new segment from wherever the last one actually was, not its
+                // nominal target -- if this arrival is early or late relative to the
+                // measured interval, w_u_current may not have reached w_u_to yet, and
+                // starting from w_u_to instead would cause a visible jump.
+                state.w_u_from = state.w_u_current || state.w_u_to
+            } else {
+                state.w_u_from = args.slice() // first arrival ever -- nothing to interpolate from yet
+            }
+            state.w_u_to = args.slice()
+            state.w_u_last_arrival_time = w_u_now
             if (state.target_id === null) {
                 // no emotion picked yet -- track the visitor 1:1 until the operator acts
-                state.current_w = state.w_u.slice()
+                state.current_w = state.w_u_to.slice()
             }
             return // consumed, not forwarded to widgets
         }
