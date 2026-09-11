@@ -32,6 +32,11 @@
 #   sbatch latent_pipeline/cluster/submit_train_discriminator_init_rorqual.sh \
 #       --resume latent_pipeline/outputs/train_discriminator_init/latest.pt
 #
+# Prerequisite: latent_pipeline/data/synthetic/w_vectors.csv (the synthetic
+# pretraining pairs) -- at ~25GB it doesn't arrive via git pull. Generate it
+# on the cluster first if it's not already there:
+#   sbatch latent_pipeline/cluster/submit_generate_synthetic_rorqual.sh
+#
 # Usage:
 #   cd ~/links/projects/def-sofian/sofian/crocodile
 #   sbatch latent_pipeline/cluster/submit_train_discriminator_init_rorqual.sh
