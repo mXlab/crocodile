@@ -9,6 +9,8 @@ floats [heart, gsr, respiration].
 Usage:
     python live_pipeline/replay_biodata_as_osc.py --input live_pipeline/data/erin_live_segment.csv
     python live_pipeline/replay_biodata_as_osc.py --input <file> --speed 5  # faster, for quicker testing
+    python live_pipeline/replay_biodata_as_osc.py --input <file> --loop        # repeat forever, Ctrl+C to stop
+    python live_pipeline/replay_biodata_as_osc.py --input <file> --loop 3      # repeat exactly 3 times
 
 CAUTION on --speed: this sends 100Hz * speed OSC messages/sec over a local
 UDP socket, and live_pipeline.py's OSC server (BlockingOSCUDPServer)
@@ -24,10 +26,33 @@ just "does it run."
 """
 
 import argparse
+import itertools
 import time
 
 import pandas as pd
 from pythonosc.udp_client import SimpleUDPClient
+
+
+def replay_once(df, client, address, sampling_rate, interval, has_labels):
+    """Sends one full pass over df at real-time-scaled intervals. Returns elapsed seconds."""
+    last_emotion, last_feeling_it = None, None
+    start = time.perf_counter()
+    for i, row in enumerate(df.itertuples(index=False)):
+        client.send_message(address, [float(row.heart), float(row.gsr), float(row.respiration)])
+
+        if has_labels and (row.emotion != last_emotion or row.feeling_it != last_feeling_it):
+            t_s = i / sampling_rate
+            print(f"  [{t_s:8.1f}s] emotion={row.emotion} feeling_it={row.feeling_it}")
+            last_emotion, last_feeling_it = row.emotion, row.feeling_it
+
+        target = start + (i + 1) * interval
+        sleep_s = target - time.perf_counter()
+        if sleep_s > 0:
+            time.sleep(sleep_s)
+        if (i + 1) % (sampling_rate * 10) == 0:
+            print(f"  sent {i + 1:,}/{len(df):,} samples")
+
+    return time.perf_counter() - start
 
 
 def main():
@@ -41,6 +66,10 @@ def main():
     parser.add_argument('--sampling-rate', type=int, default=100, help='Hz, matches the CSV\'s own rate')
     parser.add_argument('--speed', type=float, default=1.0, help='Playback speed multiplier (1.0 = real-time)')
     parser.add_argument('--limit', type=int, default=None, help='Only replay the first N samples')
+    parser.add_argument('--loop', nargs='?', type=int, const=0, default=None, metavar='N',
+                        help='Repeat the replay instead of sending it once -- for an extended demo/show '
+                             'run rather than a one-off test. Bare flag loops forever (Ctrl+C to stop); '
+                             'give a count (--loop 3) to repeat exactly N times.')
     args = parser.parse_args()
 
     df = pd.read_csv(args.input)
@@ -58,24 +87,18 @@ def main():
     print(f"Sending to {args.host}:{args.port}{args.address} at {args.speed}x speed "
           f"({interval * 1000:.2f}ms/sample)")
 
-    last_emotion, last_feeling_it = None, None
-    start = time.perf_counter()
-    for i, row in enumerate(df.itertuples(index=False)):
-        client.send_message(args.address, [float(row.heart), float(row.gsr), float(row.respiration)])
-
-        if has_labels and (row.emotion != last_emotion or row.feeling_it != last_feeling_it):
-            t_s = i / args.sampling_rate
-            print(f"  [{t_s:8.1f}s] emotion={row.emotion} feeling_it={row.feeling_it}")
-            last_emotion, last_feeling_it = row.emotion, row.feeling_it
-
-        target = start + (i + 1) * interval
-        sleep_s = target - time.perf_counter()
-        if sleep_s > 0:
-            time.sleep(sleep_s)
-        if (i + 1) % (args.sampling_rate * 10) == 0:
-            print(f"  sent {i + 1:,}/{len(df):,} samples")
-
-    print(f"Done: sent {len(df):,} samples in {time.perf_counter() - start:.1f}s")
+    passes = itertools.count() if args.loop == 0 else range(args.loop if args.loop is not None else 1)
+    n_completed = 0
+    try:
+        for pass_num in passes:
+            if args.loop is not None:
+                label = 'forever' if args.loop == 0 else str(args.loop)
+                print(f"-- pass {pass_num + 1}/{label} --")
+            elapsed = replay_once(df, client, args.address, args.sampling_rate, interval, has_labels)
+            n_completed += 1
+            print(f"Done: sent {len(df):,} samples in {elapsed:.1f}s")
+    except KeyboardInterrupt:
+        print(f"\nStopped after {n_completed} pass(es)")
 
 
 if __name__ == '__main__':
