@@ -94,9 +94,11 @@ Autolume -- pass --log-only to print outgoing W vectors instead of (or
 alongside) sending OSC.
 
 No calibration data at all? Pass --transformer with no --reference-features
-(as above) and go straight from session/start to live/start -- see README.md's
-"Simplest possible test", which uses the pre-fit
-live_pipeline/data/synthetic_test_transformer.pkl for exactly this.
+(as above) plus --auto-start, and the server starts a session and goes
+straight to LIVE itself on launch -- no session/start or live/start OSC
+messages needed either. See README.md's "Simplest possible test", which uses
+the pre-fit live_pipeline/data/synthetic_test_transformer.pkl for exactly
+this.
 
 Run with biodata_pipeline/venv's interpreter -- needs OnlineFeatureExtractor
 and the alignment transformer (sklearn), not torch/StyleGAN.
@@ -176,6 +178,16 @@ def build_arg_parser():
                              'same underlying operation, so the two compose cleanly. NOT the same '
                              'recording you then replay as "live" for testing -- reusing it creates a '
                              'filter-state discontinuity (see replay_biodata_as_osc.py\'s docstring).')
+    parser.add_argument('--auto-start', nargs='?', const='', default=None, metavar='SESSION_ID',
+                        help='Start a session and go straight to LIVE on startup, with no OSC '
+                             '/crocodile/session/start or /crocodile/live/start needed -- for when '
+                             'there\'s nothing to calibrate anyway (e.g. --transformer with no '
+                             '--reference-features, so every session already uses a fixed fallback; '
+                             'see README.md\'s "Simplest possible test"). Bare flag auto-generates a '
+                             'session id the same way an empty session/start would; give a value '
+                             '(--auto-start visitor-1) to name it. Only ever runs once, at startup -- '
+                             'session/end afterward returns to IDLE as normal, just without anything '
+                             'left to auto-restart it.')
     parser.add_argument('--log-only', action='store_true',
                         help='Print outgoing W vectors instead of sending OSC (no Autolume needed)')
     parser.add_argument('--reference-features', default=None,
@@ -501,6 +513,11 @@ def main():
         min_samples_per_emotion=args.min_samples_per_emotion,
         min_samples_for_covariance=args.min_samples_for_covariance,
         osc_client=osc_client, out_address=args.out_address, log_only=args.log_only)
+
+    if args.auto_start is not None:
+        print(f"--auto-start: starting a session and going straight to LIVE, no calibration")
+        session.start_session(args.auto_start or None)
+        session.start_live()
 
     def on_biodata(unused_address, *osc_args):
         if len(osc_args) != 3:

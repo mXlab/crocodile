@@ -126,16 +126,15 @@ You still need the **private** regressor (`--regressor`; see INSTALL.md — this
 part isn't skippable, it's what actually turns aligned features into a face).
 
 ```bash
-# 1. Start the core server with the pre-fit synthetic transformer.
+# 1. Start the core server with the pre-fit synthetic transformer, and
+#    --auto-start to go straight to LIVE on launch -- no session/start or
+#    live/start OSC messages needed either.
 live_pipeline/run_live.sh \
     --regressor latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
-    --transformer live_pipeline/data/synthetic_test_transformer.pkl
+    --transformer live_pipeline/data/synthetic_test_transformer.pkl \
+    --auto-start
 
-# 2. Skip straight from a fresh session to LIVE.
-live_pipeline/run_session_control.sh --start-session
-live_pipeline/run_session_control.sh --start-live
-
-# 3. Start the latent controller (composites with the actress' selection)...
+# 2. Start the latent controller (composites with the actress' selection)...
 live_pipeline/run_control_panel.sh &
 # ...and replay the synthetic visitor recording.
 live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv --speed 1.0
