@@ -730,6 +730,13 @@ transformer just stays active.
 
 ### Three usage scenarios
 
+**Just want to confirm the pipeline runs, without picking a calibration
+strategy?** See README.md's "Simplest possible test" — a pre-fit synthetic
+transformer + a synthetic replay CSV, both committed, skip calibration
+entirely (straight from `session/start` to `live/start`). The three
+scenarios below are about *calibration quality* once that's working and you
+have a real visitor to align to; they're not the on-ramp.
+
 The same calibration mechanism (a `CALIBRATING` phase, optionally tagged
 with `calibration/set_emotion`) naturally supports three different ways of
 running a session, differing only in how the calibration phase is used —

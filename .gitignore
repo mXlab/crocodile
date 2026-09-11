@@ -151,6 +151,13 @@ venv.bak/
 # data -- exempt from the blanket *.csv rule above)
 !latent_pipeline/data/emotion_labels.csv
 
+# Synthetic (NeuroKit2-generated, not real biometric data) test fixtures for
+# the no-calibration simple test -- see README.md's "Simplest possible test"
+# section and live_pipeline/prepare_synthetic_test_fixtures.py, which is how
+# these two were derived. Exempt from the blanket *.csv/*.pkl rules above.
+!live_pipeline/data/synthetic_test_live.csv
+!live_pipeline/data/synthetic_test_transformer.pkl
+
 # ============================================================================
 # OS GENERATED FILES
 # ============================================================================

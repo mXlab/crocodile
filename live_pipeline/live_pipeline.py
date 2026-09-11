@@ -93,6 +93,11 @@ replay_biodata_as_osc.py (biodata) to test without real hardware or
 Autolume -- pass --log-only to print outgoing W vectors instead of (or
 alongside) sending OSC.
 
+No calibration data at all? Pass --transformer with no --reference-features
+(as above) and go straight from session/start to live/start -- see README.md's
+"Simplest possible test", which uses the pre-fit
+live_pipeline/data/synthetic_test_transformer.pkl for exactly this.
+
 Run with biodata_pipeline/venv's interpreter -- needs OnlineFeatureExtractor
 and the alignment transformer (sklearn), not torch/StyleGAN.
 """

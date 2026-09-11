@@ -107,8 +107,57 @@ runs from the repo root; `live_pipeline/` has no venv of its own — the wrapper
 scripts pin the right interpreter (`biodata_pipeline/venv` or
 `latent_pipeline/.venv`) for you. **See [INSTALL.md](INSTALL.md) for full,
 step-by-step setup** (including what's private and needs to come from a
-teammate rather than this repo, and how to generate synthetic test data if
-you don't have a real recording) — this is just the command summary.
+teammate rather than this repo) — this is just the command summary.
+
+#### Simplest possible test — no calibration, no button-pressing
+
+Skips the whole calibration dance (no `calibration/start`/`set_emotion`/`stop`,
+no replaying a calibration recording first) using two files already committed
+under `live_pipeline/data/` — both 100% synthetic (NeuroKit2-generated, no
+real biometric data), safe to be in the repo:
+- `synthetic_test_transformer.pkl` — an alignment transformer pre-fit offline
+  on synthetic data (see `live_pipeline/prepare_synthetic_test_fixtures.py`
+  for how). Pass it via `--transformer` with no `--reference-features`, and
+  every session uses it as-is — no live fitting, so there's nothing to
+  calibrate.
+- `synthetic_test_live.csv` — a synthetic "visitor" recording to replay.
+
+You still need the **private** regressor (`--regressor`; see INSTALL.md — this
+part isn't skippable, it's what actually turns aligned features into a face).
+
+```bash
+# 1. Start the core server with the pre-fit synthetic transformer.
+live_pipeline/run_live.sh \
+    --regressor latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
+    --transformer live_pipeline/data/synthetic_test_transformer.pkl
+
+# 2. Skip straight from a fresh session to LIVE.
+live_pipeline/run_session_control.sh --start-session
+live_pipeline/run_session_control.sh --start-live
+
+# 3. Start the latent controller (composites with the actress' selection)...
+live_pipeline/run_control_panel.sh &
+# ...and replay the synthetic visitor recording.
+live_pipeline/run_replay.sh --input live_pipeline/data/synthetic_test_live.csv --speed 1.0
+```
+
+Open `http://127.0.0.1:8090`, pick a thumbnail in the Emotion Grid tab, and use
+the Actress/User mix slider to blend it with the replayed synthetic vector —
+that confirms the whole chain (session → alignment → regressor → latent
+controller → OSC out) is wired correctly. Expect visibly distorted output:
+the transformer is fit on synthetic-only data, which is exactly `zscore`'s
+documented out-of-distribution limitation (see PIPELINE.md's "Live per-visitor
+alignment fit" section) — this test is for exercising the plumbing and the
+control panel, not for judging visual quality. For that, use a real
+calibration (below) or at least a real reference recording.
+
+#### Full setup (real calibration, real/synthetic biodata)
+
+For anything where output quality matters — a real visitor calibration, or
+comparing alignment methods — see [INSTALL.md](INSTALL.md) (including how to
+generate synthetic *biodata* to replay through a real calibration, if you
+don't have a real recording) and PIPELINE.md's "Three usage scenarios" for the
+three calibration strategies. Command summary:
 
 ```bash
 # 1. Start the core server (biodata_pipeline/venv) -- loads the regressor +
