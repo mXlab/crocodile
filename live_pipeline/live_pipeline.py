@@ -82,6 +82,18 @@ consumer, an operator control surface, not Autolume):
   --status-out-address (default /crocodile/session/status), args
   [state: str, session_id: str]. Sent after every successful transition.
 
+Live raw-biodata graphs (OSC out, new, same operator control surface as
+session status, sent to the same --status-out-host/--status-out-port):
+  --biodata-out-address (default /crocodile/session/biodata), one message
+  per channel per send -- <prefix>/heart, <prefix>/gsr,
+  <prefix>/respiration, each a single float in [0, 1]. Normalized by a
+  running min/max seen so far this session (biodatapy.minmax.MinMax,
+  reset at session/start and session/end), throttled to ~25Hz regardless
+  of --sampling-rate. Sent any time a session exists (READY onward, i.e.
+  everything except IDLE) -- deliberately not gated the same as feature
+  extraction below, so signal quality is visible from session/start,
+  before calibration/live even begins.
+
 Usage (from the repo root):
     python live_pipeline/live_pipeline.py \
         --regressor latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
@@ -121,10 +133,12 @@ from pythonosc.udp_client import SimpleUDPClient
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BIODATA_PIPELINE_DIR = REPO_ROOT / 'biodata_pipeline'
+sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(BIODATA_PIPELINE_DIR))
 
 from modules.online_feature_extractor import OnlineFeatureExtractor
 from modules.alignment_transformer import load_transformer, create_transformer
+from biodatapy.minmax import MinMax
 
 SIGNAL_COLS = {'eda': 'gsr', 'ppg': 'heart', 'resp': 'respiration'}
 
@@ -160,6 +174,16 @@ def build_arg_parser():
     parser.add_argument('--status-out-port', type=int, default=9001)
     parser.add_argument('--status-out-address', default='/crocodile/session/status',
                         help='OSC address to broadcast [state, session_id] to after every transition')
+    parser.add_argument('--biodata-out-address', default='/crocodile/session/biodata',
+                        help='OSC address prefix for live raw-biodata graphs (an operator control '
+                             'surface, not Autolume -- sent to --status-out-host/--status-out-port, '
+                             'same target as session status). Each channel goes to <prefix>/heart, '
+                             '<prefix>/gsr, <prefix>/respiration: one float in [0, 1], normalized by '
+                             'a running min/max seen so far this session (biodatapy.minmax.MinMax), '
+                             'throttled to ~25Hz regardless of --sampling-rate. Sent any time a '
+                             'session exists (READY onward) -- deliberately not gated the same as '
+                             'feature extraction, so signal quality is visible before calibration/live '
+                             'even starts.')
     parser.add_argument('--record-dir', default=None,
                         help='If given, save each session\'s raw biodata (from calibration/start '
                              'onward) to {record-dir}/{session_id}.csv for later retraining/analysis. '
@@ -248,14 +272,15 @@ class SessionState:
     }
 
     def __init__(self, sampling_rate, record_dir, calibration_df, status_client, status_address,
-                 model, scaler, feature_cols, w_cols, static_transformer, reference_df,
-                 live_transformer_method, min_samples_per_emotion, min_samples_for_covariance,
-                 osc_client, out_address, log_only):
+                 biodata_out_address, model, scaler, feature_cols, w_cols, static_transformer,
+                 reference_df, live_transformer_method, min_samples_per_emotion,
+                 min_samples_for_covariance, osc_client, out_address, log_only):
         self.sampling_rate = sampling_rate
         self.record_dir = Path(record_dir) if record_dir else None
         self.calibration_df = calibration_df
         self.status_client = status_client
         self.status_address = status_address
+        self.biodata_out_address = biodata_out_address
 
         self.model = model
         self.scaler = scaler
@@ -281,6 +306,12 @@ class SessionState:
         self.n_rows_sent = 0
         self.n_rows_skipped = 0
 
+        self._heart_minmax = MinMax()
+        self._gsr_minmax = MinMax()
+        self._respiration_minmax = MinMax()
+        self._biodata_broadcast_interval = 1.0 / 25
+        self._last_biodata_broadcast_t = 0.0
+
     def _check(self, action):
         if self.phase not in self.VALID_TRANSITIONS[action]:
             print(f"  WARNING: '{action}' invalid from phase {self.phase} -- ignored")
@@ -297,6 +328,9 @@ class SessionState:
         self.session_id = session_id or datetime.now().strftime('session_%Y%m%d_%H%M%S')
         self.extractor = OnlineFeatureExtractor(sampling_rate=self.sampling_rate)
         self.active_transformer = self.static_transformer  # reset for the new visitor
+        self._heart_minmax.reset()
+        self._gsr_minmax.reset()
+        self._respiration_minmax.reset()
         if self.calibration_df is not None:
             print("  Priming from --calibration-csv")
             self.extractor.calibrate(self.calibration_df)
@@ -412,11 +446,39 @@ class SessionState:
         self.phase = 'IDLE'
         self.session_id = None
         self.extractor = None
+        self._heart_minmax.reset()
+        self._gsr_minmax.reset()
+        self._respiration_minmax.reset()
         self._broadcast_status()
 
+    def _broadcast_raw_biodata(self, heart, gsr, respiration):
+        """Normalize each raw channel to [0, 1] via its own running min/max
+        (reset per session -- see start_session()/end_session()) and push it
+        to the operator control surface for live graphing, throttled to
+        ~25Hz regardless of --sampling-rate. Normalization always runs (so
+        the min/max stays accurate); only the OSC send is throttled."""
+        heart_n = self._heart_minmax.filter(heart)
+        gsr_n = self._gsr_minmax.filter(gsr)
+        respiration_n = self._respiration_minmax.filter(respiration)
+
+        if self.status_client is None:
+            return
+        now = time.time()
+        if now - self._last_biodata_broadcast_t < self._biodata_broadcast_interval:
+            return
+        self._last_biodata_broadcast_t = now
+        self.status_client.send_message(f"{self.biodata_out_address}/heart", heart_n)
+        self.status_client.send_message(f"{self.biodata_out_address}/gsr", gsr_n)
+        self.status_client.send_message(f"{self.biodata_out_address}/respiration", respiration_n)
+
     def handle_biodata(self, heart, gsr, respiration):
+        if self.phase == 'IDLE':
+            return  # no session active yet
+
+        self._broadcast_raw_biodata(heart, gsr, respiration)
+
         if self.phase not in ('CALIBRATING', 'CALIBRATED', 'LIVE'):
-            return  # IDLE/READY: no session active yet, or visitor not yet ready to be measured
+            return  # READY: session started, but visitor not yet ready to be measured
 
         if self._record_writer is not None:
             record_phase = 'live' if self.phase == 'LIVE' else 'calib'
@@ -507,6 +569,7 @@ def main():
     session = SessionState(
         sampling_rate=args.sampling_rate, record_dir=args.record_dir, calibration_df=calibration_df,
         status_client=status_client, status_address=args.status_out_address,
+        biodata_out_address=args.biodata_out_address,
         model=model, scaler=scaler, feature_cols=feature_cols, w_cols=w_cols,
         static_transformer=static_transformer, reference_df=reference_df,
         live_transformer_method=args.live_transformer_method,
@@ -578,6 +641,8 @@ def main():
     else:
         print("--log-only: printing W vectors instead of sending OSC")
     print(f"Broadcasting session status to {args.status_out_host}:{args.status_out_port}{args.status_out_address}")
+    print(f"Broadcasting live raw-biodata graphs to {args.status_out_host}:{args.status_out_port}"
+          f"{args.biodata_out_address}/{{heart,gsr,respiration}}")
     print("Waiting for /crocodile/session/start ...")
     server.serve_forever()
 
