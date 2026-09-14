@@ -142,7 +142,7 @@ def build_arg_parser():
                              'a warning, never crash) -- the right choice when simulating a genuinely '
                              'new visitor with no pre-existing model to fall back to.')
     parser.add_argument('--sampling-rate', type=int, default=100, help='Hz')
-    parser.add_argument('--in-host', default='127.0.0.1')
+    parser.add_argument('--in-host', default='0.0.0.0')
     parser.add_argument('--in-port', type=int, default=9000,
                         help='Port for both biodata and session-control OSC messages')
     parser.add_argument('--in-address', default='/crocodile/biodata',
