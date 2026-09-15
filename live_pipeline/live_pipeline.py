@@ -94,6 +94,20 @@ session status, sent to the same --status-out-host/--status-out-port):
   extraction below, so signal quality is visible from session/start,
   before calibration/live even begins.
 
+Calibration progress (OSC out, new, same operator control surface, sent
+to the same --status-out-host/--status-out-port):
+  --calibration-progress-address (default
+  /crocodile/session/calibration_progress), sent once per finalized row
+  while CALIBRATING (~1/sec): <prefix>/fraction (float 0-1, progress
+  toward whichever tier will actually get selected -- the forced
+  --live-transformer-method, or under auto, ot_classconditional once
+  >=2 emotions have data else coral -- computed from valid (non-NaN)
+  rows only, so it accurately stalls during the NaN warm-up period
+  instead of overclaiming readiness), <prefix>/quality (float 0-1,
+  valid rows / total buffered rows so far), <prefix>/target (string,
+  the tier name being tracked). Reset to 0.0/1.0/current-target at
+  every calibration/start.
+
 Usage (from the repo root):
     python live_pipeline/live_pipeline.py \
         --regressor latent_pipeline/outputs/stage5_regressor_online/regressor.joblib \
@@ -137,7 +151,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(BIODATA_PIPELINE_DIR))
 
 from modules.online_feature_extractor import OnlineFeatureExtractor
-from modules.alignment_transformer import load_transformer, create_transformer
+from modules.alignment_transformer import load_transformer, create_transformer, METADATA_COLS
 from biodatapy.minmax import MinMax
 
 SIGNAL_COLS = {'eda': 'gsr', 'ppg': 'heart', 'resp': 'respiration'}
@@ -184,6 +198,18 @@ def build_arg_parser():
                              'session exists (READY onward) -- deliberately not gated the same as '
                              'feature extraction, so signal quality is visible before calibration/live '
                              'even starts.')
+    parser.add_argument('--calibration-progress-address', default='/crocodile/session/calibration_progress',
+                        help='OSC address prefix for live calibration-progress feedback (same '
+                             'operator control surface/target as --status-out-* and '
+                             '--biodata-out-address). Sent once per finalized row while CALIBRATING '
+                             '(~1/sec, matches feature_interval_s) -- <prefix>/fraction (float 0-1, '
+                             'progress toward the tier that will actually be selected: the forced '
+                             '--live-transformer-method, or under auto, ot_classconditional once '
+                             '>=2 emotions have data else coral; based on valid (non-NaN) rows only, '
+                             'so it stays a trustworthy readiness signal even during the NaN warm-up '
+                             'period), <prefix>/quality (float 0-1, valid rows / total buffered rows '
+                             'so far), <prefix>/target (string, the tier name being tracked). Reset '
+                             'to 0.0/1.0/current-target at every calibration/start.')
     parser.add_argument('--record-dir', default=None,
                         help='If given, save each session\'s raw biodata (from calibration/start '
                              'onward) to {record-dir}/{session_id}.csv for later retraining/analysis. '
@@ -272,15 +298,17 @@ class SessionState:
     }
 
     def __init__(self, sampling_rate, record_dir, calibration_df, status_client, status_address,
-                 biodata_out_address, model, scaler, feature_cols, w_cols, static_transformer,
-                 reference_df, live_transformer_method, min_samples_per_emotion,
-                 min_samples_for_covariance, osc_client, out_address, log_only):
+                 biodata_out_address, calibration_progress_address, model, scaler, feature_cols,
+                 w_cols, static_transformer, reference_df, live_transformer_method,
+                 min_samples_per_emotion, min_samples_for_covariance, osc_client, out_address,
+                 log_only):
         self.sampling_rate = sampling_rate
         self.record_dir = Path(record_dir) if record_dir else None
         self.calibration_df = calibration_df
         self.status_client = status_client
         self.status_address = status_address
         self.biodata_out_address = biodata_out_address
+        self.calibration_progress_address = calibration_progress_address
 
         self.model = model
         self.scaler = scaler
@@ -301,6 +329,9 @@ class SessionState:
         self.active_transformer = static_transformer
         self.current_calibration_emotion = 'neu'
         self._calibration_rows = []
+        self._calib_total_rows = 0
+        self._calib_valid_rows = 0
+        self._calib_valid_by_emotion = {}
         self._record_file = None
         self._record_writer = None
         self.n_rows_sent = 0
@@ -351,10 +382,19 @@ class SessionState:
         if not self._check('start_calibration'):
             return
         self._calibration_rows = []
+        self._calib_total_rows = 0
+        self._calib_valid_rows = 0
+        self._calib_valid_by_emotion = {}
         self.current_calibration_emotion = 'neu'
         self.phase = 'CALIBRATING'
         print("Calibration started")
         self._broadcast_status()
+        if self.status_client is not None:
+            self.status_client.send_message(f"{self.calibration_progress_address}/fraction", 0.0)
+            self.status_client.send_message(f"{self.calibration_progress_address}/quality", 1.0)
+            self.status_client.send_message(
+                f"{self.calibration_progress_address}/target",
+                self.live_transformer_method if self.reference_df is not None else 'disabled')
 
     def set_calibration_emotion(self, label):
         if not self._check('set_calibration_emotion'):
@@ -471,6 +511,54 @@ class SessionState:
         self.status_client.send_message(f"{self.biodata_out_address}/gsr", gsr_n)
         self.status_client.send_message(f"{self.biodata_out_address}/respiration", respiration_n)
 
+    def _update_calibration_progress(self, row):
+        """Track one more finalized CALIBRATING row (valid -- no NaN in any
+        feature -- or not, overall and per emotion) and broadcast progress
+        toward whichever tier will actually get selected: the forced
+        --live-transformer-method, or under auto, ot_classconditional once
+        >=2 emotions have valid data, else coral. Deliberately counts only
+        valid rows -- more conservative than _fit_live_transformer's own
+        raw-row counting -- so a full bar is a trustworthy "this will
+        actually work" signal, not just "enough rows got buffered"."""
+        feature_keys = [k for k in row if k not in METADATA_COLS]
+        is_valid = not any(pd.isna(row[k]) for k in feature_keys)
+
+        self._calib_total_rows += 1
+        if is_valid:
+            self._calib_valid_rows += 1
+            emotion = row.get('emotion', 'neu')
+            self._calib_valid_by_emotion[emotion] = self._calib_valid_by_emotion.get(emotion, 0) + 1
+
+        quality = self._calib_valid_rows / self._calib_total_rows if self._calib_total_rows else 1.0
+
+        if self.reference_df is None:
+            # Matches _fit_live_transformer's own guard: no --reference-features
+            # means calibration/stop will never fit anything, regardless of how
+            # much data gets buffered -- report that honestly instead of
+            # showing progress toward a fit that will never happen.
+            target = 'disabled'
+            fraction = 0.0
+        else:
+            target = self.live_transformer_method
+            if target == 'auto':
+                emotions_with_data = [c for c in self._calib_valid_by_emotion.values() if c > 0]
+                target = 'ot_classconditional' if len(emotions_with_data) >= 2 else 'coral'
+
+            if target == 'ot_classconditional':
+                top_two = sorted(self._calib_valid_by_emotion.values(), reverse=True)[:2]
+                top_two += [0] * (2 - len(top_two))
+                fraction = sum(min(c / self.min_samples_per_emotion, 1.0) for c in top_two) / 2
+            elif target in ('coral', 'ot_global'):
+                fraction = min(self._calib_valid_rows / self.min_samples_for_covariance, 1.0) \
+                    if self.min_samples_for_covariance > 0 else 1.0
+            else:  # zscore -- no real minimum, "ready" as soon as any valid data exists
+                fraction = 1.0 if self._calib_valid_rows >= 1 else 0.0
+
+        if self.status_client is not None:
+            self.status_client.send_message(f"{self.calibration_progress_address}/fraction", fraction)
+            self.status_client.send_message(f"{self.calibration_progress_address}/quality", quality)
+            self.status_client.send_message(f"{self.calibration_progress_address}/target", target)
+
     def handle_biodata(self, heart, gsr, respiration):
         if self.phase == 'IDLE':
             return  # no session active yet
@@ -492,6 +580,8 @@ class SessionState:
 
         if self.phase == 'CALIBRATING':
             self._calibration_rows.extend(rows)
+            for row in rows:
+                self._update_calibration_progress(row)
 
         if self.phase != 'LIVE':
             return  # CALIBRATING/CALIBRATED: keep priming state, discard finalized rows here
@@ -570,6 +660,7 @@ def main():
         sampling_rate=args.sampling_rate, record_dir=args.record_dir, calibration_df=calibration_df,
         status_client=status_client, status_address=args.status_out_address,
         biodata_out_address=args.biodata_out_address,
+        calibration_progress_address=args.calibration_progress_address,
         model=model, scaler=scaler, feature_cols=feature_cols, w_cols=w_cols,
         static_transformer=static_transformer, reference_df=reference_df,
         live_transformer_method=args.live_transformer_method,
@@ -643,6 +734,8 @@ def main():
     print(f"Broadcasting session status to {args.status_out_host}:{args.status_out_port}{args.status_out_address}")
     print(f"Broadcasting live raw-biodata graphs to {args.status_out_host}:{args.status_out_port}"
           f"{args.biodata_out_address}/{{heart,gsr,respiration}}")
+    print(f"Broadcasting calibration progress to {args.status_out_host}:{args.status_out_port}"
+          f"{args.calibration_progress_address}/{{fraction,quality,target}}")
     print("Waiting for /crocodile/session/start ...")
     server.serve_forever()
 
