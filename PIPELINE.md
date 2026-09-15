@@ -503,19 +503,19 @@ sequential on purpose.
   state machine (`SessionState`, one instance for the process's lifetime):
   ```
   IDLE --session/start--> READY --calibration/start--> CALIBRATING
-                            |                                |
-                            |                       calibration/stop
-                            |                                v
-                            |                           CALIBRATED
-                            |                                |
-                            +-----------live/start------------+
-                                         |
-                                         v
-                                       LIVE --calibration/recalibrate--> (stays LIVE)
-                                         |
-                              (any state) session/end
-                                         v
-                                       IDLE
+                            |                               |
+                            |                        calibration/stop
+                            |                               v
+                            |                          CALIBRATED
+                            |                               |
+                            +-----------live/start----------+
+                                            |
+                                            v
+                                          LIVE --(re)calibration--> (stays LIVE)
+                                            |
+                                 (any state) session/end
+                                            v
+                                          IDLE
   ```
   `session/start` creates a fresh `OnlineFeatureExtractor` per visitor (no
   state leaks between sessions) and, if `--calibration-csv` was given at
