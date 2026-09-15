@@ -427,6 +427,12 @@ class SessionState:
             return
 
         subject_df = pd.DataFrame(self._calibration_rows)
+        feature_keys = [c for c in subject_df.columns if c not in METADATA_COLS]
+        subject_df = subject_df[~subject_df[feature_keys].isna().any(axis=1)]
+        if subject_df.empty:
+            print("  No calibration rows without NaN features -- keeping current transformer")
+            return
+
         counts = subject_df['emotion'].value_counts()
         viable_emotions = counts[counts >= self.min_samples_per_emotion].index.tolist()
 
@@ -442,16 +448,29 @@ class SessionState:
         try:
             new_transformer = create_transformer(method)
             if method in ('zscore', 'coral', 'ot_global'):
-                # Single dominant label (usually just 'neu' from an un-cued
-                # calibration, or any pooled/forced class-blind fit) --
-                # match reference rows with that same label specifically;
-                # pool the whole reference if multiple/no labels present.
-                emotion = subject_df['emotion'].mode().iloc[0] if len(counts) == 1 else None
+                # A single significant (>= --min-samples-per-emotion) label --
+                # usually just 'neu' from an un-cued calibration -- matches
+                # reference rows with that same label specifically. Any other
+                # labels present are treated as noise (e.g. one stray row
+                # from an accidental Set Emotion press) as long as they
+                # don't clear that same bar; falls back to the plain mode
+                # when calibration stopped before even the dominant label
+                # reached it. Pools the whole reference (no restriction)
+                # only when genuinely >=2 labels are both significant --
+                # reachable here only via an explicit --live-transformer-
+                # method override, since auto only reaches this branch when
+                # fewer than 2 labels are viable.
+                if len(viable_emotions) == 1:
+                    emotion = viable_emotions[0]
+                elif len(viable_emotions) == 0:
+                    emotion = subject_df['emotion'].mode().iloc[0]
+                else:
+                    emotion = None
                 new_transformer.fit(self.reference_df, subject_df, emotion=emotion)
             else:
                 new_transformer.fit(self.reference_df, subject_df[subject_df['emotion'].isin(viable_emotions)])
             self.active_transformer = new_transformer
-            print(f"  Live transformer fit: {method} on {len(subject_df)} calibration rows "
+            print(f"  Live transformer fit: {method} on {len(subject_df)} clean calibration rows "
                   f"({dict(counts)})")
             if self.record_dir:
                 self.record_dir.mkdir(parents=True, exist_ok=True)
