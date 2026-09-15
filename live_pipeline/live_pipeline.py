@@ -105,8 +105,13 @@ to the same --status-out-host/--status-out-port):
   rows only, so it accurately stalls during the NaN warm-up period
   instead of overclaiming readiness), <prefix>/quality (float 0-1,
   valid rows / total buffered rows so far), <prefix>/target (string,
-  the tier name being tracked). Reset to 0.0/1.0/current-target at
-  every calibration/start.
+  the tier name being tracked), <prefix>/floor_ready (0/1, whether
+  there's enough clean data yet for even the cheapest tier -- zscore,
+  which has no real minimum of its own -- to be trustworthy, using
+  --min-samples-per-emotion as the floor; --fraction/--target never
+  reflect zscore readiness, since they only ever track progress toward
+  a better tier). Reset to 0.0/1.0/current-target/0.0 at every
+  calibration/start.
 
 Usage (from the repo root):
     python live_pipeline/live_pipeline.py \
@@ -208,8 +213,11 @@ def build_arg_parser():
                              '>=2 emotions have data else coral; based on valid (non-NaN) rows only, '
                              'so it stays a trustworthy readiness signal even during the NaN warm-up '
                              'period), <prefix>/quality (float 0-1, valid rows / total buffered rows '
-                             'so far), <prefix>/target (string, the tier name being tracked). Reset '
-                             'to 0.0/1.0/current-target at every calibration/start.')
+                             'so far), <prefix>/target (string, the tier name being tracked), '
+                             '<prefix>/floor_ready (0/1, enough clean data yet for the cheapest tier '
+                             '-- zscore -- to be trustworthy, using --min-samples-per-emotion as the '
+                             'floor; fraction/target never reflect zscore readiness on their own). '
+                             'Reset to 0.0/1.0/current-target/0.0 at every calibration/start.')
     parser.add_argument('--record-dir', default=None,
                         help='If given, save each session\'s raw biodata (from calibration/start '
                              'onward) to {record-dir}/{session_id}.csv for later retraining/analysis. '
@@ -395,6 +403,7 @@ class SessionState:
             self.status_client.send_message(
                 f"{self.calibration_progress_address}/target",
                 self.live_transformer_method if self.reference_df is not None else 'disabled')
+            self.status_client.send_message(f"{self.calibration_progress_address}/floor_ready", 0.0)
 
     def set_calibration_emotion(self, label):
         if not self._check('set_calibration_emotion'):
@@ -557,6 +566,7 @@ class SessionState:
             # showing progress toward a fit that will never happen.
             target = 'disabled'
             fraction = 0.0
+            floor_ready = 0.0
         else:
             target = self.live_transformer_method
             if target == 'auto':
@@ -573,10 +583,21 @@ class SessionState:
             else:  # zscore -- no real minimum, "ready" as soon as any valid data exists
                 fraction = 1.0 if self._calib_valid_rows >= 1 else 0.0
 
+            # Floor: is there enough clean data yet for even the cheapest tier
+            # (zscore) to be trustworthy, as opposed to the near-instant
+            # "ready" its own fraction math above claims? Reuses
+            # --min-samples-per-emotion as the threshold -- no dedicated flag,
+            # since it's already the closest existing "minimum trustworthy
+            # sample count" in this codebase, and roughly matches the zone
+            # observed in practice: a 9-valid-row zscore fit produced garbage
+            # output, a 299-valid-row one was clean.
+            floor_ready = 1.0 if self._calib_valid_rows >= self.min_samples_per_emotion else 0.0
+
         if self.status_client is not None:
             self.status_client.send_message(f"{self.calibration_progress_address}/fraction", fraction)
             self.status_client.send_message(f"{self.calibration_progress_address}/quality", quality)
             self.status_client.send_message(f"{self.calibration_progress_address}/target", target)
+            self.status_client.send_message(f"{self.calibration_progress_address}/floor_ready", floor_ready)
 
     def handle_biodata(self, heart, gsr, respiration):
         if self.phase == 'IDLE':
