@@ -10,6 +10,7 @@ for %%I in ("%SCRIPT_DIR%..") do set "REPO_ROOT=%%~fI"
 
 open-stage-control ^
     --load "%REPO_ROOT%\live_pipeline\crocodile-control-panel.json" ^
+    --theme "%REPO_ROOT%\emotion_grid\data\theme.css" ^
     --port 8090 ^
     --send 127.0.0.1:9000 ^
     --osc-port 9001 ^
