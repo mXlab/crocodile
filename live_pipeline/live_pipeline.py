@@ -21,6 +21,11 @@ PIPELINE.md's "Live pipeline" section for the full state diagram):
                                            v
                                          IDLE
 
+live/start also accepts CALIBRATING directly -- it implicitly runs
+calibration/stop first (fits the transformer, same as an explicit stop)
+before moving to LIVE, so an operator never needs a separate stop click
+just to go live.
+
 Once `calibration/start` fires, every incoming biodata sample is pushed
 through OnlineFeatureExtractor.push() continuously for the rest of the
 session (through CALIBRATING, CALIBRATED, and LIVE) -- nothing ever stops
@@ -489,6 +494,11 @@ class SessionState:
             print(f"  WARNING: live transformer fit failed ({e}) -- keeping current transformer")
 
     def start_live(self):
+        if self.phase == 'CALIBRATING':
+            # Stopping calibration first (fits the transformer, moves to
+            # CALIBRATED) isn't a separate operator decision worth a second
+            # click -- requesting LIVE already means "I'm done calibrating."
+            self.stop_calibration()
         if not self._check('start_live'):
             return
         self.phase = 'LIVE'
