@@ -396,29 +396,33 @@ class OnlineFeatureExtractor(BatchFeatureExtractor):
         fs = self.sampling_rate
         step = int(feature_interval_s * fs)
 
+        n_new = len(chunk_df)
         self._pending['gsr'].extend(chunk_df[signal_cols['eda']].values.astype(float).tolist())
         self._pending['ppg'].extend(chunk_df[signal_cols['ppg']].values.astype(float).tolist())
         self._pending['resp'].extend(chunk_df[signal_cols['resp']].values.astype(float).tolist())
-        has_emotion = 'emotion' in chunk_df.columns
-        has_feeling_it = 'feeling_it' in chunk_df.columns
-        if has_emotion:
+        # Always extend 'emotion'/'feeling_it' by exactly n_new too (None-filled
+        # when this call's chunk doesn't carry the column) so they never drift
+        # out of sync with gsr/ppg/resp -- a column that appears/disappears
+        # between calls (e.g. 'emotion' only while CALIBRATING) must not change
+        # how many samples are pending for the *next* completed row.
+        if 'emotion' in chunk_df.columns:
             self._pending['emotion'].extend(chunk_df['emotion'].values.tolist())
-        if has_feeling_it:
+        else:
+            self._pending['emotion'].extend([None] * n_new)
+        if 'feeling_it' in chunk_df.columns:
             self._pending['feeling_it'].extend(chunk_df['feeling_it'].values.tolist())
+        else:
+            self._pending['feeling_it'].extend([None] * n_new)
 
         rows = []
         while len(self._pending['gsr']) >= step:
             gsr_chunk = np.array(self._pending['gsr'][:step]); self._pending['gsr'] = self._pending['gsr'][step:]
             ppg_chunk = np.array(self._pending['ppg'][:step]); self._pending['ppg'] = self._pending['ppg'][step:]
             resp_chunk = np.array(self._pending['resp'][:step]); self._pending['resp'] = self._pending['resp'][step:]
-            emotion_val = None
-            if self._pending['emotion']:
-                emotion_val = self._pending['emotion'][0]
-                self._pending['emotion'] = self._pending['emotion'][step:]
-            feeling_it_val = None
-            if self._pending['feeling_it']:
-                feeling_it_val = self._pending['feeling_it'][0]
-                self._pending['feeling_it'] = self._pending['feeling_it'][step:]
+            emotion_val = self._pending['emotion'][0]
+            self._pending['emotion'] = self._pending['emotion'][step:]
+            feeling_it_val = self._pending['feeling_it'][0]
+            self._pending['feeling_it'] = self._pending['feeling_it'][step:]
 
             rows.append(self._finalize_row(gsr_chunk, ppg_chunk, resp_chunk, fs, step,
                                             emotion_val, feeling_it_val))
